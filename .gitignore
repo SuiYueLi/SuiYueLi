@@ -1,0 +1,19 @@
+# ===== Dependencies =====
+/node_modules/
+/vendor/
+
+# ===== Editor =====
+/.vscode/
+
+# ===== Build output =====
+/dist/
+/build/
+/out/
+
+# ===== Environment =====
+/.env
+/.env.*
+
+# ===== OS =====
+.DS_Store
+Thumbs.db

@@ -1,0 +1,372 @@
+.biji-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--gap-sm) 0;
+  list-style: none;
+  margin: 0;
+}
+.biji-item {
+  padding: var(--gap-sm) var(--gap-md);
+  border-bottom: 1px solid var(--divider-color);
+  cursor: pointer;
+  color: var(--text-title);
+  font-family: var(--font-BiJi);
+  font-size: var(--size-BiJi);
+  letter-spacing: 0.075em;
+  position: relative;
+}
+.biji-item-summary {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 1.6em;
+  line-height: 1.6em;
+}
+.biji-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px 0 3px;
+  font-size: 0.85em;
+  z-index: 0;
+  opacity: 0.8;
+}
+.biji-icon::before {
+  content: '';
+  position: absolute;
+  top: -1px; right: -1px; bottom: -1px; left: -1px;
+  clip-path: polygon(0 0, 68% 0, 100% 50%, 68% 100%, 0 100%);
+  background: var(--border-color);
+  z-index: -2;
+}
+.biji-icon::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  clip-path: polygon(0 0, 68% 0, 100% 50%, 68% 100%, 0 100%);
+  background: var(--bg-glass);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  z-index: -1;
+}
+.biji-item-summary .biji-icon {
+  margin-right: 6px;
+}
+.biji-item-expand .biji-icon {
+  margin-right: 6px;
+}
+.biji-item.expanded .biji-item-summary {
+  display: none;
+}
+.biji-item-expand {
+  display: none;
+  overflow-y: auto;
+  overflow-y: overlay;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+  padding: var(--gap-xs) 0;
+}
+.biji-item-expand::-webkit-scrollbar {
+  width: 0.4rem;
+}
+.biji-item-expand::-webkit-scrollbar-track {
+  background: transparent;
+}
+.biji-item-expand::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 0.2rem;
+}
+.biji-item-expand:hover::-webkit-scrollbar-thumb,
+.biji-item-expand:focus-within::-webkit-scrollbar-thumb {
+  background: var(--accent-secondary);
+}
+@supports (scrollbar-width: auto) {
+  .biji-item-expand {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .biji-item-expand:hover {
+    scrollbar-color: var(--accent-secondary) transparent;
+  }
+}
+.biji-item.expanded .biji-item-expand {
+  display: block;
+}
+.biji-item-actions {
+  display: none;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  gap: 2px;
+  font-size: var(--small-size);
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 2;
+}
+.biji-item.expanded .biji-item-actions {
+  display: flex;
+  opacity: 0;
+  right: calc(2px + 1rem + 4px);
+}
+.biji-item.expanded:hover .biji-item-actions,
+.biji-item.expanded:focus-within .biji-item-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .biji-item.expanded .biji-item-actions,
+  .biji-item.expanded:hover .biji-item-actions {
+    opacity: 0;
+  }
+  .biji-item.expanded.actions-visible .biji-item-actions,
+  .biji-item.expanded.actions-visible:hover .biji-item-actions {
+    opacity: 1;
+  }
+}
+.biji-item-actions button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: rgba(128, 128, 128, 0.25);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.biji-item-actions button:hover {
+  background: rgba(128, 128, 128, 0.5);
+  color: var(--text-primary);
+}
+.biji-item-actions button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.fab-add {
+  position: absolute;
+  bottom: 2rem;
+  right: calc(var(--safe-margin) + 0.5rem);
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent-primary);
+  color: #fff;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: var(--z-fab);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transition: transform 0.15s, background 0.15s;
+}
+.fab-add:hover {
+  transform: scale(1.1);
+}
+.fab-add:active {
+  transform: scale(0.95);
+}
+
+.biji-editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: var(--z-content-view);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.biji-editor-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.biji-editor {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 45vh;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  z-index: calc(var(--z-content-view) + 1);
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+  max-width: var(--app-width);
+  margin: 0 auto;
+}
+@media (min-width: 541px) {
+  .biji-editor {
+    box-shadow:
+      0 -4px 20px rgba(0,0,0,0.15),
+      -3px 0 6px rgba(0,0,0,0.06),
+      3px 0 6px rgba(0,0,0,0.06);
+  }
+}
+.biji-editor.open {
+  transform: translateY(0);
+}
+.biji-editor.fullscreen {
+  height: 100vh !important;
+  border-radius: 0;
+}
+.biji-editor-drag {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  flex-shrink: 0;
+  -webkit-user-select: none;
+  user-select: none;
+  position: relative;
+  touch-action: none;
+}
+.biji-editor-drag::after {
+  content: '';
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-color);
+}
+.biji-editor-close {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.biji-editor-close:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.biji-editor-maximize {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.biji-editor-maximize:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.biji-editor-body {
+  flex: 1;
+  padding: 0 var(--safe-margin);
+  overflow: hidden;
+  display: flex;
+}
+.biji-editor-body textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--size-BiJi);
+  font-family: var(--font-BiJi);
+  letter-spacing: 0.05em;
+  line-height: 1.6;
+  outline: none;
+  padding: 0;
+  overflow-y: auto;
+}
+.biji-editor-footer {
+  display: flex;
+  align-items: center;
+  padding: var(--gap-sm) var(--safe-margin);
+  gap: var(--gap-sm);
+  flex-shrink: 0;
+  border-top: 1px solid var(--divider-color);
+}
+.biji-editor-icon {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  line-height: 32px;
+  font-size: 1rem;
+  cursor: pointer;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+.biji-editor-count {
+  font-size: var(--small-size);
+  color: var(--text-secondary);
+  flex: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.biji-editor-btns {
+  display: flex;
+  gap: var(--gap-sm);
+  flex-shrink: 0;
+}
+.biji-editor-btns button {
+  padding: 4px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: var(--small-size);
+  cursor: pointer;
+  font-family: var(--font-family);
+}
+.biji-editor-btns button.primary {
+  background: var(--accent-primary);
+  color: #fff;
+  border-color: var(--accent-primary);
+}
+.biji-editor-btns button.danger {
+  color: #dc3232;
+  border-color: #dc3232;
+}
+.biji-editor-btns button:hover {
+  opacity: 0.85;
+}
+.biji-editor-hint {
+  padding: 2px var(--safe-margin) var(--gap-sm);
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

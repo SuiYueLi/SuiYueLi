@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#FAFAF8">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="favicon.ico">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>华夏岁月历</title>
+<link rel="icon" href="favicon.ico">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="styles/main.css">
+<link rel="stylesheet" href="styles/Li_Ge.css">
+<link rel="stylesheet" href="styles/biji.css">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</head>
+<body data-theme="light" data-palette="vermillion">
+<script>
+  try {
+    var s = JSON.parse(localStorage.getItem('jieLi_settings') || '{}');
+    var m = s.themeMode || 'auto';
+    if (m === 'auto') m = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.body.setAttribute('data-theme', m);
+    if (s.palette) document.body.setAttribute('data-palette', s.palette);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = m === 'dark' ? '#1A1A1E' : '#FAFAF8';
+  } catch(e) {}
+</script>
+
+<div id="app">
+  <div class="bg-image-layer" id="bgImageLayer" style="display:none;">
+    <img id="bgImage" src="" alt="" onerror="this.parentElement.style.display='none'">
+  </div>
+  <!-- Bar 1: Header -->
+  <section class="bar-header" id="barHeader">
+    <span class="loong" id="Loong"><img src="/assets/IMG/二里头绿松石龙形器.png" alt="🐉"></span>
+    <span class="time-label" id="lviLabel">历准时：--</span>
+    <span style="color: rgba(127, 127, 127, 0.5);">│</span>
+    <span class="vli-label" id="vliLabel">注历时：--</span>
+    <span class="spacer"></span>
+    <div class="week-start-toggle" id="weekStartToggle" data-value="0">
+      <span>日</span>
+      <div class="toggle-track"><div class="toggle-thumb"></div></div>
+      <span>月</span>
+    </div>
+    <button type="button" class="hamburger-btn" id="hamburgerBtn" aria-label="菜单">☰</button>
+  </section>
+
+  <!-- Bar 2: Navigation -->
+  <section class="bar-nav" id="barNav">
+    <span class="era-toggle" id="eraToggle">华夏</span>
+    <span class="nian-display" id="nianDisplay">--</span>
+    <div class="nian-input-wrap" id="nianInputWrap">
+      <input type="number" id="nianInput" title="岁数" />
+      <button type="button" id="nianConfirm">确定</button>
+    </div>
+    <button type="button" class="nav-btn" id="suiPrev" style="transform: rotateY(180deg); font-size: 1em;" aria-label="上一岁">➧</button>
+    <button type="button" class="nav-btn" id="suiNext" style="font-size: 1em;" aria-label="下一岁">➧</button>
+    <span class="spacer"></span>
+    <span class="jie-name" id="jieName">--</span>
+    <button type="button" class="nav-btn" id="jiePrev" style="transform: rotate(-90deg); padding:4px 2px 1px 2px;" aria-label="上一节">➤</button>
+    <button type="button" class="nav-btn" id="jieNext" style="transform: rotate(90deg); padding:4px 2px 1px 2px;" aria-label="下一节">➤</button>
+    <span class="spacer"></span>
+    <span class="today-btn" id="todayBtn">今⏎</span>
+  </section>
+
+  <!-- Bar 3: Era Name -->
+  <section class="bar-era" id="barEra">
+    <button type="button" class="era-arrow" id="eraPrev" aria-label="上一个年号">◀</button>
+    <span class="era-text" id="eraText">--</span>
+    <button type="button" class="era-arrow" id="eraNext" aria-label="下一个年号">▶</button>
+  </section>
+
+  <!-- Bar 4: Weekday Names -->
+  <section class="bar-weekday" id="barWeekday"></section>
+
+  <!-- Bar 5: Calendar Grid -->
+  <section class="bar-calendar" id="barCalendar">
+    <div class="calendar-grid" id="calendarGrid"></div>
+  </section>
+
+  <!-- Bar 6: Date Details -->
+  <section class="bar-details" id="barDetails">
+    <ul id="detailList"></ul>
+  </section>
+
+  <!-- Bar 7: 笔记栏 -->
+  <section class="bar-events" id="barEvents">
+    <div class="biji-list" id="bijiList"></div>
+  </section>
+  <button type="button" class="fab-add" id="fabAdd" aria-label="新建笔记">+</button>
+
+<!-- Biji Editor Overlay -->
+<div class="biji-editor-overlay" id="bijiEditorOverlay"></div>
+<!-- Biji Editor -->
+<div class="biji-editor" id="bijiEditor">
+  <div class="biji-editor-drag" id="bijiEditorDrag">
+    <button type="button" class="biji-editor-close" id="bijiClose" title="关闭">✕</button>
+    <button type="button" class="biji-editor-maximize" id="bijiMaximize" title="最大化">⛶</button>
+  </div>
+  <div class="biji-editor-body">
+    <textarea id="bijiTextarea" placeholder="输入笔记内容…"></textarea>
+  </div>
+  <div class="biji-editor-hint" id="bijiEditorHint"></div>
+  <div class="biji-editor-footer">
+    <div class="biji-editor-icon" id="bijiEditIcon" title="修改图标">✑</div>
+    <span class="biji-editor-count" id="bijiEditCount">0/3000</span>
+    <div class="biji-editor-btns">
+      <button type="button" class="danger" id="bijiEditDelete" style="display:none">删除</button>
+      <button type="button" id="bijiEditCancel">取消</button>
+      <button type="button" class="primary" id="bijiEditSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- VLI Panel -->
+<div class="vli-panel" id="vliPanel">
+  <div class="vli-list" id="vliList"></div>
+  <div class="vli-custom-form" id="vliCustomForm" style="display:none">
+    <div class="vli-row">
+      <input type="text" id="vliCustomName" placeholder="名称" />
+      <input type="number" id="vliCustomCha" step="0.01" placeholder="±0.00" />
+    </div>
+  </div>
+  <div class="vli-actions">
+    <button type="button" id="vliCancel">取消</button>
+    <button type="button" class="primary" id="vliConfirm">确定</button>
+  </div>
+</div>
+</div>
+
+<!-- Jie Dropdown -->
+<div class="jie-dropdown" id="jieDropdown"></div>
+
+<!-- Hamburger Menu -->
+<div class="hamburger-menu" id="hamburgerMenu">
+  <div class="menu-overlay" id="menuOverlay"></div>
+  <div class="menu-panel">
+    <ul>
+      <li id="menuSettings">设置</li>
+      <li id="menuBijiOverview">笔记总览</li>
+      <li id="menuImportExport">导入导出</li>
+      <li id="menuConvert">转换工具</li>
+      <li id="menuShuJu">历法数据</li>
+      <li id="menuAbout">关于应用</li>
+      <li id="menuInstallGuide">安装说明</li>
+      <li id="menuInstallApp" style="display:none">安装到本地</li>
+    </ul>
+  </div>
+</div>
+
+
+
+
+<!-- Settings Page -->
+<div class="settings-page" id="settingsPage">
+  <div class="sp-header">
+    <button title="返回" type="button" class="back-btn" id="spBack">➥</button>
+    <span class="sp-title">设置</span>
+    <a href="javascript:void(0)" id="spCustomStyleBtn" class="sp-link">字体与简繁转换</a>
+  </div>
+  <div class="sp-body">
+    <div class="sp-section">
+      <h3>星期名类型</h3>
+      <div class="sp-option">
+        <div class="radio-group">
+          <label><input type="radio" name="weekdayType" value="yao" /> 曜</label>
+          <label><input type="radio" name="weekdayType" value="shu" /> 数</label>
+        </div>
+      </div>
+    </div>
+    <div class="sp-section">
+      <h3>主题色</h3>
+      <div class="sp-option">
+        <div class="radio-group">
+          <label><input type="radio" name="themeMode" value="auto" /> 随</label>
+          <label><input type="radio" name="themeMode" value="light" /> 明</label>
+          <label><input type="radio" name="themeMode" value="dark" /> 暗</label>
+        </div>
+      </div>
+      <div class="sp-palette-grid" id="paletteGrid">
+        <div class="sp-palette-item" data-palette="vermillion">
+          <div class="sp-palette-swatch" style="background:#C4463A"></div>
+          <div class="sp-palette-label">朱</div>
+        </div>
+        <div class="sp-palette-item" data-palette="jade">
+          <div class="sp-palette-swatch" style="background:#4A8C6F"></div>
+          <div class="sp-palette-label">翠</div>
+        </div>
+        <div class="sp-palette-item" data-palette="gold">
+          <div class="sp-palette-swatch" style="background:#C9A96E"></div>
+          <div class="sp-palette-label">金</div>
+        </div>
+        <div class="sp-palette-item" data-palette="steel">
+          <div class="sp-palette-swatch" style="background:#4499BB"></div>
+          <div class="sp-palette-label">蓝</div>
+        </div>
+        <div class="sp-palette-item sp-palette-add" id="paletteAddBtn" title="新建配色">
+          <div class="sp-palette-swatch sp-palette-add-icon">+</div>
+          <div class="sp-palette-label">新建</div>
+        </div>
+      </div>
+      <div class="sp-palette-confirm" id="paletteConfirm" style="display:none">
+        <div class="sp-palette-confirm-row">
+          <div class="sp-palette-swatch" id="paletteConfirmPreview"></div>
+          <input type="text" id="paletteConfirmName" placeholder="命名（可选）" title="配色名称" />
+          <button type="button" id="paletteConfirmCancel">取消</button>
+          <button type="button" class="primary" id="paletteConfirmOk">确认</button>
+        </div>
+        <div class="sp-color-picker">
+          <div class="sp-color-picker-sv" id="palettePickerSV">
+            <div class="sp-color-picker-cursor" id="palettePickerSVCursor"></div>
+          </div>
+          <div class="sp-color-picker-hue" id="palettePickerHue">
+            <div class="sp-color-picker-thumb" id="palettePickerHueThumb"></div>
+          </div>
+        </div>
+        <div class="sp-color-values" id="paletteColorValues">
+          <input type="text" class="sp-color-value" data-format="hex" id="paletteValueHex" title="HEX" />
+          <input type="text" class="sp-color-value" data-format="rgb" id="paletteValueRgb" title="RGB" />
+          <input type="text" class="sp-color-value" data-format="hsl" id="paletteValueHsl" title="HSL" />
+        </div>
+      </div>
+    </div>
+    <div class="sp-section">
+      <h3>背景图片</h3>
+      <div class="sp-option">
+        <span>选择图片</span>
+        <button type="button" id="bgImageBtn">选择文件</button>
+      </div>
+      <div class="sp-option" id="bgImageRemoveWrap" style="display:none">
+        <span>当前背景</span>
+        <button type="button" id="bgImageRemove">移除</button>
+      </div>
+      <div class="sp-option">
+        <span>模糊强度</span>
+        <div class="sp-blur-input-wrap">
+          <input type="number" id="bgBlurInput" value="1" min="0" step="0.5" title="背景模糊强度"/>
+          <span class="sp-blur-unit">px</span>
+        </div>
+      </div>
+    </div>
+    <div class="sp-section">
+      <h3>日历格细节</h3>
+      <div class="sp-option">
+        <span>文字衬底阴影（有背景图时增强可见性）</span>
+        <div class="week-start-toggle" id="cellShadowToggle" data-value="0">
+          <span>关</span>
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          <span>开</span>
+        </div>
+      </div>
+      <div class="sp-option">
+        <span>左侧竖排汉字</span>
+        <div class="week-start-toggle" id="zuoRotateToggle" data-value="1">
+          <span>正立</span>
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          <span>旋转</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sp-section">
+      <h3>字体自定义</h3>
+      <div class="sp-font-row" data-font-key="Base">
+        <span class="sp-font-row-label">基础字体</span>
+        <span class="sp-font-row-value"></span>
+      </div>
+      <div class="sp-font-row" data-font-key="SuiJie">
+        <span class="sp-font-row-label">岁、节栏</span>
+        <span class="sp-font-row-value"></span>
+      </div>
+      <div class="sp-font-row" data-font-key="Hao">
+        <span class="sp-font-row-label">日历格主日数 (阿拉伯)</span>
+        <span class="sp-font-row-value"></span>
+      </div>
+      <div class="sp-font-row" data-font-key="Ri">
+        <span class="sp-font-row-label">日历格副日数 (汉字)</span>
+        <span class="sp-font-row-value"></span>
+      </div>
+      <div class="sp-font-row" data-font-key="XiangQing">
+        <span class="sp-font-row-label">年号栏、日期详情栏</span>
+        <span class="sp-font-row-value"></span>
+      </div>
+      <div class="sp-font-row" data-font-key="BiJi">
+        <span class="sp-font-row-label">笔记栏</span>
+        <span class="sp-font-row-value"></span>
+      </div>
+      <div class="sp-option">
+        <span></span><button type="button" class="sp-font-reset-btn" id="fontResetBtn">全部重置</button>
+      </div>
+    </div>
+
+    <div class="sp-section">
+      <h3>在线更新</h3>
+      <div class="sp-option">
+        <span>当前版本</span>
+        <span id="currentVersionText" style="color:var(--text-tertiary)"></span>
+      </div>
+      <div class="sp-option">
+        <span>自动检查并执行</span>
+        <select id="updateCheckInterval" title="更新检查频率" style="padding:2px 8px;border:1px solid var(--border-color);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);font-size:var(--small-size);font-family:var(--font-family)">
+          <option value="7">每 7 天</option>
+          <option value="30">每 30 天</option>
+          <option value="0">仅手动</option>
+        </select>
+      </div>
+      <div class="sp-option">
+        <span>手动检查并询问</span>
+        <button type="button" id="updateCheckBtn">检查</button>
+      </div>
+      <div class="sp-option">
+        <span></span>
+        <span id="updateStatusText" style="color:var(--text-tertiary)">　</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sp-font-overlay" id="fontOverlay"></div>
+<div class="sp-font-dialog" id="fontSubmenu">
+  <div class="sp-font-submenu-title" id="fontSubmenuTitle"></div>
+  <div class="sp-font-controls">
+    <input type="text" class="sp-font-name-input" id="fontNameInput" placeholder="输入系统字体名" title="输入安装在本机系统的字体名" /> 或 
+    <button type="button" class="sp-font-file-btn" id="fontFileBtn">加载本地字体文件</button>
+  </div>
+  <div class="sp-font-scale-row">
+    <span class="sp-font-scale-label">字号缩放</span>
+    <input type="number" class="sp-font-scale-input" id="fontScaleInput" value="100" min="50" max="200" step="10" title="字号缩放百分比" />
+    <span class="sp-font-scale-unit">%</span>
+  </div>
+  <div class="sp-font-preview" id="fontPreview"></div>
+  <div class="sp-font-actions" id="fontActions">
+    <button type="button" class="sp-font-reset-single-btn" id="fontResetSingleBtn">重置</button>
+    <button type="button" class="sp-font-cancel-btn" id="fontCancelBtn">取消</button>
+    <button type="button" class="sp-font-apply-btn" id="fontApplyBtn">确定</button>
+  </div>
+</div>
+
+<!-- Convert Tool Page -->
+<div class="convert-page" id="convertPage">
+  <div class="cvp-header">
+    <button title="返回" type="button" class="back-btn" id="cvpBack">➥</button>
+    <span class="cvp-title">转换工具</span>
+  </div>
+  <div class="cvp-body">
+
+    <div class="cvp-card">
+      <div class="cvp-card-title">经度差 ⇒ 时差</div>
+      <div class="cvp-row">
+        <div class="radio-group">
+          <label><input type="radio" name="lngMode" value="degree" checked /> 度　　</label>
+          <label><input type="radio" name="lngMode" value="dms" /> 度分秒</label>
+        </div>
+      </div>
+      <div class="cvp-row wide" id="lngDegreeWrap">
+        <span class="cvp-lbl">经度</span>
+        <input type="number" id="lngDegreeInput" step="0.0001" placeholder="116.3912" title="经度（度）" />
+        <span class="cvp-unit">°E</span>
+      </div>
+      <div class="cvp-row cvp-dms" id="lngDmsWrap">
+        <input type="number" id="lngD" placeholder="度" title="经度度" min="0" max="180" />
+        <span class="cvp-unit">°</span>
+        <input type="number" id="lngM" placeholder="分" title="经度分" min="0" max="59" />
+        <span class="cvp-unit">′</span>
+        <input type="number" id="lngS" placeholder="秒" title="经度秒" min="0" max="59" step="0.01" />
+        <span class="cvp-unit">″E</span>
+        <span class="spacer"></span>
+        <button type="button" class="cvp-calc-btn" id="lngCalcBtn">计算</button>
+      </div>
+      <div class="cvp-result" id="lngResult"></div>
+    </div>
+
+    <div class="cvp-card">
+      <div class="cvp-card-title">小数日 ⇌ 时分秒</div>
+      <div class="cvp-half">
+        <div class="cvp-half-title">小数日 ➜ 时分秒</div>
+        <div class="cvp-row wide">
+          <span class="cvp-lbl">日</span>
+          <input type="number" id="d2hmsInput" step="0.00001" placeholder="0.5" title="日内小数" />
+          <span class="spacer"></span>
+          <button type="button" class="cvp-calc-btn" id="d2hmsCalcBtn">转换</button>
+        </div>
+        <div class="cvp-result" id="d2hmsResult"></div>
+      </div>
+      <div class="cvp-divider"></div>
+      <div class="cvp-half">
+        <div class="cvp-half-title">时分秒 ➜ 小数日</div>
+        <div class="cvp-row cvp-dms">
+          <input type="number" id="hms2dH" placeholder="时" title="时" min="0" max="23" />
+          <span class="cvp-unit">h</span>
+          <input type="number" id="hms2dM" placeholder="分" title="分" min="0" max="59" />
+          <span class="cvp-unit">m</span>
+          <input type="number" id="hms2dS" placeholder="秒" title="秒" min="0" max="59" step="0.001" />
+          <span class="cvp-unit">s</span>
+          <span class="spacer"></span>
+          <button type="button" class="cvp-calc-btn" id="hms2dCalcBtn">转换</button>
+        </div>
+        <div class="cvp-result" id="hms2dResult"></div>
+      </div>
+    </div>
+
+    <div class="cvp-card">
+      <div class="cvp-card-title">节历 ⇌ 积日</div>
+      <div class="cvp-half">
+        <div class="cvp-half-title">节历 ➜ 积日</div>
+        <div class="cvp-row">
+          <div class="radio-group">
+            <label><input type="radio" name="jlJiRiType" value="1" checked /> HJ　　</label>
+            <label><input type="radio" name="jlJiRiType" value="0" /> MJD　 </label>
+            <label><input type="radio" name="jlJiRiType" value="-1" /> JD</label>
+          </div>
+        </div>
+        <div class="cvp-row">
+          <span class="cvp-lbl">岁</span>
+          <input type="number" id="jl2hjSui" title="岁" />
+          <span class="cvp-lbl">节</span>
+          <input type="number" id="jl2hjJie" title="节" min="1" max="12" />
+          <span class="cvp-lbl">日</span>
+          <input type="number" id="jl2hjHao" title="日" min="1" />
+          <span class="spacer"></span>
+          <button type="button" class="cvp-calc-btn" id="jl2hjCalcBtn">转换</button>
+        </div>
+        <div class="cvp-result" id="jl2hjResult"></div>
+      </div>
+      <div class="cvp-divider"></div>
+      <div class="cvp-half">
+        <div class="cvp-half-title">花甲积日 ➜ 节历</div>
+        <div class="cvp-row wide">
+          <span class="cvp-lbl">HJ</span>
+          <input type="number" id="hj2jlInput" step="1" title="HJ积日数" />
+          <span class="spacer"></span>
+          <button type="button" class="cvp-calc-btn" id="hj2jlCalcBtn">转换</button>
+        </div>
+        <div class="cvp-result" id="hj2jlResult"></div>
+      </div>
+    </div>
+
+    <div class="cvp-card">
+      <div class="cvp-card-title">西历 ⇌ 积日</div>
+      <div class="cvp-half">
+        <div class="cvp-half-title">西历 ➜ 积日</div>
+        <div class="cvp-row">
+          <div class="radio-group">
+            <label><input type="radio" name="wcJiRiType" value="-1" /> JD　　</label>
+            <label><input type="radio" name="wcJiRiType" value="0" checked /> MJD　 </label>
+            <label><input type="radio" name="wcJiRiType" value="1" /> HJ</label>
+          </div>
+        </div>
+        <div class="cvp-row">
+          <span class="cvp-lbl">年</span>
+          <input type="number" id="wc2hjY" title="西历年" />
+          <span class="cvp-lbl">月</span>
+          <input type="number" id="wc2hjM" title="西历月" min="1" max="12" />
+          <span class="cvp-lbl">日</span>
+          <input type="number" id="wc2hjD" title="西历日" min="1" max="31" />
+          <span class="spacer"></span>
+          <button type="button" class="cvp-calc-btn" id="wc2hjCalcBtn">转换</button>
+        </div>
+        <div class="cvp-result" id="wc2hjResult"></div>
+      </div>
+      <div class="cvp-divider"></div>
+      <div class="cvp-half">
+        <div class="cvp-half-title">简化儒略日 ➜ 西历</div>
+        <div class="cvp-row wide">
+          <span class="cvp-lbl">MJD</span>
+          <input type="number" id="hj2wcInput" size="7" step="1" title="简化儒略日" />
+          <span class="spacer"></span>
+          <button type="button" class="cvp-calc-btn" id="hj2wcCalcBtn">转换</button>
+        </div>
+        <div class="cvp-result" id="hj2wcResult"></div>
+      </div>
+    </div>
+
+    <div class="cvp-card">
+      <div class="cvp-card-title">节历 ⇌ 西历</div>
+      <div class="cvp-half">
+        <div class="cvp-half-title">节历 ➜ 西历</div>
+        <div class="cvp-row">
+          <span class="cvp-lbl">岁</span>
+          <input type="number" id="jl2wcSui" title="岁" />
+          <span class="cvp-lbl">节</span>
+          <input type="number" id="jl2wcJie" title="节" min="1" max="12" />
+          <span class="cvp-lbl">日</span>
+          <input type="number" id="jl2wcHao" title="日" min="1" />
+          <span class="spacer"></span>
+          <button type="button" class="cvp-calc-btn" id="jl2wcCalcBtn">转换</button>
+        </div>
+        <div class="cvp-result" id="jl2wcResult"></div>
+      </div>
+      <div class="cvp-divider"></div>
+      <div class="cvp-half">
+        <div class="cvp-half-title">西历 ➜ 节历</div>
+        <div class="cvp-row">
+          <span class="cvp-lbl">年</span>
+          <input type="number" id="wc2jlY" title="西历年" />
+          <span class="cvp-lbl">月</span>
+          <input type="number" id="wc2jlM" title="西历月" min="1" max="12" />
+          <span class="cvp-lbl">日</span>
+          <input type="number" id="wc2jlD" title="西历日" min="1" max="31" />
+          <span class="spacer"></span>
+          <button type="button" class="cvp-calc-btn" id="wc2jlCalcBtn">转换</button>
+        </div>
+        <div class="cvp-result" id="wc2jlResult"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Import/Export Page -->
+<div class="ie-page" id="iePage">
+  <div class="ie-header">
+    <button title="返回" type="button" class="back-btn" id="ieBack">➥</button>
+    <span class="ie-title">导入/导出</span>
+    <a href="javascript:void(0)" id="ieGeShiBtn" class="sp-link">格式说明</a>
+  </div>
+  <div class="ie-body">
+    <div class="sp-section">
+      <h3>节庆民俗列表</h3>
+      <div class="sp-option">
+        <span>导入自定义列表</span>
+        <button type="button" id="jieSuImportBtn">选择文件</button>
+      </div>
+      <div class="sp-option">
+        <span>导入模式</span>
+        <div class="week-start-toggle" id="jieSuImportModeToggle" data-value="0">
+          <span>合并</span>
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          <span>替换</span>
+        </div>
+      </div>
+      <div class="sp-option">
+        <span>导出当前列表</span>
+        <button type="button" id="jieSuExportBtn">导出</button>
+      </div>
+      <div class="sp-option">
+        <span>恢复预设列表</span>
+        <button type="button" id="jieSuResetBtn">恢复</button>
+      </div>
+    </div>
+    <div class="sp-section">
+      <h3>每年重复日列表</h3>
+      <div class="sp-option">
+        <span>导入自定义列表</span>
+        <button type="button" id="fuRiImportBtn">选择文件</button>
+      </div>
+      <div class="sp-option">
+        <span>导入模式</span>
+        <div class="week-start-toggle" id="fuRiImportModeToggle" data-value="0">
+          <span>合并</span>
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          <span>替换</span>
+        </div>
+      </div>
+      <div class="sp-option">
+        <span>导出当前列表</span>
+        <button type="button" id="fuRiExportBtn">导出</button>
+      </div>
+      <div class="sp-option">
+        <span>恢复预设列表</span>
+        <button type="button" id="fuRiResetBtn">恢复</button>
+      </div>
+    </div>
+    <div class="sp-section">
+      <h3>笔记</h3>
+      <div class="sp-option">
+        <span>在本地文件存储笔记</span>
+        <span id="bijiFileName" style="color:var(--text-tertiary); font-size:var(--small-size); font-style:italic; display:none; margin-left:auto; margin-right:0.5em;"></span>
+        <button type="button" id="bijiFileBtn">指定文件</button>
+      </div>
+      <div class="sp-option">
+        <span>导出起止岁 (留空为全部)</span>
+        <input type="number" id="bijiExportStart" aria-label="起始岁" step="1" style="width:3.3em;text-align:right">～
+        <input type="number" id="bijiExportEnd" aria-label="终止岁" step="1" style="width:3.3em;text-align:right">
+      </div>
+      <div class="sp-option">
+        <span>导出格式</span>
+        <div class="week-start-toggle" id="bijiExportFormat" data-value="0">
+          <span>JSON</span>
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          <span>文本</span>
+        </div>
+      </div>
+      <div class="sp-option">
+        <span></span>
+        <button type="button" id="bijiExportBtn">导出笔记</button>
+      </div>
+      <div class="sp-option">
+        <span>导入模式</span>
+        <div class="week-start-toggle" id="bijiImportModeToggle" data-value="0">
+          <span>合并</span>
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          <span>替换</span>
+        </div>
+      </div>
+      <div class="sp-option">
+        <span></span>
+        <button type="button" id="bijiImportBtn">导入笔记</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Biji Overview Page -->
+<div class="bo-page" id="boPage">
+  <div class="bo-header">
+    <button title="返回" type="button" class="back-btn" id="boBack">➥</button>
+    <span class="bo-title">笔记总览</span>
+  </div>
+  <div class="bo-toolbar" id="boToolbar">
+    <div class="bo-toolbar-row">
+      <button type="button" class="bo-tool-btn" id="boSelectAll" title="全选/反选">☐</button>
+      <button type="button" class="bo-tool-btn" id="boExpandAll" title="全部展开/收起">⊞</button>
+      <button type="button" class="bo-tool-btn" id="boSortOrder" title="升序/降序" data-asc="1">↑</button>
+      <button type="button" class="bo-tool-btn" id="boIconFilter" title="图标筛选">✑</button>
+      <button type="button" class="bo-tool-btn" id="boSearch" title="搜索">⌕</button>
+    </div>
+    <div class="bo-toolbar-row bo-sui-row" id="boSuiRow" style="display:none">
+      <span>起始岁</span>
+      <input type="number" id="boStartSui" step="1" style="width:5em;text-align:center" />
+      <button type="button" class="bo-tool-btn-sm" id="boSuiConfirm">✓</button>
+      <button type="button" class="bo-tool-btn-sm" id="boSuiCancel">✕</button>
+      <span>～</span>
+      <span>截止岁</span>
+      <input type="number" id="boEndSui" step="1" style="width:5em;text-align:center" />
+    </div>
+    <div class="bo-toolbar-row bo-search-row" id="boSearchRow" style="display:none">
+      <input type="text" id="boSearchInput" placeholder="输入关键字搜索" style="flex:1" />
+      <button type="button" class="bo-tool-btn-sm" id="boSearchClose">✕</button>
+    </div>
+    <div class="bo-toolbar-row bo-icon-filter-row" id="boIconFilterRow" style="display:none">
+      <div class="bo-icon-list" id="boIconList"></div>
+      <button type="button" class="bo-tool-btn-sm" id="boIconInvert">反选</button>
+    </div>
+    <div class="bo-toolbar-row bo-select-row" id="boSelectRow" style="display:none">
+      <button type="button" class="bo-tool-btn" id="boSelectInvert">反选</button>
+      <button type="button" class="bo-delete-btn" id="boDeleteSelected">删除选中</button>
+    </div>
+  </div>
+  <div class="bo-body" id="boBody"></div>
+</div>
+
+<!-- Info Page (GeShi / ShuJu) -->
+<div class="info-page" id="infoPage">
+  <div class="ip-header">
+    <button title="返回" type="button" class="back-btn" id="ipBack">➥</button>
+    <span class="ip-title" id="ipTitle"></span>
+  </div>
+  <div class="ip-body" id="ipBody"></div>
+</div>
+
+<!-- Merge Conflict Dialog -->
+<div class="merge-dialog" id="mergeDialog">
+  <div class="merge-dialog-box">
+    <div class="merge-dialog-title" id="mergeDialogTitle">导入冲突</div>
+    <div class="merge-dialog-body" id="mergeDialogBody"></div>
+    <div class="merge-dialog-actions">
+      <button type="button" class="merge-btn merge-ignore" id="mergeIgnoreBtn">忽略</button>
+      <button type="button" class="merge-btn merge-replace" id="mergeReplaceBtn">替换</button>
+      <button type="button" class="merge-btn merge-new" id="mergeNewBtn">新增</button>
+      <button type="button" class="merge-btn merge-cancel" id="mergeCancelBtn">取消导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

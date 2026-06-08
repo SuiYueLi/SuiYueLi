@@ -1,0 +1,223 @@
+/* ========== 月历表（Bar 5）样式 ========== */
+
+/* 月历表容器 */
+.bar-calendar {
+  flex: 0 0 auto;
+  position: relative;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+/* 月历表格 */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  width: 100%;
+  position: relative;
+  will-change: transform;
+}
+
+/* ========== 单元格 ========== */
+.calendar-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1px 2px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  min-height: 48px;
+}
+
+.calendar-cell:hover {
+  background: var(--cell-hover);
+}
+
+.calendar-cell.dimmed {
+  opacity: var(--cell-dim);
+}
+
+/* 单元格上部：3列×3行布局 (Zuo | Hao | JQ/YX) */
+.calendar-cell .cell-upper {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-rows: 0.5fr 1fr 1fr;
+  align-items: center;
+  flex: 3;
+  min-height: 0;
+  position: relative;
+}
+
+/* 阴影效果（由JS通过body属性控制） */
+[data-cell-shadow="on"] .calendar-cell .cell-upper,
+[data-cell-shadow="on"] .calendar-cell .cell-lower {
+  text-shadow: 0px 0px 0.15em var(--bg-shadow);
+}
+
+/* Zuo (左侧) - 逆时针旋转90° */
+.calendar-cell .cell-zuo {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  font-family: var(--font-XiangQing);
+  font-size: calc(0.875 * var(--size-XiangQing));
+  color: var(--text-secondary);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  justify-self: center;
+  align-self: center;
+  transform: rotate(-90deg);
+}
+
+/* 汉字竖排正立：移除旋转，启用竖排书写模式 */
+.calendar-cell .cell-zuo.hanzi.upright {
+  transform: none;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+
+/* Hao (中间) - 号数 */
+.calendar-cell .cell-hao {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  text-align: center;
+  font-family: var(--font-Hao);
+  font-size: var(--size-Hao);
+  font-weight: var(--heading-weight);
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+/* JQ (右侧中) - 节气标记 */
+.calendar-cell .cell-jq {
+  grid-column: 3;
+  grid-row: 2;
+  font-size: 0.7em;
+  line-height: 1;
+  text-align: start;
+  justify-self: start;
+}
+
+/* YX (右侧下) - 月相标记 */
+.calendar-cell .cell-yx {
+  grid-column: 3;
+  grid-row: 3;
+  font-size: 0.7em;
+  line-height: 1;
+  text-align: start;
+  justify-self: start;
+}
+
+/* ========== 单元格下部：夏历日期 ========== */
+.calendar-cell .cell-lower {
+  text-align: center;
+  font-family: var(--font-Ri);
+  font-size: var(--size-Ri);
+  color: var(--text-secondary);
+  line-height: 1.2;
+  flex: 2;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: baseline;
+  position: relative;
+  top: -0.25em; /* 调整位置，使夏历日期与节历日期更紧凑 */
+}
+
+.calendar-cell .cell-lower .dx-zi {
+  font-size: 0.85em;
+  color: var(--text-tertiary);
+}
+
+/* JS覆盖下部时样式 */
+.calendar-cell .cell-lower.js-override {
+  color: var(--text-accent);
+  font-weight: var(--subheading-weight);
+}
+
+/* ========== 周末样式 ========== */
+.calendar-cell.weekend .cell-hao {
+  color: var(--text-red);
+}
+
+/* ========== 今天样式 ========== */
+.calendar-cell.is-today .cell-hao {
+  color: var(--text-today);
+  font-weight: 700;
+}
+
+/* ========== 当前号标识（圆环） ========== */
+.calendar-cell .cell-ring {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: var(--z-cell-current);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendar-cell .cell-ring img {
+  height: 90%;
+  max-height: 44px;
+  opacity: 0.6;
+  object-fit: contain;
+}
+
+/* ========== 符号叠加层 ========== */
+.calendar-cell .cell-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-rows: 0.5fr 1fr 1fr;
+  align-items: center;
+  pointer-events: none;
+  z-index: var(--z-cell-symbol);
+}
+
+/* 每年重复日标记 - 左侧上格 */
+.calendar-cell .cell-fr {
+  grid-column: 1;
+  grid-row: 1;
+  font-family: var(--font-XiangQing);
+  font-size: calc(0.875 * var(--size-XiangQing));
+  color: var(--text-secondary);
+  line-height: 1;
+  justify-self: center;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.calendar-cell .cell-fr.multi {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.125em;
+}
+
+/* 笔记功能：右上角字符图标位置 */
+.calendar-cell .cell-event {
+  grid-column: 3;
+  grid-row: 1;
+  font-family: var(--font-XiangQing);
+  font-size: calc(0.875 * var(--size-XiangQing));
+  color: var(--text-secondary);
+  line-height: 1;
+  justify-self: start;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.calendar-cell .cell-event.multi {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.125em;
+}
+
+/* ========== 触摸反馈 ========== */
+.calendar-cell:active {
+  background: var(--bg-tertiary);
+}
