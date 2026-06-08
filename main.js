@@ -74,6 +74,7 @@ let _navGuardActive = false;
 let _suppressPopstateCount = 0;
 let _navFromPopstate = false;
 let _backExitTimer = 0;
+let _navFirstInteraction = false;
 
 function _navEnsureGuard() {
 	if (!_navGuardActive) {
@@ -81,6 +82,17 @@ function _navEnsureGuard() {
 		_navGuardActive = true;
 	}
 }
+
+// 首次用户交互后激活导航守卫（避免无交互时 pushState 导致 Skippable 警告）
+function _navOnFirstInteraction() {
+	if (_navFirstInteraction) return;
+	_navFirstInteraction = true;
+	_navEnsureGuard();
+	['click', 'touchstart', 'keydown'].forEach(evt =>
+		document.removeEventListener(evt, _navOnFirstInteraction));
+}
+['click', 'touchstart', 'keydown'].forEach(evt =>
+	document.addEventListener(evt, _navOnFirstInteraction, { passive: true }));
 
 // 任何面板/页面打开时调用
 function _navOnOpen() {
@@ -372,9 +384,6 @@ export async function init() {
 	}
 
 	_initInstallPrompt();
-
-	// 建立初始导航守卫，确保返回键始终可拦截
-	_navEnsureGuard();
 }
 
 async function _ensureSuiPu(sui) {
