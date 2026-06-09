@@ -2653,6 +2653,21 @@ function _closeConvertPage() {
 // ========== 信息页 ==========
 const _infoPageCache = {};
 
+function _renderEmailLink() {
+	const placeholder = DOM.ipBody?.querySelector('#emailPlaceholder');
+	if (placeholder) {
+		const user = 'suiyue.li';
+		const domain = 'outlook.com';
+		const email = user + '@' + domain;
+		const a = document.createElement('a');
+		a.href = 'mailto:' + email;
+		a.target = '_blank';
+		a.rel = 'noopener noreferrer';
+		a.textContent = email;
+		placeholder.replaceWith(a);
+	}
+}
+
 async function _openInfoPage(name, title) {
 	DOM.ipTitle.textContent = title;
 	DOM.ipBody.scrollTop = 0;
@@ -2670,6 +2685,7 @@ async function _openInfoPage(name, title) {
 			DOM.ipBody.innerHTML = '<div class="page-placeholder">加载失败</div>';
 		}
 	}
+	if (name === 'GuanYu') _renderEmailLink();
 	DOM.infoPage.classList.add('open');
 	_navOnOpen();
 }
