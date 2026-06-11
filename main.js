@@ -919,7 +919,7 @@ function bindEvents() {
 	DOM.menuSettings.addEventListener('click', () => { _closeHamburger(); _openSettingsPage(); });
 	DOM.menuBijiOverview.addEventListener('click', () => { _closeHamburger(); _openBijiOverview(); });
 	DOM.menuImportExport.addEventListener('click', () => { _closeHamburger(); _openIEPage(); });
-	DOM.menuShuJu.addEventListener('click', () => { _closeHamburger(); _openInfoPage('ShuJu', '历法数据'); });
+	DOM.menuShuJu.addEventListener('click', () => { _closeHamburger(); _openInfoPage('ShuJu', '历法与数据'); });
 	DOM.menuAbout.addEventListener('click', () => { _closeHamburger(); _openInfoPage('GuanYu', '关于应用'); });
 	DOM.menuInstallApp.addEventListener('click', () => {
 		_closeHamburger();
@@ -1275,6 +1275,12 @@ function bindEvents() {
 
 	// 信息页
 	DOM.ipBack.addEventListener('click', _closeInfoPage);
+	DOM.ipBody.addEventListener('click', (e) => {
+		const a = e.target.closest('a[data-info-page]');
+		if (!a) return;
+		e.preventDefault();
+		_openInfoPage(a.dataset.infoPage, a.textContent.trim());
+	});
 	DOM.ieBack.addEventListener('click', _closeIEPage);
 	DOM.ieGeShiBtn.addEventListener('click', () => { _openInfoPage('GeShi', '导入导出格式说明'); });
 	DOM.boBack.addEventListener('click', _closeBijiOverview);
@@ -1548,7 +1554,7 @@ function _toggleJieDropdown(e) {
 	// 定位
 	const rect = DOM.jieName.getBoundingClientRect();
 	DOM.jieDropdown.style.top = (rect.bottom + 2) + 'px';
-	DOM.jieDropdown.style.left = rect.left + 'px';
+	DOM.jieDropdown.style.left = (rect.left - 7) + 'px';
 	DOM.jieDropdown.classList.toggle('open');
 	if (DOM.jieDropdown.classList.contains('open')) {
 		_navOnOpen();
@@ -2652,6 +2658,8 @@ function _closeConvertPage() {
 
 // ========== 信息页 ==========
 const _infoPageCache = {};
+const _infoPageStack = []; // { name, title, scrollTop }
+let _infoPageCurrent = null;
 
 function _renderEmailLink() {
 	const placeholder = DOM.ipBody?.querySelector('#emailPlaceholder');
@@ -2668,7 +2676,19 @@ function _renderEmailLink() {
 	}
 }
 
+function _infoPageRestore(name, title) {
+	DOM.ipTitle.textContent = title;
+	DOM.ipBody.innerHTML = _infoPageCache[name] || '<div class="page-placeholder">加载失败</div>';
+	if (name === 'GuanYu') _renderEmailLink();
+}
+
 async function _openInfoPage(name, title) {
+	// infoPage 已打开时，将当前状态压栈
+	if (_infoPageCurrent && DOM.infoPage.classList.contains('open')) {
+		_infoPageStack.push({ ..._infoPageCurrent, scrollTop: DOM.ipBody.scrollTop });
+	}
+	_infoPageCurrent = { name, title };
+
 	DOM.ipTitle.textContent = title;
 	DOM.ipBody.scrollTop = 0;
 	if (_infoPageCache[name]) {
@@ -2686,14 +2706,27 @@ async function _openInfoPage(name, title) {
 		}
 	}
 	if (name === 'GuanYu') _renderEmailLink();
-	DOM.infoPage.classList.add('open');
-	_navOnOpen();
+	if (!DOM.infoPage.classList.contains('open')) {
+		DOM.infoPage.classList.add('open');
+		_navOnOpen();
+	}
 }
 
 function _closeInfoPage() {
+	if (_infoPageStack.length > 0) {
+		const prev = _infoPageStack.pop();
+		_infoPageCurrent = prev;
+		_infoPageRestore(prev.name, prev.title);
+		DOM.ipBody.scrollTop = prev.scrollTop;
+		return;
+	}
+	_infoPageCurrent = null;
+	_infoPageStack.length = 0;
 	DOM.infoPage.classList.remove('open');
 	_navOnClose();
 }
+
+
 
 function _getRadioVal(name) {
 	const el = document.querySelector('input[name="' + name + '"]:checked');

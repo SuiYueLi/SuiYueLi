@@ -2053,6 +2053,9 @@ body {
   font-style: italic;
   padding: 0.5em;
 }
+.info-page .ip-body .scroll {
+  overflow: auto;
+}
 .info-page .ip-body button {
   font-size: 1rem;
   color: var(--text-accent);

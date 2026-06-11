@@ -1,0 +1,65 @@
+<h2>12节日数排布</h2>
+<p>下表列出HX3100～HX6600岁的12节日数。</p>
+<p>表中记29/30的为置闰的节，平岁29日、闰岁30日。</p>
+<div class="scroll"><table border="1">
+<tbody>
+<tr align="center">
+<td>孟春</td>
+<td>仲春</td>
+<td>季春</td>
+<td>孟夏</td>
+<td>仲夏</td>
+<td>季夏</td>
+<td>孟秋</td>
+<td>仲秋</td>
+<td>季秋</td>
+<td>孟冬</td>
+<td>仲冬</td>
+<td>季冬</td>
+</tr>
+<tr align="center">
+<td colspan="12">HX3100</td></tr>
+<tr align="center">
+<td>30</td>
+<td>30</td>
+<td>31</td>
+<td>31</td>
+<td><b>32</b></td>
+<td>31</td>
+<td>31</td>
+<td>30</td>
+<td>30</td>
+<td>30</td>
+<td><b>29</b><br/><i>30</i></td>
+<td>30</td>
+</tr>
+<tr align="center">
+<td colspan="12">HX4700</td>
+</tr>
+<tr align="center">
+<td>30</td>
+<td>30</td>
+<td>30</td>
+<td>31</td>
+<td>31</td>
+<td><b>32</b></td>
+<td>31</td>
+<td>31</td>
+<td>30</td>
+<td>30</td>
+<td>30</td>
+<td><b>29</b><br/><i>30</i></td>
+</tr>
+<tr align="center">
+<td colspan="12">HX6600</td>
+</tr>
+</tbody></table></div>
+
+<h2>闰岁判定</h2>
+<p><code>算闰数 = 纪年数 + 100。</code></p>
+<p>HX300～HX5500区间置闰算法：</p>
+<p><pre><code>1. 算闰数不能被4整除时，该岁不闰，为平岁；
+2. 算闰数能被  4整除且不能被100整除时，该岁置闰，为闰岁；
+3. 算闰数能被100整除且不能被400整除时，该岁休闰，为平岁；
+4. 算闰数能被400整除时，该岁还闰，为闰岁。</code></pre></p>
+<p>简而言之，上述区间每400岁97闰，与格里历现行置闰法一致。</p>

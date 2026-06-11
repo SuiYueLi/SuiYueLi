@@ -1,4 +1,4 @@
-const APP_VERSION = '1.47230505.0';
+const APP_VERSION = '1.47230507.0';
 const CACHE_NAME = 'SuiYueLi_v' + APP_VERSION;
 
 const CACHE_FILES = [
@@ -28,6 +28,7 @@ const CACHE_FILES = [
 	'/pages/AnZhuang.html',
 	'/pages/GeShi.html',
 	'/pages/GuanYu.html',
+	'/pages/JieLi_Jian.html',
 	'/pages/ShuJu.html',
 	'/pages/ZiTi.html',
 	'/pages/IMG/PWA_addrBar.png',
@@ -44,7 +45,8 @@ const CACHE_FILES = [
 	'/styles/main.css',
 ];
 
-const CACHE_DEFAULT_FILES = [
+const CACHE_RELOAD_WHITELIST = [
+/*
 	'/manifest.json',
 	'/favicon.ico',
 	'/LICENSE',
@@ -64,14 +66,15 @@ const CACHE_DEFAULT_FILES = [
 	'/assets/IMG/二里头绿松石龙形器.png',
 	'/assets/IMG/历_192.png',
 	'/assets/IMG/历_512.png',
+*/
 ];
 
 self.addEventListener('install', event => {
 	event.waitUntil(
 		caches.open(CACHE_NAME).then(cache => {
-			const reloadReqs = CACHE_FILES.filter(url => !CACHE_DEFAULT_FILES.includes(url))
+			const reloadReqs = CACHE_FILES.filter(url => !CACHE_RELOAD_WHITELIST.includes(url))
 				.map(url => new Request(url, { cache: 'reload' }));
-			const otherReqs = CACHE_FILES.filter(url => CACHE_DEFAULT_FILES.includes(url));
+			const otherReqs = CACHE_FILES.filter(url => CACHE_RELOAD_WHITELIST.includes(url));
 			return cache.addAll([...reloadReqs, ...otherReqs]);
 		}).then(() => self.skipWaiting())
 	);

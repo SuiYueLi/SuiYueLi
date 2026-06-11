@@ -41,7 +41,8 @@ function aShiLiPu(nian) {
 	let tzh = LP.TZh[n] * 60;
 	
 	let JQ = [LP.JQ[n][0] + tzh];
-	for(let i = 1; i < LP.JQ[n].length; i++) JQ[i] = JQ[0] + LP.JQ[n][i] + 15 * i - 2;
+	//: 索引i的值 = i的积日 - 索引0积日 - 15i
+	for(let i = 1; i < LP.JQ[n].length; i++) JQ[i] = JQ[0] + LP.JQ[n][i] + 15 * i;
 	
 	let Shuo = [LP.Yue[n][0] + tzh];
 	let Yue_dx = [], Yue_dxZi = [];
