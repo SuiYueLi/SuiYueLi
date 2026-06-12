@@ -11,82 +11,6 @@
   <li>省略项用一对<b>不含任何内容</b>的引号代替，排在末尾的项则可完全省略。</li>
 </ul>
 
-<h2>节庆民俗列表</h2>
-<p>文件为 <code>.json</code> 格式，顶层对象包含四个数组：</p>
-<pre><code>{
-  "JQ": [ ... ],
-  "AL": [ ... ],
-  "JL": [ ... ],
-  "WC": [ ... ]
-}</code></pre>
-<p>同日期有多项信息者，在详情中罗列；日历格中靠前者优先。</p>
-
-<h3>JQ - 基于节气</h3>
-<table>
-  <tr><th>字段</th><th>类型</th><th>说明</th></tr>
-  <tr><td>节气编号</td><td><code>number</code></td><td>0~27，0=天正冬至，24=夏历年冬至</td></tr>
-  <tr><td>距节气日日数</td><td><code>number</code></td><td>-1=前一日，0=当日，1=次日</td></tr>
-  <tr><td>日历格显示名</td><td><code>string</code></td><td>显示在日历格中</td></tr>
-  <tr><td>日期详情显示名</td><td><code>string</code></td><td>显示在详情栏中</td></tr>
-</table>
-<p class="page-note">例：<code>"JQ": [
-  <br/>&ensp;&ensp;[0, 105, ["寒食", "寒食节"]],
-  <br/>&ensp;&ensp;[24, &ensp;0, ["冬至", "冬至节"]]
-  <br/>],
-</code></p>
-
-<h3>AL - 基于夏历</h3>
-<table>
-  <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
-  <tr><td>始行年</td><td><code>number</code></td><td><span class="tag-opt">可选</span></td><td>华夏纪年，缺省太初元年</td></tr>
-  <tr><td>月</td><td><code>number</code></td><td><span class="tag-req">必填</span></td><td>1~12</td></tr>
-  <tr><td>日</td><td><code>number</code></td><td><span class="tag-req">必填</span></td><td>0=1号前一日，1=1号</td></tr>
-  <tr><td>日历格显示名</td><td><code>string</code></td><td><span class="tag-req">必填</span></td><td></td></tr>
-  <tr><td>日期详情显示名</td><td><code>string</code></td><td><span class="tag-req">必填</span></td><td></td></tr>
-  <tr><td>终行年</td><td><code>number</code></td><td><span class="tag-opt">可选</span></td><td>华夏纪年</td></tr>
-</table>
-<p class="page-note">例：<code>["", 1, 0, ["除夕", "除夕夜"]]</code></p>
-
-<h3>JL - 基于节历</h3>
-<p>格式与夏历相同，年份用华夏纪年。</p>
-
-<h3>WC - 基于西历</h3>
-<p>格式与夏历相同，始行年/终行年用西元纪年。</p>
-<p class="page-note">例：<code>
-[1925, 3, 8, ["妇女节", "国际劳动妇女节"]]
-</code></p>
-
-<h2>每年重复日期列表</h2>
-<p>文件为 <code>.json</code> 格式，顶层对象包含三个数组：</p>
-<pre><code>{
-  "WC": [ ... ],
-  "JL": [ ... ],
-  "AL": [ ... ]
-}</code></pre>
-<p>同日期有多项信息者，在详情中罗列；日历格显示最后一个字符图标。缺省字符图标为 ❀。</p>
-
-<h3>WC - 基于西历</h3>
-<table>
-  <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
-  <tr><td>始行年</td><td><code>number</code></td><td><span class="tag-opt">可选</span></td><td>西元纪年</td></tr>
-  <tr><td>月</td><td><code>number</code></td><td><span class="tag-req">必填</span></td><td></td></tr>
-  <tr><td>日</td><td><code>number</code></td><td><span class="tag-req">必填</span></td><td></td></tr>
-  <tr><td>日期详情显示名</td><td><code>string</code></td><td><span class="tag-req">必填</span></td><td></td></tr>
-  <tr><td>终行年</td><td><code>number</code></td><td><span class="tag-opt">可选</span></td><td>西元纪年</td></tr>
-  <tr><td>字符图标</td><td><code>string</code></td><td><span class="tag-opt">可选</span></td><td>日历格右上角，缺省 ❀</td></tr>
-</table>
-<p class="page-note">例：<code>
-[2003, 6, 7, "普通高等学校招生全国统一考试", "", "✍"]
-</code></p>
-
-<h3>JL - 基于节历</h3>
-<p>格式与西历相同，年份用华夏纪年。</p>
-
-<h3>AL - 基于夏历</h3>
-<p>格式与西历相同，年份用华夏纪年。</p>
-<p class="page-note">例：<code>
-[4700, 1, 1, "张三生日"]
-</code></p>
 <h2>笔记 - JSON 格式</h2>
 <p>文件为 <code>.json</code> 格式，按岁分组，按花甲积日值组织当日笔记数组。例：</p>
 <pre><code>{
@@ -94,7 +18,7 @@
     "1943975": [
       {
         "icon": "✑",
-        "biji": "笔记内容",
+        "biji": "昔自在古，歷建正，作於孟春。於時冰泮發蟄，百草奮興，秭鳺先嗥。物乃歲具，生於東次，順四時，卒于冬分時；雞三號，卒明；撫十二節，卒于丑。",
         "created": 1779697611921,
         "updated": 1779697611
       }
@@ -130,12 +54,94 @@
   <li>导入时识别时间戳，识别失败将被跳过（完成后列出失败行号）。</li>
 </ul>
 
+<h2>节庆民俗列表</h2>
+<p>文件为 <code>.json</code> 格式，顶层对象包含四个数组：</p>
+<pre><code>{
+  "JQ": [ ... ],
+  "AL": [ ... ],
+  "JL": [ ... ],
+  "WC": [ ... ]
+}</code></pre>
+<p>同日期有多项信息者，在详情中罗列；日历格中靠前者优先。</p>
+
+<h3>JQ - 基于节气</h3>
+<table>
+  <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+  <tr><td>始行年</td><td><code>number</code></td><td><span class="tag-opt">可选</span></td><td>华夏纪年</td></tr>
+  <tr><td>节气编号</td><td><code>number</code></td><td><span class="tag-req">必填</span></td><td>0~27；0=天正冬至，24=夏历年冬至</td></tr>
+  <tr><td>相对节气日日数</td><td><code>number</code></td><td><span class="tag-req">必填</span></td><td>-1=前一日，0=当日，1=次日</td></tr>
+  <tr><td>日历格显示名</td><td><code>string</code></td><td><span class="tag-req">必填</span></td><td>显示在日历格中</td></tr>
+  <tr><td>日期详情显示名</td><td><code>string</code></td><td><span class="tag-req">必填</span></td><td>显示在详情栏中</td></tr>
+  <tr><td>终行年</td><td><code>number</code></td><td><span class="tag-opt">可选</span></td><td>华夏纪年</td></tr></table>
+<p class="page-note">例：<code>"JQ": [
+  <br/>&ensp;&ensp;["", 0, 105, ["寒食", "寒食节"]],
+  <br/>&ensp;&ensp;["", 24, &ensp;0, ["冬至", "冬至节"]]
+  <br/>],
+</code></p>
+
+<h3>AL - 基于夏历</h3>
+<table>
+  <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+  <tr><td>始行年</td><td><code>number</code></td><td><span class="tag-opt">可选</span></td><td>华夏纪年，缺省太初元年</td></tr>
+  <tr><td>月</td><td><code>number</code></td><td><span class="tag-req">必填</span></td><td>1~12</td></tr>
+  <tr><td>日</td><td><code>number</code></td><td><span class="tag-req">必填</span></td><td>0=1号前一日，1=1号</td></tr>
+  <tr><td>日历格显示名</td><td><code>string</code></td><td><span class="tag-req">必填</span></td><td></td></tr>
+  <tr><td>日期详情显示名</td><td><code>string</code></td><td><span class="tag-req">必填</span></td><td></td></tr>
+  <tr><td>终行年</td><td><code>number</code></td><td><span class="tag-opt">可选</span></td><td>华夏纪年</td></tr>
+</table>
+<p class="page-note">例：<code>["", 1, 0, ["除夕", "除夕夜"]]</code></p>
+
+<h3>JL - 基于节历</h3>
+<p>格式与夏历相同，年份用华夏纪年。</p>
+
+<h3>WC - 基于西历</h3>
+<p>格式与夏历相同，年份用西元纪年。</p>
+<p class="page-note">例：<code>
+[1925, 3, 8, ["妇女节", "国际劳动妇女节"]]
+</code></p>
+
+<h2>每年重复日期列表</h2>
+<p>文件为 <code>.json</code> 格式，顶层对象包含三个数组：</p>
+<pre><code>{
+  "WC": [ ... ],
+  "JL": [ ... ],
+  "JQ": [ ... ],
+  "AL": [ ... ]
+}</code></pre>
+<p>同日期有多项信息者，在详情中罗列。日历格显示字符图标，靠后者优先，缺省字符图标为 ❀。</p>
+
+<h3>WC - 基于西历</h3>
+<table>
+  <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+  <tr><td>始行年</td><td><code>number</code></td><td><span class="tag-opt">可选</span></td><td>西元纪年</td></tr>
+  <tr><td>月</td><td><code>number</code></td><td><span class="tag-req">必填</span></td><td></td></tr>
+  <tr><td>日</td><td><code>number</code></td><td><span class="tag-req">必填</span></td><td></td></tr>
+  <tr><td>日期详情显示名</td><td><code>string</code></td><td><span class="tag-req">必填</span></td><td></td></tr>
+  <tr><td>终行年</td><td><code>number</code></td><td><span class="tag-opt">可选</span></td><td>西元纪年</td></tr>
+  <tr><td>字符图标</td><td><code>string</code></td><td><span class="tag-opt">可选</span></td><td>日历格右上角，缺省 ❀</td></tr>
+</table>
+<p class="page-note">例：<code>
+[2003, 6, 7, "普通高等学校招生全国统一考试", "", "✍"]
+</code></p>
+
+<h3>JL - 基于节历</h3>
+<p>格式与西历相同，年份用华夏纪年。</p>
+
+<h3>JQ - 基于节气</h3>
+<p>格式与西历类似，年份用华夏纪年；节气编号及相对日数参考节庆民俗部分。</p>
+
+<h3>AL - 基于夏历</h3>
+<p>格式与西历相同，年份用华夏纪年。</p>
+<p class="page-note">例：<code>
+[4700, 1, 1, "张三生日"]
+</code></p>
+
 <h2>导入校验</h2>
 <ul>
-  <li>JSON 文件须符合其格式规范。</li>
-  <li>节庆民俗列表 <code>JQ</code>、<code>AL</code>、<code>JL</code>、<code>WC</code> 四个字段均可省略。</li>
-  <li>每年重复日列表 <code>WC</code>、<code>JL</code>、<code>AL</code> 三个字段均可省略。</li>
-  <li>每条记录中，未标注"可选"的字段不可省略。</li>
-  <li>节庆民俗的显示名应为 <code>[日历格显示名, 日期详情显示名]</code> 二元素数组。</li>
   <li>笔记合并导入时将检测同日笔记中创建时间戳相同的项，冲突时弹出列表供处理。</li>
+  <li>JSON 文件须符合其格式规范。</li>
+  <li>每条记录中，未标注"可选"的字段不可省略。</li>
+  <li>节庆民俗列表 <code>JQ、AL、JL、WC</code> 四个数组均可省略。</li>
+  <li>节庆民俗的显示名应为 <code>[日历格显示名, 日期详情显示名]</code> 二元素数组。</li>
+  <li>每年重复日列表 <code>WC、JL、JQ、AL</code> 四个数组均可省略。</li>
 </ul>

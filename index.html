@@ -522,6 +522,43 @@
   </div>
   <div class="ie-body">
     <div class="sp-section">
+      <h3>笔记</h3>
+      <div class="sp-option">
+        <span>在本地文件存储笔记</span>
+        <span id="bijiFileName" style="color:var(--text-tertiary); font-size:var(--small-size); font-style:italic; display:none; margin-left:auto; margin-right:0.5em;"></span>
+        <button type="button" id="bijiFileBtn">指定文件</button>
+      </div>
+      <div class="sp-option">
+        <span>导出起止岁 (留空为全部)</span>
+        <input type="number" id="bijiExportStart" aria-label="起始岁" step="1" style="width:3.3em;text-align:right">～
+        <input type="number" id="bijiExportEnd" aria-label="终止岁" step="1" style="width:3.3em;text-align:right">
+      </div>
+      <div class="sp-option">
+        <span>导出格式</span>
+        <div class="week-start-toggle" id="bijiExportFormat" data-value="0">
+          <span>JSON</span>
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          <span>文本</span>
+        </div>
+      </div>
+      <div class="sp-option">
+        <span></span>
+        <button type="button" id="bijiExportBtn">导出笔记</button>
+      </div>
+      <div class="sp-option">
+        <span>导入模式</span>
+        <div class="week-start-toggle" id="bijiImportModeToggle" data-value="0">
+          <span>合并</span>
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          <span>替换</span>
+        </div>
+      </div>
+      <div class="sp-option">
+        <span></span>
+        <button type="button" id="bijiImportBtn">导入笔记</button>
+      </div>
+    </div>
+    <div class="sp-section">
       <h3>节庆民俗列表</h3>
       <div class="sp-option">
         <span>导入自定义列表</span>
@@ -565,43 +602,6 @@
       <div class="sp-option">
         <span>恢复预设列表</span>
         <button type="button" id="fuRiResetBtn">恢复</button>
-      </div>
-    </div>
-    <div class="sp-section">
-      <h3>笔记</h3>
-      <div class="sp-option">
-        <span>在本地文件存储笔记</span>
-        <span id="bijiFileName" style="color:var(--text-tertiary); font-size:var(--small-size); font-style:italic; display:none; margin-left:auto; margin-right:0.5em;"></span>
-        <button type="button" id="bijiFileBtn">指定文件</button>
-      </div>
-      <div class="sp-option">
-        <span>导出起止岁 (留空为全部)</span>
-        <input type="number" id="bijiExportStart" aria-label="起始岁" step="1" style="width:3.3em;text-align:right">～
-        <input type="number" id="bijiExportEnd" aria-label="终止岁" step="1" style="width:3.3em;text-align:right">
-      </div>
-      <div class="sp-option">
-        <span>导出格式</span>
-        <div class="week-start-toggle" id="bijiExportFormat" data-value="0">
-          <span>JSON</span>
-          <div class="toggle-track"><div class="toggle-thumb"></div></div>
-          <span>文本</span>
-        </div>
-      </div>
-      <div class="sp-option">
-        <span></span>
-        <button type="button" id="bijiExportBtn">导出笔记</button>
-      </div>
-      <div class="sp-option">
-        <span>导入模式</span>
-        <div class="week-start-toggle" id="bijiImportModeToggle" data-value="0">
-          <span>合并</span>
-          <div class="toggle-track"><div class="toggle-thumb"></div></div>
-          <span>替换</span>
-        </div>
-      </div>
-      <div class="sp-option">
-        <span></span>
-        <button type="button" id="bijiImportBtn">导入笔记</button>
       </div>
     </div>
   </div>

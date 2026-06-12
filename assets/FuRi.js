@@ -8,6 +8,8 @@ export default {
 	],
 	"JL": [
 	],
+	"JQ": [
+	],
 	"AL": [
 	]
 };

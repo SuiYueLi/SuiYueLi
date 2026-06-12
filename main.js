@@ -2399,13 +2399,8 @@ function _validateJieSu(data) {
 		if (!Array.isArray(data[key])) throw new Error(key + '须为数组');
 		for (const item of data[key]) {
 			if (!Array.isArray(item)) throw new Error(key + '的条目须为数组');
-			if (key === 'JQ') {
-				if (item.length < 3 || typeof item[0] !== 'number' || typeof item[1] !== 'number' || !Array.isArray(item[2]) || typeof item[2][0] !== 'string')
-					throw new Error('JQ条目格式：[节气编号, 距日数, [日历格名, ...]]');
-			} else {
-				if (typeof item[1] !== 'number' || typeof item[2] !== 'number' || !Array.isArray(item[3]) || typeof item[3][0] !== 'string')
-					throw new Error(key + '条目格式：[始行年?, 月, 日, [日历格名, 详情名], 终行年?]');
-			}
+			if (typeof item[1] !== 'number' || typeof item[2] !== 'number' || !Array.isArray(item[3]) || typeof item[3][0] !== 'string')
+				throw new Error(key + '条目格式：[始行年?, 月, 日, [日历格名, 详情名], 终行年?]');
 		}
 	}
 }
