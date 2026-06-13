@@ -16,6 +16,8 @@ import {
 	getZuoRotateHanzi, setZuoRotateHanzi,
 	getJieSu, setJieSu, getFuRi, setFuRi,
 	getUpdateCheckInterval, setUpdateCheckInterval, getLastUpdateCheck, setLastUpdateCheck,
+	getAutoUpdateFailCount, setAutoUpdateFailCount, getAutoUpdateIgnoredVersion, setAutoUpdateIgnoredVersion,
+	getLastAutoUpdateFailTime, setLastAutoUpdateFailTime,
 	getCustomFonts, loadFontFile, removeFontFile, initCustomFonts,
 	previewFontChange, commitFontPreview, cancelFontPreview,
 	resetAllCustomFonts
@@ -2849,21 +2851,31 @@ function _initSWMessageListener() {
 		if (!data) return;
 
 		if (data.type === 'SW_UPDATED') {
-			if (_updateCheckMode === 'manual') {
-				const newVer = _pendingNewVersion || data.version;
-				DOM.updateStatusText.textContent = '已更新至 v' + newVer;
-				DOM.updateStatusText.style.color = '';
-				_showToast('更新完成，刷新页面以应用新版本', 5000);
-				_updateCheckMode = null;
-				_pendingNewVersion = null;
-				setLastUpdateCheck(HJ_Jin());
+			// _applyUpdate 通过 controllerchange 处理成功回调
+			// 此处仅处理非更新流程触发的 SW 更新（如浏览器自动更新）
+			if (!_updateCheckMode) {
+				_showToast('应用已更新至 v' + data.version + '，刷新页面以应用', 5000);
 			}
 		}
 
 		if (data.type === 'UPDATE_RESULT') {
 			if (_updateCheckMode === 'auto') {
 				if (data.hasUpdate) {
+					// 远端版本比忽略版本新时，清除忽略标记
+					const ignoredVer = getAutoUpdateIgnoredVersion();
+					if (ignoredVer && data.remoteVersion !== ignoredVer) {
+						setAutoUpdateIgnoredVersion(null);
+						setAutoUpdateFailCount(0);
+					}
+					// 跳过已忽略的版本
+					if (data.remoteVersion === getAutoUpdateIgnoredVersion()) {
+						setLastUpdateCheck(HJ_Jin());
+						_updateCheckMode = null;
+						return;
+					}
 					_applyUpdate();
+					// _updateCheckMode 由 _applyUpdate 的 onUpdateDone/onUpdateFail 清除
+					return;
 				}
 				setLastUpdateCheck(HJ_Jin());
 				_updateCheckMode = null;
@@ -2901,9 +2913,21 @@ function _autoCheckUpdate() {
 	const interval = getUpdateCheckInterval();
 	if (interval === 0) return;
 
+	const failCount = getAutoUpdateFailCount();
+	const ignoredVer = getAutoUpdateIgnoredVersion();
+
+	// 有未放弃的失败记录，2小时后或下次启动时重试
+	if (failCount > 0 && failCount < 3 && !ignoredVer) {
+		const lastFail = getLastAutoUpdateFailTime();
+		if (!lastFail || Date.now() - lastFail >= 2 * 3600_000) {
+			_updateCheckMode = 'auto';
+			_checkUpdate();
+		}
+		return;
+	}
+
 	const last = getLastUpdateCheck();
 	const now = HJ_Jin();
-
 	if (now - last >= interval) {
 		_updateCheckMode = 'auto';
 		_checkUpdate();
@@ -2933,52 +2957,96 @@ async function _applyUpdate() {
 	const reg = await navigator.serviceWorker.getRegistration();
 	if (!reg) return;
 
-	DOM.updateStatusText.textContent = '更新中……';
-	DOM.updateStatusText.style.color = '';
+	const isAuto = _updateCheckMode === 'auto';
+	if (!isAuto) {
+		DOM.updateStatusText.textContent = '更新中……';
+		DOM.updateStatusText.style.color = '';
+	}
 
-	if (!reg.waiting) {
-		const waitForInstalled = new Promise(resolve => {
+	// 更新成功回调
+	let _updateDone = false;
+	const onUpdateDone = async () => {
+		if (_updateDone) return;
+		_updateDone = true;
+		await new Promise(r => setTimeout(r, 300));
+		const ver = await _fetchAppVersion();
+		const newVer = _pendingNewVersion || ver;
+		if (!isAuto) {
+			DOM.updateStatusText.textContent = '已更新至 v' + newVer;
+			DOM.updateStatusText.style.color = '';
+			_showToast('更新完成，刷新页面以应用新版本', 5000);
+			// 手动更新成功，清除自动模式的忽略版本和失败计数
+			setAutoUpdateIgnoredVersion(null);
+			setAutoUpdateFailCount(0);
+		} else {
+			// 自动模式成功，静默并重置失败计数
+			setAutoUpdateFailCount(0);
+		}
+		_updateCheckMode = null;
+		_pendingNewVersion = null;
+		setLastUpdateCheck(HJ_Jin());
+	};
+
+	// 自动模式失败处理
+	const onUpdateFail = () => {
+		if (isAuto) {
+			const count = getAutoUpdateFailCount() + 1;
+			setAutoUpdateFailCount(count);
+			setLastAutoUpdateFailTime(Date.now());
+			if (count >= 3) {
+				const ver = _pendingNewVersion;
+				if (ver) setAutoUpdateIgnoredVersion(ver);
+				_showToast('发现新版本 v' + ver + '，但自动更新失败，已跳过此版本', 5000);
+				setAutoUpdateFailCount(0);
+			}
+		} else {
+			DOM.updateStatusText.textContent = '更新失败';
+			_showToast('新版本安装失败，请稍后重试', 4000);
+		}
+		_updateCheckMode = null;
+		_pendingNewVersion = null;
+	};
+
+	// 监听 controllerchange（SW skipWaiting + claim 后触发）
+	navigator.serviceWorker.addEventListener('controllerchange', onUpdateDone, { once: true });
+
+	// 如果已有 waiting 的 SW，直接通知其激活
+	if (reg.waiting) {
+		reg.waiting.postMessage({ type: 'APPLY_UPDATE' });
+	} else {
+		// 等待新 SW 安装：可能进入 waiting，也可能因 skipWaiting 直接激活
+		const waitForResult = new Promise(resolve => {
 			reg.addEventListener('updatefound', () => {
 				const nw = reg.installing;
 				nw.addEventListener('statechange', () => {
-					if (nw.state === 'installed' || nw.state === 'redundant') resolve();
+					if (nw.state === 'installed' || nw.state === 'redundant' || nw.state === 'activated') resolve();
 				});
 			}, { once: true });
 			setTimeout(resolve, 10000);
 		});
 		try { await reg.update(); } catch(e) {}
-		if (!reg.waiting) await waitForInstalled;
+
+		// 如果新 SW 已进入 waiting，通知其激活
+		if (reg.waiting) {
+			reg.waiting.postMessage({ type: 'APPLY_UPDATE' });
+		} else {
+			// 新 SW 可能已通过 skipWaiting 直接激活（controllerchange 已触发 onUpdateDone）
+			await waitForResult;
+			if (reg.waiting) {
+				reg.waiting.postMessage({ type: 'APPLY_UPDATE' });
+			} else if (!_updateDone) {
+				navigator.serviceWorker.removeEventListener('controllerchange', onUpdateDone);
+				onUpdateFail();
+				return;
+			}
+		}
 	}
 
-	if (!reg.waiting) {
-		DOM.updateStatusText.textContent = '更新失败';
-		_showToast('新版本安装失败，请稍后重试', 4000);
-		_updateCheckMode = null;
-		_pendingNewVersion = null;
-		return;
-	}
-
-	reg.waiting.postMessage({ type: 'APPLY_UPDATE' });
-
-	navigator.serviceWorker.addEventListener('controllerchange', async () => {
-		if (_updateCheckMode !== 'manual') return;
-		await new Promise(r => setTimeout(r, 300));
-		const ver = await _fetchAppVersion();
-		const newVer = _pendingNewVersion || ver;
-		DOM.updateStatusText.textContent = '已更新至 v' + newVer;
-		DOM.updateStatusText.style.color = '';
-		_showToast('更新完成，刷新页面以应用新版本', 5000);
-		_updateCheckMode = null;
-		_pendingNewVersion = null;
-		setLastUpdateCheck(HJ_Jin());
-	}, { once: true });
-
+	// 超时兜底
 	setTimeout(() => {
-		if (_updateCheckMode !== 'manual') return;
-		DOM.updateStatusText.textContent = '更新超时';
-		_showToast('更新超时，请关闭所有标签页后重试', 5000);
-		_updateCheckMode = null;
-		_pendingNewVersion = null;
+		if (_updateDone) return;
+		navigator.serviceWorker.removeEventListener('controllerchange', onUpdateDone);
+		onUpdateFail();
 	}, 15000);
 }
 

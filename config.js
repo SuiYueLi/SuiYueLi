@@ -24,7 +24,10 @@ const DEFAULT_SETTINGS = {
 	customJieSu: null,
 	customFuRi: null,
 	updateCheckInterval: 7,
-	lastUpdateCheck: 1943987,
+	lastUpdateCheck: 1943994,
+	autoUpdateFailCount: 0,
+	autoUpdateIgnoredVersion: null,
+	lastAutoUpdateFailTime: 0,
 	customFonts: {},
 };
 
@@ -373,6 +376,22 @@ export function getLastUpdateCheck() { return settings.lastUpdateCheck; }
 
 export function setLastUpdateCheck(val) {
 	settings.lastUpdateCheck = val;
+	_saveSettings();
+}
+
+export function getAutoUpdateFailCount() { return settings.autoUpdateFailCount; }
+export function setAutoUpdateFailCount(val) {
+	settings.autoUpdateFailCount = val;
+	_saveSettings();
+}
+export function getAutoUpdateIgnoredVersion() { return settings.autoUpdateIgnoredVersion; }
+export function setAutoUpdateIgnoredVersion(val) {
+	settings.autoUpdateIgnoredVersion = val;
+	_saveSettings();
+}
+export function getLastAutoUpdateFailTime() { return settings.lastAutoUpdateFailTime; }
+export function setLastAutoUpdateFailTime(val) {
+	settings.lastAutoUpdateFailTime = val;
 	_saveSettings();
 }
 
