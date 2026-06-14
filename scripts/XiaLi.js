@@ -134,7 +134,7 @@ function aShiLiPu(nian) {
 		};
 	}
 	return {
-		LVI_Zi: "实历拟合", //: 历准时名称
+		LVI_Zi: "实历复原", //: 历准时名称
 		JQ, //: 立春～立春，对齐节历年，积日完全值
 		Shuo, //: 朔的积日完全值，实历年
 		Yue_dx, //: 月大小日数

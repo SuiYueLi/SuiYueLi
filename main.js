@@ -866,11 +866,11 @@ function renderDetails() {
 	let QiRi = sp.Sui >= WuZhong[0] ? " (定气历日)" : " (平气历日)";
 	let qa = !cell.JQR ? "" : cell.JQR + QiRi;
 	let qb = !cell.JQ ? ""
-			: qa ? "┆" + cell.JQ[0] + " (定气时刻)：" + cell.JQ[1]
-			: cell.JQ[0] + " (定气时刻)：" + cell.JQ[1];
+			: qa ? "┆" + cell.JQ[0] + " (今算定气时刻)：" + cell.JQ[1]
+			: cell.JQ[0] + " (今算定气时刻)：" + cell.JQ[1];
 	let qc = !cell.YX ? ""
-			: qa || qb ? "┆" + cell.YX[0] + " (定朔时刻)：" + cell.YX[1]
-			: cell.YX[0] + " (定朔时刻)：" + cell.YX[1];
+			: qa || qb ? "┆" + cell.YX[0] + " (今算定朔时刻)：" + cell.YX[1]
+			: cell.YX[0] + " (今算定朔时刻)：" + cell.YX[1];
 	const qStr = qa + qb + qc;
 	if (qStr) items.push(qStr);
 
