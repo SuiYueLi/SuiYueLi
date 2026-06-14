@@ -650,6 +650,7 @@ body {
 .vli-item-custom:hover {
   color: var(--text-primary);
 }
+.vli-custom-form { margin: 0; }
 .vli-custom-form .vli-row {
   display: flex;
   align-items: center;
@@ -791,6 +792,7 @@ body {
   display: none;
   align-items: center;
   gap: var(--gap-xs);
+  margin: 0;
 }
 .nian-input-wrap.open { display: flex; }
 .nian-input-wrap input {
@@ -1743,13 +1745,38 @@ body {
   font-size: var(--heading-size);
   font-weight: var(--heading-weight);
 }
+.convert-page .cvp-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-xs);
+  padding: var(--gap-sm) var(--gap-md);
+}
+.convert-page .cvp-tab {
+  flex-shrink: 0;
+  padding: var(--gap-xs) var(--gap-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-glass);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  font-size: var(--small-size);
+  font-family: var(--font-family);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+.convert-page .cvp-tab.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+}
 .convert-page .cvp-body {
   flex: 1;
   overflow-y: auto;
-  padding: var(--gap-sm);
+  padding: var(--gap-md);
   display: flex;
   flex-direction: column;
-  gap: var(--gap-sm);
+  gap: var(--gap-md);
 }
 @supports (scrollbar-width: auto) {
   .convert-page .cvp-body {
@@ -1773,37 +1800,46 @@ body {
 .convert-page .cvp-body:hover::-webkit-scrollbar-thumb {
   background: var(--accent-secondary);
 }
-.convert-page .cvp-card {
+.convert-page .cvp-panel {
+  display: none;
+  flex-direction: column;
+  gap: var(--gap-md);
+}
+.convert-page .cvp-panel.active {
+  display: flex;
+}
+.convert-page .cvp-form {
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
   padding: var(--gap-sm) var(--gap-md);
   border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
 }
-.convert-page .cvp-card-title {
-  font-size: var(--body-size);
+.convert-page .cvp-form-title {
+  font-size: var(--small-size);
   font-weight: var(--subheading-weight);
-  color: var(--text-primary);
-  margin-bottom: var(--gap-xs);
+  color: var(--text-accent);
+  margin-bottom: 2px;
 }
-.convert-page .cvp-row {
+.convert-page .cvp-field {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 0;
+  flex-wrap: wrap;
 }
-.convert-page .cvp-lbl {
+.convert-page .cvp-field label {
   font-size: var(--small-size);
   color: var(--text-tertiary);
   white-space: nowrap;
-  min-width: 1.5em;
-  text-align: right;
+  min-width: 1em;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
 }
-.convert-page .cvp-unit {
-  font-size: var(--small-size);
-  color: var(--text-tertiary);
-  white-space: nowrap;
-}
-.convert-page .cvp-row input[type="number"] {
+.convert-page .cvp-field input[type="number"] {
   width: 4.6em;
   padding: 0.15em 0.3em;
   border: 1px solid var(--border-color);
@@ -1814,30 +1850,22 @@ body {
   font-family: var(--font-family);
   text-align: right;
 }
-.convert-page .cvp-row.cvp-dms input[type="number"] {
-  width: 3.2em;
+.convert-page .cvp-field input[type="number"].thin {
+  width: 2.4em;
 }
-.convert-page .cvp-row.wide input[type="number"] {
+.convert-page .cvp-field input[type="number"].wide {
   width: 6.4em;
 }
-.convert-page .cvp-row .radio-group {
-  display: flex;
-  gap: var(--gap-sm);
-}
-.convert-page .cvp-row .radio-group label {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-size: var(--small-size);
-  white-space: nowrap;
-}
-.convert-page .cvp-row .radio-group input[type="radio"] {
+.convert-page .cvp-field input[type="radio"] {
   accent-color: var(--accent-primary);
   margin: 0;
 }
-.convert-page .cvp-calc-btn {
+.convert-page .cvp-unit {
+  font-size: var(--small-size);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.convert-page .cvp-go {
   padding: 2px 14px;
   border: 1px solid var(--accent-primary);
   border-radius: var(--radius-sm);
@@ -1849,34 +1877,20 @@ body {
   transition: opacity var(--transition-fast);
   margin-left: auto;
 }
-.convert-page .cvp-calc-btn:hover {
+.convert-page .cvp-go:hover {
   opacity: 0.85;
 }
 .convert-page .cvp-result {
-  margin-top: 4px;
   padding: 4px var(--gap-sm);
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
   border-radius: var(--radius-sm);
   font-size: var(--small-size);
   color: var(--text-primary);
   line-height: 1.6;
+  border: 1px solid var(--border-color);
 }
 .convert-page .cvp-result:empty {
   display: none;
-}
-.convert-page .cvp-half {
-  padding: 4px 0;
-}
-.convert-page .cvp-half-title {
-  font-size: var(--small-size);
-  font-weight: var(--subheading-weight);
-  color: var(--text-accent);
-  margin-bottom: 2px;
-}
-.convert-page .cvp-divider {
-  height: 1px;
-  background: var(--border-color);
-  margin: 4px 0;
 }
 
 /* ========== Info Page (GeShi / ShuJu) ========== */

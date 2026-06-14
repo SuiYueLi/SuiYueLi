@@ -1,6 +1,6 @@
 export {WuZhong, ShiKe, NianHao};
 
-const WuZhong = [4342, 4801]; // 区间内【在前无定中置闰】，区间外【无平中置闰】
+const WuZhong = [4342, 4801]; //: [)区间内【在前无定中置闰】，区间外【无平中置闰】
 
 const ShiKe = {
 	Cha: {

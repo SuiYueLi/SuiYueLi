@@ -55,10 +55,10 @@
   <section class="bar-nav" id="barNav">
     <span class="era-toggle" id="eraToggle">华夏</span>
     <span class="nian-display" id="nianDisplay">--</span>
-    <div class="nian-input-wrap" id="nianInputWrap">
-      <input type="number" id="nianInput" title="岁数" />
-      <button type="button" id="nianConfirm">确定</button>
-    </div>
+    <form class="nian-input-wrap" id="nianInputWrap">
+      <input type="number" id="nianInput" title="岁数" enterkeyhint="done" />
+      <button type="submit" id="nianConfirm">确定</button>
+    </form>
     <button type="button" class="nav-btn" id="suiPrev" style="transform: rotateY(180deg); font-size: 1em;" aria-label="上一岁">➧</button>
     <button type="button" class="nav-btn" id="suiNext" style="font-size: 1em;" aria-label="下一岁">➧</button>
     <span class="spacer"></span>
@@ -121,12 +121,13 @@
 <!-- VLI Panel -->
 <div class="vli-panel" id="vliPanel">
   <div class="vli-list" id="vliList"></div>
-  <div class="vli-custom-form" id="vliCustomForm" style="display:none">
+  <form class="vli-custom-form" id="vliCustomForm" style="display:none" novalidate>
     <div class="vli-row">
-      <input type="text" id="vliCustomName" placeholder="名称" />
-      <input type="number" id="vliCustomCha" step="0.01" placeholder="±0.00" />
+      <input type="text" id="vliCustomName" placeholder="名称" enterkeyhint="next" />
+      <input type="number" id="vliCustomCha" step="0.0001" placeholder="±0" enterkeyhint="done" />
+      <button type="submit" style="display:none" aria-hidden="true"></button>
     </div>
-  </div>
+  </form>
   <div class="vli-actions">
     <button type="button" id="vliCancel">取消</button>
     <button type="button" class="primary" id="vliConfirm">确定</button>
@@ -145,7 +146,7 @@
       <li id="menuSettings">设置</li>
       <li id="menuBijiOverview">笔记总览</li>
       <li id="menuImportExport">导入导出</li>
-      <li id="menuConvert">转换工具</li>
+      <li id="menuConvert">换算工具</li>
       <li id="menuShuJu">历法与数据</li>
       <li id="menuAbout">关于应用</li>
       <li id="menuInstallGuide">安装说明</li>
@@ -346,168 +347,162 @@
 <div class="convert-page" id="convertPage">
   <div class="cvp-header">
     <button title="返回" type="button" class="back-btn" id="cvpBack">➥</button>
-    <span class="cvp-title">转换工具</span>
+    <span class="cvp-title">换算工具</span>
+  </div>
+  <div class="cvp-tabs" id="cvpTabs">
+    <button type="button" class="cvp-tab active" data-tab="lng">经度差⇒时差</button>
+    <button type="button" class="cvp-tab" data-tab="day">日⇌时分秒</button>
+    <button type="button" class="cvp-tab" data-tab="jlhj">节历⇌积日</button>
+    <button type="button" class="cvp-tab" data-tab="wchj">西历⇌积日</button>
+    <button type="button" class="cvp-tab" data-tab="jlwc">节历⇌西历</button>
   </div>
   <div class="cvp-body">
 
-    <div class="cvp-card">
-      <div class="cvp-card-title">经度差 ⇒ 时差</div>
-      <div class="cvp-row">
-        <div class="radio-group">
-          <label><input type="radio" name="lngMode" value="degree" checked /> 度　　</label>
-          <label><input type="radio" name="lngMode" value="dms" /> 度分秒</label>
+    <!-- 经度差 ⇒ 时差 -->
+    <div class="cvp-panel active" id="cvpLng">
+      <form class="cvp-form" id="lngDegForm" novalidate>
+        <div class="cvp-form-title">经度差 (度) ➜ 时差</div>
+        <div class="cvp-field">
+          <input type="number" id="lngDegreeInput" class="wide" step="0.0001" placeholder="0" enterkeyhint="done" />
+          <span class="cvp-unit">°E</span>
+          <button type="submit" class="cvp-go">换算</button>
         </div>
-      </div>
-      <div class="cvp-row wide" id="lngDegreeWrap">
-        <span class="cvp-lbl">经度</span>
-        <input type="number" id="lngDegreeInput" step="0.0001" placeholder="116.3912" title="经度（度）" />
-        <span class="cvp-unit">°E</span>
-      </div>
-      <div class="cvp-row cvp-dms" id="lngDmsWrap">
-        <input type="number" id="lngD" placeholder="度" title="经度度" min="0" max="180" />
-        <span class="cvp-unit">°</span>
-        <input type="number" id="lngM" placeholder="分" title="经度分" min="0" max="59" />
-        <span class="cvp-unit">′</span>
-        <input type="number" id="lngS" placeholder="秒" title="经度秒" min="0" max="59" step="0.01" />
-        <span class="cvp-unit">″E</span>
-        <span class="spacer"></span>
-        <button type="button" class="cvp-calc-btn" id="lngCalcBtn">计算</button>
-      </div>
+      </form>
+      <form class="cvp-form" id="lngDmsForm" novalidate>
+        <div class="cvp-form-title">经度差 (度分秒) ➜ 时差</div>
+        <div class="cvp-field">
+          <input type="number" id="lngD" placeholder="0" min="0" max="180" enterkeyhint="next" />
+          <span class="cvp-unit">°</span>
+          <input type="number" id="lngM" class="thin" placeholder="0" min="0" max="59" enterkeyhint="next" />
+          <span class="cvp-unit">′</span>
+          <input type="number" id="lngS" placeholder="0" min="0" max="59" step="0.01" enterkeyhint="done" />
+          <span class="cvp-unit">″E</span>
+          <button type="submit" class="cvp-go">换算</button>
+        </div>
+      </form>
       <div class="cvp-result" id="lngResult"></div>
     </div>
 
-    <div class="cvp-card">
-      <div class="cvp-card-title">小数日 ⇌ 时分秒</div>
-      <div class="cvp-half">
-        <div class="cvp-half-title">小数日 ➜ 时分秒</div>
-        <div class="cvp-row wide">
-          <span class="cvp-lbl">日</span>
-          <input type="number" id="d2hmsInput" step="0.00001" placeholder="0.5" title="日内小数" />
-          <span class="spacer"></span>
-          <button type="button" class="cvp-calc-btn" id="d2hmsCalcBtn">转换</button>
+    <!-- 小数日 ⇌ 时分秒 -->
+    <div class="cvp-panel" id="cvpDay">
+      <form class="cvp-form" id="d2hmsForm" novalidate>
+        <div class="cvp-form-title">小数日 ➜ 时分秒</div>
+        <div class="cvp-field">
+          <input type="number" id="d2hmsInput" class="wide" step="0.00001" placeholder="0.0001" enterkeyhint="done" />
+          <label>日</label>
+          <button type="submit" class="cvp-go">换算</button>
         </div>
-        <div class="cvp-result" id="d2hmsResult"></div>
-      </div>
-      <div class="cvp-divider"></div>
-      <div class="cvp-half">
-        <div class="cvp-half-title">时分秒 ➜ 小数日</div>
-        <div class="cvp-row cvp-dms">
-          <input type="number" id="hms2dH" placeholder="时" title="时" min="0" max="23" />
-          <span class="cvp-unit">h</span>
-          <input type="number" id="hms2dM" placeholder="分" title="分" min="0" max="59" />
-          <span class="cvp-unit">m</span>
-          <input type="number" id="hms2dS" placeholder="秒" title="秒" min="0" max="59" step="0.001" />
-          <span class="cvp-unit">s</span>
-          <span class="spacer"></span>
-          <button type="button" class="cvp-calc-btn" id="hms2dCalcBtn">转换</button>
+      </form>
+      <div class="cvp-result" id="d2hmsResult"></div>
+      <form class="cvp-form" id="hms2dForm" novalidate>
+        <div class="cvp-form-title">时分秒 ➜ 小数日</div>
+        <div class="cvp-field">
+          <input type="number" id="hms2dH" class="thin" placeholder="0" min="0" max="23" enterkeyhint="next" />
+          <span class="cvp-unit">时</span>
+          <input type="number" id="hms2dM" class="thin" placeholder="0" min="0" max="59" enterkeyhint="next" />
+          <span class="cvp-unit">分</span>
+          <input type="number" id="hms2dS" class="thin" placeholder="0" min="0" max="59" step="0.001" enterkeyhint="done" />
+          <span class="cvp-unit">秒</span>
+          <button type="submit" class="cvp-go">换算</button>
         </div>
-        <div class="cvp-result" id="hms2dResult"></div>
-      </div>
+      </form>
+      <div class="cvp-result" id="hms2dResult"></div>
     </div>
 
-    <div class="cvp-card">
-      <div class="cvp-card-title">节历 ⇌ 积日</div>
-      <div class="cvp-half">
-        <div class="cvp-half-title">节历 ➜ 积日</div>
-        <div class="cvp-row">
-          <div class="radio-group">
-            <label><input type="radio" name="jlJiRiType" value="1" checked /> HJ　　</label>
-            <label><input type="radio" name="jlJiRiType" value="0" /> MJD　 </label>
-            <label><input type="radio" name="jlJiRiType" value="-1" /> JD</label>
-          </div>
+    <!-- 节历 ⇌ 积日 -->
+    <div class="cvp-panel" id="cvpJlhj">
+      <form class="cvp-form" id="jl2hjForm" novalidate>
+        <div class="cvp-form-title">节历 ➜ 积日</div>
+        <div class="cvp-field">
+          <label>华夏</label>
+          <input type="number" id="jl2hjSui" title="岁" enterkeyhint="next" />
+          <label>岁</label>
+          <input type="number" id="jl2hjJie" class="thin" title="节" min="1" max="12" enterkeyhint="next" />
+          <label>节</label>
+          <input type="number" id="jl2hjHao" class="thin" title="日" min="1" enterkeyhint="done" />
+          <label>日</label>
+          <button type="submit" class="cvp-go">换算</button>
         </div>
-        <div class="cvp-row">
-          <span class="cvp-lbl">岁</span>
-          <input type="number" id="jl2hjSui" title="岁" />
-          <span class="cvp-lbl">节</span>
-          <input type="number" id="jl2hjJie" title="节" min="1" max="12" />
-          <span class="cvp-lbl">日</span>
-          <input type="number" id="jl2hjHao" title="日" min="1" />
-          <span class="spacer"></span>
-          <button type="button" class="cvp-calc-btn" id="jl2hjCalcBtn">转换</button>
+        <div class="cvp-field">
+          <label><input type="radio" name="jlJiRiType" value="1" checked /> HJ　　</label>
+          <label><input type="radio" name="jlJiRiType" value="0" /> MJD　 </label>
+          <label><input type="radio" name="jlJiRiType" value="-1" /> JD</label>
         </div>
-        <div class="cvp-result" id="jl2hjResult"></div>
-      </div>
-      <div class="cvp-divider"></div>
-      <div class="cvp-half">
-        <div class="cvp-half-title">花甲积日 ➜ 节历</div>
-        <div class="cvp-row wide">
-          <span class="cvp-lbl">HJ</span>
-          <input type="number" id="hj2jlInput" step="1" title="HJ积日数" />
-          <span class="spacer"></span>
-          <button type="button" class="cvp-calc-btn" id="hj2jlCalcBtn">转换</button>
+      </form>
+      <div class="cvp-result" id="jl2hjResult"></div>
+      <form class="cvp-form" id="hj2jlForm" novalidate>
+        <div class="cvp-form-title">花甲积日 ➜ 节历</div>
+        <div class="cvp-field">
+          <label>HJ</label>
+          <input type="number" id="hj2jlInput" class="wide" title="花甲积日数" placeholder="1944000" step="any" enterkeyhint="done" />
+          <button type="submit" class="cvp-go">换算</button>
         </div>
-        <div class="cvp-result" id="hj2jlResult"></div>
-      </div>
+      </form>
+      <div class="cvp-result" id="hj2jlResult"></div>
     </div>
 
-    <div class="cvp-card">
-      <div class="cvp-card-title">西历 ⇌ 积日</div>
-      <div class="cvp-half">
-        <div class="cvp-half-title">西历 ➜ 积日</div>
-        <div class="cvp-row">
-          <div class="radio-group">
-            <label><input type="radio" name="wcJiRiType" value="-1" /> JD　　</label>
-            <label><input type="radio" name="wcJiRiType" value="0" checked /> MJD　 </label>
-            <label><input type="radio" name="wcJiRiType" value="1" /> HJ</label>
-          </div>
+    <!-- 西历 ⇌ 积日 -->
+    <div class="cvp-panel" id="cvpWchj">
+      <form class="cvp-form" id="wc2hjForm" novalidate>
+        <div class="cvp-form-title">西历 ➜ 积日</div>
+        <div class="cvp-field">
+          <label>西元</label>
+          <input type="number" id="wc2hjY" title="西历年" enterkeyhint="next" />
+          <label>年</label>
+          <input type="number" id="wc2hjM" class="thin" title="西历月" min="1" max="12" enterkeyhint="next" />
+          <label>月</label>
+          <input type="number" id="wc2hjD" class="thin" title="西历日" min="1" max="31" enterkeyhint="done" />
+          <label>日</label>
+          <button type="submit" class="cvp-go">换算</button>
         </div>
-        <div class="cvp-row">
-          <span class="cvp-lbl">年</span>
-          <input type="number" id="wc2hjY" title="西历年" />
-          <span class="cvp-lbl">月</span>
-          <input type="number" id="wc2hjM" title="西历月" min="1" max="12" />
-          <span class="cvp-lbl">日</span>
-          <input type="number" id="wc2hjD" title="西历日" min="1" max="31" />
-          <span class="spacer"></span>
-          <button type="button" class="cvp-calc-btn" id="wc2hjCalcBtn">转换</button>
+        <div class="cvp-field">
+          <label><input type="radio" name="wcJiRiType" value="-1" /> JD　　</label>
+          <label><input type="radio" name="wcJiRiType" value="0" checked /> MJD　 </label>
+          <label><input type="radio" name="wcJiRiType" value="1" /> HJ</label>
         </div>
-        <div class="cvp-result" id="wc2hjResult"></div>
-      </div>
-      <div class="cvp-divider"></div>
-      <div class="cvp-half">
-        <div class="cvp-half-title">简化儒略日 ➜ 西历</div>
-        <div class="cvp-row wide">
-          <span class="cvp-lbl">MJD</span>
-          <input type="number" id="hj2wcInput" size="7" step="1" title="简化儒略日" />
-          <span class="spacer"></span>
-          <button type="button" class="cvp-calc-btn" id="hj2wcCalcBtn">转换</button>
+      </form>
+      <div class="cvp-result" id="wc2hjResult"></div>
+      <form class="cvp-form" id="hj2wcForm" novalidate>
+        <div class="cvp-form-title">简化儒略日 ➜ 西历</div>
+        <div class="cvp-field">
+          <label>MJD</label>
+          <input type="number" id="hj2wcInput" class="wide" title="简化儒略日" size="7" placeholder="61210" step="any" enterkeyhint="done" />
+          <button type="submit" class="cvp-go">换算</button>
         </div>
-        <div class="cvp-result" id="hj2wcResult"></div>
-      </div>
+      </form>
+      <div class="cvp-result" id="hj2wcResult"></div>
     </div>
 
-    <div class="cvp-card">
-      <div class="cvp-card-title">节历 ⇌ 西历</div>
-      <div class="cvp-half">
-        <div class="cvp-half-title">节历 ➜ 西历</div>
-        <div class="cvp-row">
-          <span class="cvp-lbl">岁</span>
-          <input type="number" id="jl2wcSui" title="岁" />
-          <span class="cvp-lbl">节</span>
-          <input type="number" id="jl2wcJie" title="节" min="1" max="12" />
-          <span class="cvp-lbl">日</span>
-          <input type="number" id="jl2wcHao" title="日" min="1" />
-          <span class="spacer"></span>
-          <button type="button" class="cvp-calc-btn" id="jl2wcCalcBtn">转换</button>
+    <!-- 节历 ⇌ 西历 -->
+    <div class="cvp-panel" id="cvpJlwc">
+      <form class="cvp-form" id="jl2wcForm" novalidate>
+        <div class="cvp-form-title">节历 ➜ 西历</div>
+        <div class="cvp-field">
+          <label>华夏</label>
+          <input type="number" id="jl2wcSui" title="岁" enterkeyhint="next" />
+          <label>岁</label>
+          <input type="number" id="jl2wcJie" class="thin" title="节" min="1" max="12" enterkeyhint="next" />
+          <label>节</label>
+          <input type="number" id="jl2wcHao" class="thin" title="日" min="1" max="32" enterkeyhint="done" />
+          <label>日</label>
+          <button type="submit" class="cvp-go">换算</button>
         </div>
-        <div class="cvp-result" id="jl2wcResult"></div>
-      </div>
-      <div class="cvp-divider"></div>
-      <div class="cvp-half">
-        <div class="cvp-half-title">西历 ➜ 节历</div>
-        <div class="cvp-row">
-          <span class="cvp-lbl">年</span>
-          <input type="number" id="wc2jlY" title="西历年" />
-          <span class="cvp-lbl">月</span>
-          <input type="number" id="wc2jlM" title="西历月" min="1" max="12" />
-          <span class="cvp-lbl">日</span>
-          <input type="number" id="wc2jlD" title="西历日" min="1" max="31" />
-          <span class="spacer"></span>
-          <button type="button" class="cvp-calc-btn" id="wc2jlCalcBtn">转换</button>
+      </form>
+      <div class="cvp-result" id="jl2wcResult"></div>
+      <form class="cvp-form" id="wc2jlForm" novalidate>
+        <div class="cvp-form-title">西历 ➜ 节历</div>
+        <div class="cvp-field">
+          <label>西元</label>
+          <input type="number" id="wc2jlY" title="西历年" enterkeyhint="next" />
+          <label>年</label>
+          <input type="number" id="wc2jlM" class="thin" title="西历月" min="1" max="12" enterkeyhint="next" />
+          <label>月</label>
+          <input type="number" id="wc2jlDao" class="thin" title="西历日" min="1" max="31" enterkeyhint="done" />
+          <label>日</label>
+          <button type="submit" class="cvp-go">换算</button>
         </div>
-        <div class="cvp-result" id="wc2jlResult"></div>
-      </div>
+      </form>
+      <div class="cvp-result" id="wc2jlResult"></div>
     </div>
 
   </div>

@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS = {
 	customJieSu: null,
 	customFuRi: null,
 	updateCheckInterval: 7,
-	lastUpdateCheck: 1943994,
+	lastUpdateCheck: 1944000,
 	autoUpdateFailCount: 0,
 	autoUpdateIgnoredVersion: null,
 	lastAutoUpdateFailTime: 0,

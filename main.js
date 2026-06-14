@@ -4,6 +4,9 @@ import {JL_Jin, HJ_Jin, lng2cha, D2HMS, readFileAsText} from "./scripts/tools.js
 import * as biji from "./scripts/biji.js";
 import * as jl from "./scripts/JieLi.js";
 import * as wc from "./scripts/westCal.js";
+import {MING} from "./scripts/ming.js";
+import {WuZhong} from "./assets/LiShi.js";
+
 import {
 	initConfig, setThemeMode, setPalette,
 	addCustomPalette, removeCustomPalette, updateCustomPalette, getCustomPalettes,
@@ -33,7 +36,7 @@ const state = {
 	todaySui: 0,
 	todayJie: 0,
 	todayHao: 0,
-	eraType: 'huangdi',  // 'xiyuan' | 'huangdi'
+	eraType: 'huaxia',  // 'xiyuan' | 'huaxia'
 	settingsPageOpen: false,
 	eraIndex: 0,         // 当前年号索引
 };
@@ -294,47 +297,47 @@ function cacheDOM() {
 	DOM.mergeCancelBtn = $('mergeCancelBtn');
 	DOM.convertPage = $('convertPage');
 	DOM.cvpBack = $('cvpBack');
+	DOM.cvpTabs = $('cvpTabs');
 	DOM.lngDegreeInput = $('lngDegreeInput');
-	DOM.lngDegreeWrap = $('lngDegreeWrap');
-	DOM.lngDmsWrap = $('lngDmsWrap');
+	DOM.lngDegForm = $('lngDegForm');
+	DOM.lngDmsForm = $('lngDmsForm');
 	DOM.lngD = $('lngD');
 	DOM.lngM = $('lngM');
 	DOM.lngS = $('lngS');
-	DOM.lngCalcBtn = $('lngCalcBtn');
 	DOM.lngResult = $('lngResult');
 	DOM.d2hmsInput = $('d2hmsInput');
-	DOM.d2hmsCalcBtn = $('d2hmsCalcBtn');
+	DOM.d2hmsForm = $('d2hmsForm');
 	DOM.d2hmsResult = $('d2hmsResult');
 	DOM.hms2dH = $('hms2dH');
 	DOM.hms2dM = $('hms2dM');
 	DOM.hms2dS = $('hms2dS');
-	DOM.hms2dCalcBtn = $('hms2dCalcBtn');
+	DOM.hms2dForm = $('hms2dForm');
 	DOM.hms2dResult = $('hms2dResult');
 	DOM.jl2hjSui = $('jl2hjSui');
 	DOM.jl2hjJie = $('jl2hjJie');
 	DOM.jl2hjHao = $('jl2hjHao');
-	DOM.jl2hjCalcBtn = $('jl2hjCalcBtn');
+	DOM.jl2hjForm = $('jl2hjForm');
 	DOM.jl2hjResult = $('jl2hjResult');
 	DOM.hj2jlInput = $('hj2jlInput');
-	DOM.hj2jlCalcBtn = $('hj2jlCalcBtn');
+	DOM.hj2jlForm = $('hj2jlForm');
 	DOM.hj2jlResult = $('hj2jlResult');
 	DOM.wc2hjY = $('wc2hjY');
 	DOM.wc2hjM = $('wc2hjM');
 	DOM.wc2hjD = $('wc2hjD');
-	DOM.wc2hjCalcBtn = $('wc2hjCalcBtn');
+	DOM.wc2hjForm = $('wc2hjForm');
 	DOM.wc2hjResult = $('wc2hjResult');
 	DOM.hj2wcInput = $('hj2wcInput');
-	DOM.hj2wcCalcBtn = $('hj2wcCalcBtn');
+	DOM.hj2wcForm = $('hj2wcForm');
 	DOM.hj2wcResult = $('hj2wcResult');
 	DOM.jl2wcSui = $('jl2wcSui');
 	DOM.jl2wcJie = $('jl2wcJie');
 	DOM.jl2wcHao = $('jl2wcHao');
-	DOM.jl2wcCalcBtn = $('jl2wcCalcBtn');
+	DOM.jl2wcForm = $('jl2wcForm');
 	DOM.jl2wcResult = $('jl2wcResult');
 	DOM.wc2jlY = $('wc2jlY');
 	DOM.wc2jlM = $('wc2jlM');
 	DOM.wc2jlD = $('wc2jlD');
-	DOM.wc2jlCalcBtn = $('wc2jlCalcBtn');
+	DOM.wc2jlForm = $('wc2jlForm');
 	DOM.wc2jlResult = $('wc2jlResult');
 	DOM.menuConvert = $('menuConvert');
 	DOM.infoPage = $('infoPage');
@@ -860,13 +863,14 @@ function renderDetails() {
 	}
 
 	// 7. 节气/朔望
-	let qa = !cell.JQR ? "" : cell.JQR + " (日历日)";
+	let QiRi = sp.Sui >= WuZhong[0] ? " (定气历日)" : " (平气历日)";
+	let qa = !cell.JQR ? "" : cell.JQR + QiRi;
 	let qb = !cell.JQ ? ""
-			: qa ? "┆" + cell.JQ[0] + " (天文时刻)：" + cell.JQ[1]
-			: cell.JQ[0] + " (天文时刻)：" + cell.JQ[1];
+			: qa ? "┆" + cell.JQ[0] + " (定气时刻)：" + cell.JQ[1]
+			: cell.JQ[0] + " (定气时刻)：" + cell.JQ[1];
 	let qc = !cell.YX ? ""
-			: qa || qb ? "┆" + cell.YX[0] + " (天文时刻)：" + cell.YX[1]
-			: cell.YX[0] + " (天文时刻)：" + cell.YX[1];
+			: qa || qb ? "┆" + cell.YX[0] + " (定朔时刻)：" + cell.YX[1]
+			: cell.YX[0] + " (定朔时刻)：" + cell.YX[1];
 	const qStr = qa + qb + qc;
 	if (qStr) items.push(qStr);
 
@@ -904,6 +908,7 @@ function bindEvents() {
 	DOM.vliLabel.addEventListener('click', _openVLIPanel);
 	DOM.vliCancel.addEventListener('click', _closeVLIPanel);
 	DOM.vliConfirm.addEventListener('click', _confirmVLI);
+	DOM.vliCustomForm.addEventListener('submit', e => { e.preventDefault(); _confirmVLI(); });
 
 	// 星期起始
 	DOM.weekStartToggle.addEventListener('click', () => {
@@ -980,7 +985,7 @@ function bindEvents() {
 
 	// 纪年切换
 	DOM.eraToggle.addEventListener('click', () => {
-		state.eraType = state.eraType === 'xiyuan' ? 'huangdi' : 'xiyuan';
+		state.eraType = state.eraType === 'xiyuan' ? 'huaxia' : 'xiyuan';
 		renderBar2();
 	});
 
@@ -993,8 +998,7 @@ function bindEvents() {
 		DOM.nianInput.value = nian;
 		DOM.nianInput.focus();
 	});
-	DOM.nianConfirm.addEventListener('mousedown', e => { e.preventDefault(); _confirmNian(); });
-	DOM.nianInput.addEventListener('keydown', e => { if (e.key === 'Enter') _confirmNian(); });
+	DOM.nianInputWrap.addEventListener('submit', e => { e.preventDefault(); _confirmNian(); });
 	DOM.nianInput.addEventListener('blur', () => { setTimeout(_cancelNian, 100); });
 
 	// 岁切换
@@ -1272,8 +1276,28 @@ function bindEvents() {
 		}
 	}, { passive: true });
 
-	// 转换工具页
+	// 换算工具页
 	DOM.cvpBack.addEventListener('click', _closeConvertPage);
+	DOM.cvpTabs.addEventListener('click', e => {
+		const tab = e.target.closest('.cvp-tab');
+		if (!tab) return;
+		DOM.cvpTabs.querySelectorAll('.cvp-tab').forEach(t => t.classList.remove('active'));
+		tab.classList.add('active');
+		DOM.convertPage.querySelectorAll('.cvp-panel').forEach(p => p.classList.remove('active'));
+		const id = 'cvp' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1);
+		const panel = DOM.convertPage.querySelector('#' + id);
+		if (panel) panel.classList.add('active');
+	});
+	DOM.lngDegForm.addEventListener('submit', e => { e.preventDefault(); _calcLng2Cha('degree'); });
+	DOM.lngDmsForm.addEventListener('submit', e => { e.preventDefault(); _calcLng2Cha('dms'); });
+	DOM.d2hmsForm.addEventListener('submit', e => { e.preventDefault(); _calcD2HMS(); });
+	DOM.hms2dForm.addEventListener('submit', e => { e.preventDefault(); _calcHMS2D(); });
+	DOM.jl2hjForm.addEventListener('submit', e => { e.preventDefault(); _calcJL2HJ(); });
+	DOM.hj2jlForm.addEventListener('submit', e => { e.preventDefault(); _calcHJ2JL(); });
+	DOM.wc2hjForm.addEventListener('submit', e => { e.preventDefault(); _calcWC2HJ(); });
+	DOM.hj2wcForm.addEventListener('submit', e => { e.preventDefault(); _calcHJ2WC(); });
+	DOM.jl2wcForm.addEventListener('submit', e => { e.preventDefault(); _calcJL2WC(); });
+	DOM.wc2jlForm.addEventListener('submit', e => { e.preventDefault(); _calcWC2JL(); });
 
 	// 信息页
 	DOM.ipBack.addEventListener('click', _closeInfoPage);
@@ -1286,22 +1310,6 @@ function bindEvents() {
 	DOM.ieBack.addEventListener('click', _closeIEPage);
 	DOM.ieGeShiBtn.addEventListener('click', () => { _openInfoPage('GeShi', '导入导出格式说明'); });
 	DOM.boBack.addEventListener('click', _closeBijiOverview);
-	document.querySelectorAll('input[name="lngMode"]').forEach(r => {
-		r.addEventListener('change', () => {
-			const isDms = r.value === 'dms' && r.checked;
-			DOM.lngDegreeWrap.style.display = isDms ? 'none' : '';
-			DOM.lngDmsWrap.style.display = isDms ? '' : 'none';
-		});
-	});
-	DOM.lngCalcBtn.addEventListener('click', _calcLng2Cha);
-	DOM.d2hmsCalcBtn.addEventListener('click', _calcD2HMS);
-	DOM.hms2dCalcBtn.addEventListener('click', _calcHMS2D);
-	DOM.jl2hjCalcBtn.addEventListener('click', _calcJL2HJ);
-	DOM.hj2jlCalcBtn.addEventListener('click', _calcHJ2JL);
-	DOM.wc2hjCalcBtn.addEventListener('click', _calcWC2HJ);
-	DOM.hj2wcCalcBtn.addEventListener('click', _calcHJ2WC);
-	DOM.jl2wcCalcBtn.addEventListener('click', _calcJL2WC);
-	DOM.wc2jlCalcBtn.addEventListener('click', _calcWC2JL);
 
 	// 点击外部关闭节下拉
 	document.addEventListener('click', e => {
@@ -2642,7 +2650,7 @@ function _resetFuRi() {
 	_showToast('每年重复日列表已恢复预设', 3000);
 }
 
-// ========== 转换工具页 ==========
+// ========== 换算工具页 ==========
 function _openConvertPage() {
 	DOM.convertPage.classList.add('open');
 	_navOnOpen();
@@ -2730,32 +2738,33 @@ function _getRadioVal(name) {
 	return el ? parseInt(el.value) : 0;
 }
 
-function _calcLng2Cha() {
-	const checkedRadio = document.querySelector('input[name="lngMode"]:checked');
-	const mode = checkedRadio ? checkedRadio.value : 'degree';
+function _calcLng2Cha(mode) {
 	let lng;
-	if (mode === 'degree') {
-		lng = parseFloat(DOM.lngDegreeInput.value);
-		if (isNaN(lng)) { _showToast('请输入经度'); return; }
-	} else {
+	if (mode === 'dms') {
 		const d = parseFloat(DOM.lngD.value) || 0;
 		const m = parseFloat(DOM.lngM.value) || 0;
 		const s = parseFloat(DOM.lngS.value) || 0;
 		if (d === 0 && m === 0 && s === 0) { _showToast('请输入经度'); return; }
 		lng = d + m / 60 + s / 3600;
+	} else {
+		lng = parseFloat(DOM.lngDegreeInput.value);
+		if (isNaN(lng)) { _showToast('请输入经度'); return; }
 	}
 	const r = lng2cha(lng);
 	DOM.lngResult.innerHTML =
-		'时差：' + r.hms.sign + r.hms.H + '时' + r.hms.M + '分' + r.hms.S + '秒<br>' +
-		'日单位：' + (r.day >= 0 ? '+' : '') + r.day.toFixed(7) + ' 日';
+		'时差 (时分秒)：' + r.hms.sign + r.hms.H + ' 时 ' + r.hms.M + ' 分 ' + r.hms.S + ' 秒<br>' +
+		'时差 (日)：' + (r.day >= 0 ? '+' : '') + r.day.toFixed(7) + ' 日';
 }
 
 function _calcD2HMS() {
-	const v = parseFloat(DOM.d2hmsInput.value);
+	let v = parseFloat(DOM.d2hmsInput.value);
 	if (isNaN(v)) { _showToast('请输入小数日'); return; }
+	let d = Math.floor(v);
+	v -= d;
+	let ds = d ? String(d) + ' 日 + ' : '';
 	const r = D2HMS(v, 3);
 	DOM.d2hmsResult.innerHTML =
-		r.H + '时' + r.M + '分' + r.S + '秒';
+		ds + r.H + ' 时 ' + r.M + ' 分 ' + r.S + ' 秒';
 }
 
 function _calcHMS2D() {
@@ -2765,7 +2774,7 @@ function _calcHMS2D() {
 	if (h === 0 && m === 0 && s === 0) { _showToast('请输入时分秒'); return; }
 	const day = (h * 3600 + m * 60 + s) / 86400;
 	DOM.hms2dResult.innerHTML =
-		day.toFixed(7) + ' 日';
+		day.toFixed(7) + ' 日';
 }
 
 function _calcJL2HJ() {
@@ -2781,11 +2790,11 @@ function _calcJL2HJ() {
 
 function _calcHJ2JL() {
 	const hj = parseFloat(DOM.hj2jlInput.value);
-	if (isNaN(hj)) { _showToast('请输入HJ积日数'); return; }
-	const r = jl.HJvSJRSh(hj, 0);
+	if (isNaN(hj)) { _showToast('请输入花甲积日数'); return; }
+	const r = jl.HJvSJRSh(hj, 3);
 	DOM.hj2jlResult.innerHTML =
-		'岁 ' + r.SJR.S + '　节 ' + r.SJR.J + '　号 ' + r.SJR.R +
-		(r.Shi ? '　' + r.Shi.H + '时' + r.Shi.M + '分' + r.Shi.S + '秒' : '');
+		'华夏 ' + r.SJR.S + ' 岁 ' + Jie_Ming[r.SJR.J] + ' ' + r.SJR.R + ' 日 ' +
+		((r.Shi.H || r.Shi.M || r.Shi.S) ? '　' + r.Shi.H + ' 时 ' + r.Shi.M + ' 分 ' + r.Shi.S + ' 秒' : '');
 }
 
 function _calcWC2HJ() {
@@ -2802,10 +2811,10 @@ function _calcWC2HJ() {
 function _calcHJ2WC() {
 	const mjd = parseFloat(DOM.hj2wcInput.value);
 	if (isNaN(mjd)) { _showToast('请输入MJD积日数'); return; }
-	const r = wc.MJD2wYMDT(mjd, 0);
+	const r = wc.MJD2wYMDT(mjd, 3);
 	DOM.hj2wcResult.innerHTML =
-		r.YMD.Y + '年' + r.YMD.M + '月' + r.YMD.D + '日' +
-		(r.Time ? '　' + r.Time.H + '时' + r.Time.M + '分' + r.Time.S + '秒' : '');
+		'西元 ' + r.YMD.Y + ' 年 ' + r.YMD.M + ' 月 ' + r.YMD.D + ' 日' +
+		((r.Time.H || r.Time.M || r.Time.S) ? '　' + r.Time.H + ' 时 ' + r.Time.M + ' 分 ' + r.Time.S + ' 秒' : '');
 }
 
 function _calcJL2WC() {
@@ -2816,8 +2825,7 @@ function _calcJL2WC() {
 	const mjd = jl.SJRvHJ(sui, jie, hao, 0);
 	const r = wc.MJD2wYMDT(mjd, 0);
 	DOM.jl2wcResult.innerHTML =
-		r.YMD.Y + '年' + r.YMD.M + '月' + r.YMD.D + '日' +
-		(r.Time ? '　' + r.Time.H + '时' + r.Time.M + '分' + r.Time.S + '秒' : '');
+		'西元 ' + r.YMD.Y + ' 年 ' + r.YMD.M + ' 月 ' + r.YMD.D + ' 日';
 }
 
 function _calcWC2JL() {
@@ -2828,8 +2836,7 @@ function _calcWC2JL() {
 	const hj = wc.wYMD2MJD(y, m, d, 1);
 	const r = jl.HJvSJRSh(hj, 0);
 	DOM.wc2jlResult.innerHTML =
-		'岁 ' + r.SJR.S + '　节 ' + r.SJR.J + '　号 ' + r.SJR.R +
-		(r.Shi ? '　' + r.Shi.H + '时' + r.Shi.M + '分' + r.Shi.S + '秒' : '');
+		'华夏 ' + r.SJR.S + ' 岁 ' + Jie_Ming[r.SJR.J] + ' ' + r.SJR.R + ' 日';
 }
 
 // ========== Toast ==========
