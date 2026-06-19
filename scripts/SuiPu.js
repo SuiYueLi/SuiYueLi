@@ -437,43 +437,41 @@ function JieRi(nian, JieSu, SP) {
 
 //: ======== 填写节气节日 === SBiao[i].JS[1]
 	if(JieSu.JQ) {
-		let jq_xu = JieSu.JQ.map((x) => x[1]);
+	//: 先用nian筛选JieSu.JQ，移除【始行年】【终行年】区间不含nian的元素
+		let jqAL = JieSu.JQ.filter((x) => {
+			let bbN = Number.isInteger(x[0]) ? x[0] : 2594;
+			let eeN = Number.isInteger(x[4]) ? x[4] : 99999;
+			return (nian >= bbN) && (nian <= eeN);
+		});
+		let jq_xu = jqAL.map((x) => x[1]);
 		let qian = findLastIndex(jq_xu, (x) => x < 3);
 		//: 检查是否有基于立春前节气的节日，有则需要上年数据
 		if(qian > -1) {
 			let lipu_sh = al.aShiLiPu(nian - 1) || al.aQIvLiPu(nian - 1);
 			for(let i = 0; i <= qian; i++) {
-				let bbN = Number.isInteger(JieSu.JQ[i][0]) ? JieSu.JQ[i][0] : -9999;
-				let eeN = Number.isInteger(JieSu.JQ[i][4]) ? JieSu.JQ[i][4] : 99999;
-				if((nian >= bbN) && (nian <= eeN)) {
-				//: 这里上游夏历历谱输出的JQ数组从立春～立春，序号需要偏移3；上年组需要偏移24
-					let j = JieSu.JQ[i][1] + 21;
-					let jq_sy = lipu_sh.JQ[j] - Biao0_HJ;
-					let jqjr_sy = jq_sy + JieSu.JQ[i][2];
-					if(jqjr_sy >= SShou_sy) {
-						if(SBiao[jqjr_sy].JS) {
-							if(SBiao[jqjr_sy].JS[1]) SBiao[jqjr_sy].JS[1].push(JieSu.JQ[i][3]);
-							else SBiao[jqjr_sy].JS[1] = [JieSu.JQ[i][3]];
-						}
-						else SBiao[jqjr_sy].JS = [, [JieSu.JQ[i][3]]];
+			//: 这里上游夏历历谱输出的JQ数组从立春～立春，序号需要偏移3；上年组需要偏移24
+				let j = jqAL[i][1] + 21;
+				let jq_sy = lipu_sh.JQ[j] - Biao0_HJ;
+				let jqjr_sy = jq_sy + jqAL[i][2];
+				if(jqjr_sy >= SShou_sy) {
+					if(SBiao[jqjr_sy].JS) {
+						if(SBiao[jqjr_sy].JS[1]) SBiao[jqjr_sy].JS[1].push(jqAL[i][3]);
+						else SBiao[jqjr_sy].JS[1] = [jqAL[i][3]];
 					}
+					else SBiao[jqjr_sy].JS = [, [jqAL[i][3]]];
 				}
 			}
 		}
 		let ss = qian > -1 ? qian + 1 : 0; //: 直接等于qian+1也可以
-		for(ss; ss < JieSu.JQ.length; ss++) {
-			let bbN = Number.isInteger(JieSu.JQ[ss][0]) ? JieSu.JQ[ss][0] : -9999;
-			let eeN = Number.isInteger(JieSu.JQ[ss][4]) ? JieSu.JQ[ss][4] : 99999;
-			if((nian >= bbN) && (nian <= eeN)) {
-				let jq_sy = JQ[JieSu.JQ[ss][1] - 3] - Biao0_HJ;
-				let jqjr_sy = jq_sy + JieSu.JQ[ss][2];
-				if((jqjr_sy >= SShou_sy) && (jqjr_sy < SWei_sy)) {
-					if(SBiao[jqjr_sy].JS) {
-						if(SBiao[jqjr_sy].JS[1]) SBiao[jqjr_sy].JS[1].push(JieSu.JQ[ss][3]);
-						else SBiao[jqjr_sy].JS[1] = [JieSu.JQ[ss][3]];
-					}
-					else SBiao[jqjr_sy].JS = [, [JieSu.JQ[ss][3]]];
+		for(ss; ss < jqAL.length; ss++) {
+			let jq_sy = JQ[jqAL[ss][1] - 3] - Biao0_HJ;
+			let jqjr_sy = jq_sy + jqAL[ss][2];
+			if((jqjr_sy >= SShou_sy) && (jqjr_sy < SWei_sy)) {
+				if(SBiao[jqjr_sy].JS) {
+					if(SBiao[jqjr_sy].JS[1]) SBiao[jqjr_sy].JS[1].push(jqAL[ss][3]);
+					else SBiao[jqjr_sy].JS[1] = [jqAL[ss][3]];
 				}
+				else SBiao[jqjr_sy].JS = [, [jqAL[ss][3]]];
 			}
 		}
 	}
@@ -549,41 +547,39 @@ function ChongFu(nian, FuRi, SP) {
 
 //: ======== 填写节气重复日 ========
 	if(FuRi.JQ) {
-		let jq_xu = FuRi.JQ.map((x) => x[1]);
+	//: 先用nian筛选FuRi.JQ，移除【始行年】【终行年】区间不含nian的元素
+		let jqAL = FuRi.JQ.filter((x) => {
+			let bbN = Number.isInteger(x[0]) ? x[0] : 2594;
+			let eeN = Number.isInteger(x[4]) ? x[4] : 99999;
+			return (nian >= bbN) && (nian <= eeN);
+		});
+		let jq_xu = jqAL.map((x) => x[1]);
 		let qian = findLastIndex(jq_xu, (x) => x < 3);
 		//: 检查是否有基于立春前节气的重复日，有则需要上年数据
 		if(qian > -1) {
 			let lipu_sh = al.aShiLiPu(nian - 1) || al.aQIvLiPu(nian - 1);
 			for(let i = 0; i <= qian; i++) {
-				let bbN = Number.isInteger(FuRi.JQ[i][0]) ? FuRi.JQ[i][0] : -9999;
-				let eeN = Number.isInteger(FuRi.JQ[i][4]) ? FuRi.JQ[i][4] : 99999;
-				if((nian >= bbN) && (nian <= eeN)) {
-				//: 这里上游夏历历谱输出的JQ数组从立春～立春，序号需要偏移3；上年组需要偏移24
-					let j = FuRi.JQ[i][1] + 21;
-					let jq_sy = lipu_sh.JQ[j] - Biao0_HJ;
-					let jqfr_sy = jq_sy + FuRi.JQ[i][2];
-					if(jqfr_sy >= SShou_sy) {
-						if(!SBiao[jqfr_sy].FR) SBiao[jqfr_sy].FR = {};
-						if(SBiao[jqfr_sy].FR.JQ) SBiao[jqfr_sy].FR.JQ.push(FuRi.JQ[i][3]);
-						else SBiao[jqfr_sy].FR.JQ = [FuRi.JQ[i][3]];
-						SBiao[jqfr_sy].FR.icon = FuRi.JQ[i][5] || SBiao[jqfr_sy].FR.icon || "❀";
-					}
+			//: 这里上游夏历历谱输出的JQ数组从立春～立春，序号需要偏移3；上年组需要偏移24
+				let j = jqAL[i][1] + 21;
+				let jq_sy = lipu_sh.JQ[j] - Biao0_HJ;
+				let jqfr_sy = jq_sy + jqAL[i][2];
+				if(jqfr_sy >= SShou_sy) {
+					if(!SBiao[jqfr_sy].FR) SBiao[jqfr_sy].FR = {};
+					if(SBiao[jqfr_sy].FR.JQ) SBiao[jqfr_sy].FR.JQ.push(jqAL[i][3]);
+					else SBiao[jqfr_sy].FR.JQ = [jqAL[i][3]];
+					SBiao[jqfr_sy].FR.icon = jqAL[i][5] || SBiao[jqfr_sy].FR.icon || "❀";
 				}
 			}
 		}
 		let ss = qian > -1 ? qian + 1 : 0;
-		for(ss; ss < FuRi.JQ.length; ss++) {
-			let bbN = Number.isInteger(FuRi.JQ[ss][0]) ? FuRi.JQ[ss][0] : -9999;
-			let eeN = Number.isInteger(FuRi.JQ[ss][4]) ? FuRi.JQ[ss][4] : 99999;
-			if((nian >= bbN) && (nian <= eeN)) {
-				let jq_sy = JQ[FuRi.JQ[ss][1] - 3] - Biao0_HJ;
-				let jqfr_sy = jq_sy + FuRi.JQ[ss][2];
-				if((jqfr_sy >= SShou_sy) && (jqfr_sy < SWei_sy)) {
-					if(!SBiao[jqfr_sy].FR) SBiao[jqfr_sy].FR = {};
-					if(SBiao[jqfr_sy].FR.JQ) SBiao[jqfr_sy].FR.JQ.push(FuRi.JQ[ss][3]);
-					else SBiao[jqfr_sy].FR.JQ = [FuRi.JQ[ss][3]];
-					SBiao[jqfr_sy].FR.icon = FuRi.JQ[ss][5] || SBiao[jqfr_sy].FR.icon || "❀";
-				}
+		for(ss; ss < jqAL.length; ss++) {
+			let jq_sy = JQ[jqAL[ss][1] - 3] - Biao0_HJ;
+			let jqfr_sy = jq_sy + jqAL[ss][2];
+			if((jqfr_sy >= SShou_sy) && (jqfr_sy < SWei_sy)) {
+				if(!SBiao[jqfr_sy].FR) SBiao[jqfr_sy].FR = {};
+				if(SBiao[jqfr_sy].FR.JQ) SBiao[jqfr_sy].FR.JQ.push(jqAL[ss][3]);
+				else SBiao[jqfr_sy].FR.JQ = [jqAL[ss][3]];
+				SBiao[jqfr_sy].FR.icon = jqAL[ss][5] || SBiao[jqfr_sy].FR.icon || "❀";
 			}
 		}
 	}

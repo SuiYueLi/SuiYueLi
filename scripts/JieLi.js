@@ -251,7 +251,7 @@ function HJvSJRSh(hj, jibie = 0) {
 	let jy12 = jJieYue(caiN).HJ;
 	let m = 1, d = 0;
 	let jYu = j - jy12[0] * 60;
-	let n = jYu - jy12[1];
+	let n = jYu - jy12[1]; //: 这里用重新计算的岁首（月首），避开了前面可能在break时与caiN不同步的caiN_SSh
 	if (n > 0) {
 		m = Math.floor(n / 32) + 1;
 		for (; m < 13; m++) {

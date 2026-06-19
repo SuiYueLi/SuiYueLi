@@ -4,7 +4,6 @@ import {JL_Jin, HJ_Jin, lng2cha, D2HMS, readFileAsText} from "./scripts/tools.js
 import * as biji from "./scripts/biji.js";
 import * as jl from "./scripts/JieLi.js";
 import * as wc from "./scripts/westCal.js";
-import {MING} from "./scripts/ming.js";
 import {WuZhong} from "./assets/LiShi.js";
 
 import {
@@ -304,7 +303,8 @@ function cacheDOM() {
 	DOM.lngD = $('lngD');
 	DOM.lngM = $('lngM');
 	DOM.lngS = $('lngS');
-	DOM.lngResult = $('lngResult');
+	DOM.lngDegResult = $('lngDegResult');
+	DOM.lngDmsResult = $('lngDmsResult');
 	DOM.d2hmsInput = $('d2hmsInput');
 	DOM.d2hmsForm = $('d2hmsForm');
 	DOM.d2hmsResult = $('d2hmsResult');
@@ -1564,7 +1564,7 @@ function _toggleJieDropdown(e) {
 	// 定位
 	const rect = DOM.jieName.getBoundingClientRect();
 	DOM.jieDropdown.style.top = (rect.bottom + 2) + 'px';
-	DOM.jieDropdown.style.left = (rect.left - 7) + 'px';
+	DOM.jieDropdown.style.left = (rect.left - 7.5) + 'px';
 	DOM.jieDropdown.classList.toggle('open');
 	if (DOM.jieDropdown.classList.contains('open')) {
 		_navOnOpen();
@@ -1575,9 +1575,13 @@ function _toggleJieDropdown(e) {
 
 // ========== 今按钮 ==========
 async function _goToday() {
-	state.currentSui = state.todaySui;
-	state.currentJie = state.todayJie;
-	state.currentHao = state.todayHao;
+	const today = JL_Jin();
+	state.todaySui = today.S;
+	state.todayJie = today.J;
+	state.todayHao = today.R;
+	state.currentSui = today.S;
+	state.currentJie = today.J;
+	state.currentHao = today.R;
 	await _ensureSuiPu(state.currentSui);
 	renderAll();
 	_preloadAdjacentSui();
@@ -2740,25 +2744,27 @@ function _getRadioVal(name) {
 
 function _calcLng2Cha(mode) {
 	let lng;
+	let resultEl;
 	if (mode === 'dms') {
-		const d = parseFloat(DOM.lngD.value) || 0;
-		const m = parseFloat(DOM.lngM.value) || 0;
-		const s = parseFloat(DOM.lngS.value) || 0;
-		if (d === 0 && m === 0 && s === 0) { _showToast('请输入经度'); return; }
+		const d = parseFloat(DOM.lngD.value);
+		const m = parseFloat(DOM.lngM.value);
+		const s = parseFloat(DOM.lngS.value);
+		if (!Number.isInteger(d) || !Number.isInteger(m) || !Number.isInteger(s)) { _showToast('请输入经度'); return; }
 		lng = d + m / 60 + s / 3600;
+		resultEl = DOM.lngDmsResult;
 	} else {
 		lng = parseFloat(DOM.lngDegreeInput.value);
-		if (isNaN(lng)) { _showToast('请输入经度'); return; }
+		if (!Number.isFinite(lng)) { _showToast('请输入经度'); return; }
+		resultEl = DOM.lngDegResult;
 	}
 	const r = lng2cha(lng);
-	DOM.lngResult.innerHTML =
-		'时差 (时分秒)：' + r.hms.sign + r.hms.H + ' 时 ' + r.hms.M + ' 分 ' + r.hms.S + ' 秒<br>' +
-		'时差 (日)：' + (r.day >= 0 ? '+' : '') + r.day.toFixed(7) + ' 日';
+	resultEl.innerHTML =
+		'与 UTC+8 时差 ：<br/>&emsp;&emsp;' + r.hms.sign + r.hms.H + ' 时 ' + r.hms.M + ' 分 ' + r.hms.S + ' 秒<br/>&emsp;&emsp;' + (r.day >= 0 ? '+' : '') + r.day.toFixed(5) + ' 日';
 }
 
 function _calcD2HMS() {
 	let v = parseFloat(DOM.d2hmsInput.value);
-	if (isNaN(v)) { _showToast('请输入小数日'); return; }
+	if (!Number.isFinite(v)) { _showToast('请输入小数日'); return; }
 	let d = Math.floor(v);
 	v -= d;
 	let ds = d ? String(d) + ' 日 + ' : '';
@@ -2768,20 +2774,22 @@ function _calcD2HMS() {
 }
 
 function _calcHMS2D() {
-	const h = parseFloat(DOM.hms2dH.value) || 0;
-	const m = parseFloat(DOM.hms2dM.value) || 0;
-	const s = parseFloat(DOM.hms2dS.value) || 0;
-	if (h === 0 && m === 0 && s === 0) { _showToast('请输入时分秒'); return; }
+	const h = parseFloat(DOM.hms2dH.value);
+	const m = parseFloat(DOM.hms2dM.value);
+	const s = parseFloat(DOM.hms2dS.value);
+	if (!Number.isInteger(h) || !Number.isInteger(m) || !Number.isInteger(s)) { _showToast('请输入时分秒'); return; }
 	const day = (h * 3600 + m * 60 + s) / 86400;
 	DOM.hms2dResult.innerHTML =
-		day.toFixed(7) + ' 日';
+		day.toFixed(5) + ' 日';
 }
 
 function _calcJL2HJ() {
 	const sui = parseInt(DOM.jl2hjSui.value);
 	const jie = parseInt(DOM.jl2hjJie.value);
 	const hao = parseInt(DOM.jl2hjHao.value);
-	if (isNaN(sui) || isNaN(jie) || isNaN(hao)) { _showToast('请输入完整的节历日期'); return; }
+	if (!Number.isInteger(sui) || !Number.isInteger(jie) || !Number.isInteger(hao)) { _showToast('请输入完整的节历日期'); return; }
+	const j12d = jl.jJieYue(sui).RiShu;
+	if (hao > j12d[jie]) { _showToast('请输入正确的节历日期'); return; }
 	const shu = _getRadioVal('jlJiRiType');
 	const result = jl.SJRvHJ(sui, jie, hao, shu);
 	const typeName = shu === -1 ? 'JD' : shu === 0 ? 'MJD' : 'HJ';
@@ -2790,7 +2798,9 @@ function _calcJL2HJ() {
 
 function _calcHJ2JL() {
 	const hj = parseFloat(DOM.hj2jlInput.value);
-	if (isNaN(hj)) { _showToast('请输入花甲积日数'); return; }
+	if (!Number.isFinite(hj)) { _showToast('请输入花甲积日数'); return; }
+	if (hj < -255992) { _showToast('请输入大于等于-255992的花甲积日数'); return; } // HX.-1300.01.01
+	if (hj >= 2629791) { _showToast('请输入小于2629791的花甲积日数'); return; } // HX6601.01.01
 	const r = jl.HJvSJRSh(hj, 3);
 	DOM.hj2jlResult.innerHTML =
 		'华夏 ' + r.SJR.S + ' 岁 ' + Jie_Ming[r.SJR.J] + ' ' + r.SJR.R + ' 日 ' +
@@ -2801,7 +2811,13 @@ function _calcWC2HJ() {
 	const y = parseInt(DOM.wc2hjY.value);
 	const m = parseInt(DOM.wc2hjM.value);
 	const d = parseInt(DOM.wc2hjD.value);
-	if (isNaN(y) || isNaN(m) || isNaN(d)) { _showToast('请输入完整的西历日期'); return; }
+	if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) { _showToast('请输入完整的西历日期'); return; }
+	if (y === 1582 && m === 10 && d > 4 && d < 15) { _showToast('西历1582年10月没有5～14日'); return; }
+	else {
+		const m12d = wc.wMonths(y).Days;
+		if (d > m12d[m] && !(y === 1582 && m === 10)) { _showToast('请输入正确的西历日期'); return; }
+		else if (d > 31) { _showToast('请输入正确的西历日期'); return; }
+	}
 	const shu = _getRadioVal('wcJiRiType');
 	const result = wc.wYMD2MJD(y, m, d, shu);
 	const typeName = shu === -1 ? 'JD' : shu === 0 ? 'MJD' : 'HJ';
@@ -2810,10 +2826,13 @@ function _calcWC2HJ() {
 
 function _calcHJ2WC() {
 	const mjd = parseFloat(DOM.hj2wcInput.value);
-	if (isNaN(mjd)) { _showToast('请输入MJD积日数'); return; }
+	if (!Number.isFinite(mjd)) { _showToast('请输入MJD积日数'); return; }
+	if (mjd < -2400001) { _showToast('请输入大于等于-2400001的简化儒略日数'); return; } // 西元前4713年1月1日
+	if (mjd >= 782395) { _showToast('请输入小于782395的简化儒略日数'); return; } // 西元4001.01.01
 	const r = wc.MJD2wYMDT(mjd, 3);
+	const yn = r.YMD.Y < 1 ? '西元前 ' + String(1 - r.YMD.Y) + ' 年 ' : '西元 ' + String(r.YMD.Y) + ' 年 ';
 	DOM.hj2wcResult.innerHTML =
-		'西元 ' + r.YMD.Y + ' 年 ' + r.YMD.M + ' 月 ' + r.YMD.D + ' 日' +
+		yn + r.YMD.M + ' 月 ' + r.YMD.D + ' 日' +
 		((r.Time.H || r.Time.M || r.Time.S) ? '　' + r.Time.H + ' 时 ' + r.Time.M + ' 分 ' + r.Time.S + ' 秒' : '');
 }
 
@@ -2821,18 +2840,27 @@ function _calcJL2WC() {
 	const sui = parseInt(DOM.jl2wcSui.value);
 	const jie = parseInt(DOM.jl2wcJie.value);
 	const hao = parseInt(DOM.jl2wcHao.value);
-	if (isNaN(sui) || isNaN(jie) || isNaN(hao)) { _showToast('请输入完整的节历日期'); return; }
+	if (!Number.isInteger(sui) || !Number.isInteger(jie) || !Number.isInteger(hao)) { _showToast('请输入完整的节历日期'); return; }
+	const j12d = jl.jJieYue(sui).RiShu;
+	if (hao > j12d[jie]) { _showToast('请输入正确的节历日期'); return; }
 	const mjd = jl.SJRvHJ(sui, jie, hao, 0);
 	const r = wc.MJD2wYMDT(mjd, 0);
+	const yn = r.YMD.Y < 1 ? '西元前 ' + String(1 - r.YMD.Y) + ' 年 ' : '西元 ' + String(r.YMD.Y) + ' 年 ';
 	DOM.jl2wcResult.innerHTML =
-		'西元 ' + r.YMD.Y + ' 年 ' + r.YMD.M + ' 月 ' + r.YMD.D + ' 日';
+		yn + r.YMD.M + ' 月 ' + r.YMD.D + ' 日';
 }
 
 function _calcWC2JL() {
 	const y = parseInt(DOM.wc2jlY.value);
 	const m = parseInt(DOM.wc2jlM.value);
 	const d = parseInt(DOM.wc2jlD.value);
-	if (isNaN(y) || isNaN(m) || isNaN(d)) { _showToast('请输入完整的西历日期'); return; }
+	if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) { _showToast('请输入完整的西历日期'); return; }
+	if (y === 1582 && m === 10 && d > 4 && d < 15) { _showToast('西历1582年10月没有5～14日'); return; }
+	else {
+		const m12d = wc.wMonths(y).Days;
+		if (d > m12d[m] && !(y === 1582 && m === 10)) { _showToast('请输入正确的西历日期'); return; }
+		else if (d > 31) { _showToast('请输入正确的西历日期'); return; }
+	}
 	const hj = wc.wYMD2MJD(y, m, d, 1);
 	const r = jl.HJvSJRSh(hj, 0);
 	DOM.wc2jlResult.innerHTML =
@@ -2858,10 +2886,9 @@ function _initSWMessageListener() {
 		if (!data) return;
 
 		if (data.type === 'SW_UPDATED') {
-			// _applyUpdate 通过 controllerchange 处理成功回调
-			// 此处仅处理非更新流程触发的 SW 更新（如浏览器自动更新）
+			// 非手动更新流程触发的 SW 更新（如浏览器自动更新），静默处理
 			if (!_updateCheckMode) {
-				_showToast('应用已更新至 v' + data.version + '，刷新页面以应用', 5000);
+				_fetchAppVersion();
 			}
 		}
 

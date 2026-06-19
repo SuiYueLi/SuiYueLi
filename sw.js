@@ -1,4 +1,4 @@
-const APP_VERSION = '1.47230510.2';
+const APP_VERSION = '1.47230515.0';
 const CACHE_NAME = 'SuiYueLi_v' + APP_VERSION;
 
 const CACHE_FILES = [
@@ -28,13 +28,14 @@ const CACHE_FILES = [
 	'/pages/AnZhuang.html',
 	'/pages/GeShi.html',
 	'/pages/GuanYu.html',
-	'/pages/JieLi_Jian.html',
+	'/pages/LiFa_Jian.html',
 	'/pages/ShuJu.html',
 	'/pages/ZiTi.html',
 	'/pages/IMG/PWA_addrBar.png',
 	'/pages/IMG/Zan.jpg',
 	'/scripts/biji.js',
 	'/scripts/JieLi.js',
+	'/scripts/ming.js',
 	'/scripts/qu_QI.js',
 	'/scripts/SuiPu.js',
 	'/scripts/tools.js',

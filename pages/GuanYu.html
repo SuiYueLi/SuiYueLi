@@ -1,8 +1,8 @@
 <h2>关于应用</h2>
 <p>这是一个PWA日历应用，是<b>华夏岁月历</b>的程序实现。</p>
-<p>关于华夏岁月历的详细规则及相关的华夏历法概念与术语，待后续补充文章链接。</p>
-<p>华夏岁月历由夏历结合节历而成。本应用以节历为主历法，以夏历为副历法，并附注干支、西历、节庆民俗等附加信息。</p>
-<p>本应用提供简单的笔记功能。笔记存储在浏览器存储内，环境支持时（如Windows+Edge）可同时指定本地存储文件。</p>
+<p>华夏岁月历由夏历增补节历而成，历法及相关概念与术语详见：<a>江俊.《历象授时·传承及补充——华夏岁月历》.[链接待补]</a>，或参考本应用源文件中的 JieLi.js、XiaLi.js；简略了解可参见：<a data-info-page="LiFa_Jian">岁月历规则简略版</a>。</p>
+<p>本应用以节历为主历法，以夏历为副历法，并附注干支、西历、节庆民俗等附加信息。</p>
+<p>本应用提供简单的笔记功能。笔记存储在浏览器存储内，环境支持时（如 Windows + Edge）可同时指定本地存储文件。</p>
 <p>笔记不会上传网络。如果没有指定本地存储文件，清除浏览器缓存、卸载浏览器将导致笔记及个人设置<font color=red>数据丢失</font>，建议经常导出备份。</p>
 
 <h2><font color=red>实用警告</font></h2>
@@ -17,19 +17,22 @@
 <h2>已知问题</h2>
 <ul>
 	<li>安卓设备的物理返回键或只能回退一层页面，第二次会导致应用退出。
-  <ul>
-    <li>权宜之计：优先使用应用内的返回按钮。</li>
-  </ul>
-  </li>
+		<ul><li>权宜之计：优先使用应用内的返回按钮。</li></ul>
+	</li>
+	<li>Windows 下手动更新容易出现提示“更新失败”。
+		<ul><li>权宜之计：再检查一下版本号，通常已更新成功。</li></ul>
+	</li>
+	<li>Windows 版 Edge 浏览器中，上下拖动日历格切换节月的滚动动画可能出现预期外的回滚视觉效果。
+		<ul><li>权宜之计：反正节月是能顺利切换的。</li></ul>
+	</li>
 </ul>
 
 <h2>联系作者</h2>
 
 <p>关于《华夏岁月历》或本应用有任何意见，敬请不吝赐函：<span id="emailPlaceholder"></span> 。</p>
 
-
 <p>&thinsp;</p>
-<div class="sign">华夏&thinsp;4723&thinsp;岁仲夏&thinsp;2&thinsp;日辛亥<br/>川南花积台</div>
+<div class="sign">华夏&thinsp;4723&thinsp;岁&thinsp;仲夏&thinsp;15&thinsp;日&thinsp;周五、花&thinsp;(32400)&thinsp;甲子、端阳，<br/>版本 v1 完结。</div>
 
 <div style="text-align:center;margin-top:30px;">
   <button onclick="var i=this.nextElementSibling;i.style.display=i.style.display==='none'?'block':'none';this.textContent=this.textContent==='赞 赏'?'👍 精神鼓励':'赞 赏';">赞 赏</button>

@@ -12,7 +12,7 @@
 
 import {D2HMS} from "./tools.js";
 import {HJ_ShvZh} from "./JieLi.js";
-export {wMonthsHJ, wYMD2MJD, MJD2wYMDT};
+export {wMonths, wMonthsHJ, wYMD2MJD, MJD2wYMDT};
 
 //: 计算西历年年首即1月1日0时简化儒略日数
 function wY2MJD(year) {
@@ -54,7 +54,7 @@ function wYLeap(year) {
 //: 西历年12个月日数、月首
 function wMonths(year) {
 	if (year === 1582) return {
-		Days: [0,
+		Days: [false,
 			31, 28, 31, 30, 31, 30,
 			31, 31, 30, 21, 30, 31],
 		MJD: [-101117,
@@ -162,6 +162,7 @@ function MJD2wYMDT(mjd, jibie = 0) {
 		if ((j >= -100840) && (j < -100823)) d += 10;
 	}
 
+	gYHd = wY2MJD(gY); //:! 确保break后gYHd与gY一致
 	let m2yh = wMonths(gY).MJD;
 	let m = 1;
 	let n = j - gYHd;
