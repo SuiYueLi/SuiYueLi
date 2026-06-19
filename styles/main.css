@@ -1990,8 +1990,8 @@ body {
 }
 .info-page .ip-body ul { padding-left: 1.25em; }
 .info-page .ip-body code {
-  font-family: 'Menlo', 'Consolas', monospace;
-  font-size: 0.8125em;
+  font-family: '新宋体', 'NSimSun', 'Menlo', 'Consolas', monospace;
+  font-size: 0.9em;
   background: var(--bg-secondary);
   padding: 0.0625em 0.25em;
   border-radius: var(--radius-sm);
