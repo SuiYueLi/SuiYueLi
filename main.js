@@ -2759,7 +2759,7 @@ function _calcLng2Cha(mode) {
 	}
 	const r = lng2cha(lng);
 	resultEl.innerHTML =
-		'与 UTC+8 时差 ：<br/>&emsp;&emsp;' + r.hms.sign + r.hms.H + ' 时 ' + r.hms.M + ' 分 ' + r.hms.S + ' 秒<br/>&emsp;&emsp;' + (r.day >= 0 ? '+' : '') + r.day.toFixed(5) + ' 日';
+		'&ensp;•&ensp;' + r.hms.sign + r.hms.H + ' 时 ' + r.hms.M + ' 分 ' + r.hms.S + ' 秒<br/>&ensp;•&ensp;' + (r.day >= 0 ? '+' : '') + r.day.toFixed(5) + ' 日';
 }
 
 function _calcD2HMS() {
