@@ -18,7 +18,7 @@
 .DS_Store
 Thumbs.db
 
-# wrangler files
+# ===== wrangler files =====
 .wrangler
 .dev.vars*
 !.dev.vars.example
