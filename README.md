@@ -24,6 +24,12 @@
 
 **切勿实用于现实日程，以免因混淆现行历法而误事！**
 
+## 截图
+
+<img src="screenshots/华夏岁月历_亮.jpg" alt="华夏岁月历_亮" style="zoom: 67%;" />
+
+<img src="screenshots/华夏岁月历_图.jpg" alt="华夏岁月历_图" style="zoom:67%;" />
+
 ## 关于程序
 
 本应用源代码托管在 [Gitee](https://gitee.com/suiyueli/suiyueli) / [Github](https://github.com/SuiYueLi/SuiYueLi) 平台，采用开源协议：[木兰宽松许可证，第2版](https://license.coscl.org.cn/MulanPSL2)。
