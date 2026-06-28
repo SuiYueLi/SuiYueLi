@@ -1,9 +1,10 @@
 <h2>关于历法</h2>
 <p>华夏岁月历由夏历增补节历而成，历法及相关概念与术语详见：<a href="https://zsyyb.cn/abs/202606.04638" target="_blank" rel="noopener noreferrer">江俊.《历象授时·传承及补充——华夏岁月历》.哲学社会科学预印本平台.[PSSXiv:202606.04638]</a>；具体设定也可参考本应用<a href="https://gitee.com/suiyueli/suiyueli" target="_blank" rel="noopener noreferrer">源文件</a>子目录 <code>/scripts</code> 下的 <code>JieLi.js</code> 、<code>XiaLi.js</code> 文件；粗略了解则可阅读：<a data-info-page="LiFa_Jian">华夏岁月历规则简略版</a>。</p>
 <p><b>节历</b>是一种基于二十四气的太阳历。</p>
-<p><b>夏历</b>现行官方版本由<a href="http://www.pmo.cas.cn/xwdt2019/kpdt2019/202203/t20220309_6386774.html" target="_blank" rel="noopener noreferrer">紫金山天文台</a>按年编制、发布。</p>
-<p>对于尚未颁行官历的未来年份（暂时截至 HX4800），本应用所展示之夏历按现行国标 GB/T 33661－2017 《农历的编算和颁行》编排，<b>仅供参考</b>，将逐年与官颁版本校对更新。此外，春秋时期（HX1976）之前、HX4801 往后的阴历月则按华夏岁月历版夏历规则、据今算气朔数据编排，<b>仅作示意</b>。</p>
-<p>HX1976 至今的阴历月为历史实历复原，详见下文。诚盼有志一同者共参历史实历数据之编修考订。</p>
+<p><b>夏历</b>现行官方版本由<a href="http://www.pmo.cas.cn/xwdt2019/kpdt2019/202203/t20220309_6386774.html" target="_blank" rel="noopener noreferrer">紫金山天文台</a>按年编制、发布。</p><ul>
+<li>对于尚未颁行官历的未来年份（暂时截至 HX4800），本应用所展示之夏历按现行国标 GB/T 33661－2017 《农历的编算和颁行》编排，<b>仅供参考</b>，将逐年于 IERS 闰秒公报、紫台历谱发布后进行校对更新。</li>
+<li>春秋时期（HX1976）之前、HX4801 往后的阴历月则按华夏岁月历版夏历规则、据今算气朔数据编排，<b>仅作示意</b>。</li>
+<li>HX1976 至今的阴历月为历史实历复原，详见下文。诚盼有志一同者共参历史实历数据之编修考订。</li></ul>
 
 <h2>数据源</h2>
 <p>本应用使用了许剑伟<a href="http://bbs.nongli.net/dispbbs214995.html" target="_blank" rel="noopener noreferrer">《寿星天文历》</a>和廖育栋 <a href="https://github.com/ytliu0/ChineseCalendar" target="_blank" rel="noopener noreferrer">ChineseCalendar</a> 项目的一些数据，在此对他们及其上游理论、数据作者表示感谢！</p>
@@ -11,9 +12,9 @@
 
 <h2>天文气朔数据</h2>
 <p>本应用中，对于实历之外的夏历编排，及全部节气、朔望时刻注历，使用预先计算的气朔数据表。</p>
-<p>气朔数据表基于廖育栋 ChineseCalendar 项目提供的 TDB 时间气朔数据，用 python 库 Pyswisseph 计算 delta-T 转换为地球时。</p>
+<p>气朔数据表基于廖育栋 ChineseCalendar 项目提供的 TDB 时间气朔数据，用 python 库 Pyswisseph 计算 delta-T（西元 1657 至 2033 段根据 IERS 数据自行插值计算、维护），转换为地球时。</p>
 <p>ChineseCalendar 项目的气朔数据由 IAU2006/2000A 岁差章动模型、[Vondr´ak et al 2011] 岁差模型和喷气推进实验室（JPL）的 DE440/441 星历表算得。</p>
-<p>需要特别提出的是 Pyswisseph 2.06 版的 delta-T 计算基于西元2016年的新论文，与主流的、版本更老的 NASA（Fred Espenak）版分段多项式拟合算法所得结果差异显著。</p>
+<p>需要特别提出的是，Pyswisseph 2.06+ 版的 delta-T 计算基于 F.R.Stephenson; L.V.Morrison; C.Y.Hohenkerk 发表于西元2016年的论文 <a href="https://doi.org/10.1098/rspa.2016.0404" target="_blank" rel="noopener noreferrer">Measurement of the Earth's rotation: 720 BC to AD 2015</a>，与主流的、版本更老的 NASA（Fred Espenak）版分段多项式拟合算法所得结果差异显著。</p>
 <p>另一方面，据 Espenak 等的估算公式，HX1976 年 delta-T 的不确定度已接近 10 分钟——实际上，溯及史前时代，delta-T 失去了可参照的交食记录。</p>
 
 <h2>历史实历数据</h2>
