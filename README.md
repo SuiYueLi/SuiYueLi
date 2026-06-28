@@ -26,9 +26,9 @@
 
 ## 截图
 
-<img src="screenshots/华夏岁月历_亮.jpg" alt="华夏岁月历_亮" style="zoom: 67%;" />
+<img src="screenshots/华夏岁月历_亮.jpg" alt="华夏岁月历_亮" style="zoom: 60%;" />
 
-<img src="screenshots/华夏岁月历_图.jpg" alt="华夏岁月历_图" style="zoom:67%;" />
+<img src="screenshots/华夏岁月历_图.jpg" alt="华夏岁月历_图" style="zoom:60%;" />
 
 ## 关于程序
 
@@ -42,7 +42,7 @@
 
 - 安卓设备的物理返回键或只能回退一层页面，第二次会导致应用退出。
 	- 权宜之计：优先使用应用内的返回按钮。
-- Windows 下手动更新容易提示“更新失败”。
+- Windows 下手动更新有时误提示“更新失败”。
 	- 权宜之计：再检查一下版本号，通常已更新成功。
 - Windows 版 Edge 浏览器中，上下拖动日历格切换节月的滚动动画可能出现预期外的回滚视觉效果。
 	- 权宜之计：反正节月是能顺利切换的。
