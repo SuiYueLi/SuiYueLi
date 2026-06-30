@@ -3517,19 +3517,24 @@ async function _updateBijiHint() {
 }
 
 async function _bijiSpecifyFile() {
-	const existing = await biji.getFileHandle();
-	if (existing) {
-		const ok = await biji.verifyFileHandle();
-		if (ok) {
-			const name = existing.name || 'biji.json';
-			if (!confirm('已指定文件：' + name + '。是否更换？')) return;
-		}
-	}
 	try {
 		const handle = await window.showSaveFilePicker({
 			suggestedName: 'biji.json',
 			types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
 		});
+		// 尝试读取文件已有数据，询问是否合并导入
+		try {
+			const file = await handle.getFile();
+			const text = await readFileAsText(file);
+			if (text && text.trim()) {
+				const fileData = JSON.parse(text);
+				if (fileData && Object.keys(fileData).length > 0) {
+					if (confirm('文件已有数据，是否合并导入？')) {
+						_importJsonBiji(text, 'merge');
+					}
+				}
+			}
+		} catch(e) {}
 		await biji.saveFileHandle(handle);
 		const written = await biji.writeCurrentDataToFile();
 		if (written) {
