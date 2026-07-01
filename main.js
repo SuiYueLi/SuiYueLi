@@ -2569,13 +2569,12 @@ async function _saveFile(content, filename, mime) {
 			if (e.name === 'AbortError') throw e;
 		}
 	}
-	const blob = new Blob([content], { type: mime });
-	const url = URL.createObjectURL(blob);
+	const dataUrl = 'data:' + mime + ';charset=utf-8,' + encodeURIComponent(content);
 	const a = document.createElement('a');
-	a.href = url; a.download = filename;
+	a.href = dataUrl; a.download = filename;
 	a.style.display = 'none';
 	document.body.appendChild(a); a.click();
-	setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+	setTimeout(() => { document.body.removeChild(a); }, 100);
 }
 
 async function _exportJieSu() {
