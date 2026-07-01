@@ -2569,15 +2569,6 @@ async function _saveFile(content, filename, mime) {
 			if (e.name === 'AbortError') throw e;
 		}
 	}
-	const file = new File([content], filename, { type: mime });
-	if (navigator.canShare && navigator.canShare({ files: [file] })) {
-		try {
-			await navigator.share({ files: [file] });
-			return;
-		} catch(e) {
-			if (e.name === 'AbortError') throw e;
-		}
-	}
 	const blob = new Blob([content], { type: mime });
 	const url = URL.createObjectURL(blob);
 	const a = document.createElement('a');
