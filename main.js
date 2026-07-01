@@ -2555,20 +2555,28 @@ async function _importJieSu() {
 
 async function _saveFile(content, filename, mime) {
 	if (window.showSaveFilePicker) {
-		const ext = filename.slice(filename.lastIndexOf('.'));
-		const handle = await window.showSaveFilePicker({
-			suggestedName: filename,
-			types: [{ description: ext.slice(1).toUpperCase(), accept: { [mime]: [ext] } }],
-		});
-		const writable = await handle.createWritable();
-		await writable.write(content);
-		await writable.close();
-		return;
+		try {
+			const ext = filename.slice(filename.lastIndexOf('.'));
+			const handle = await window.showSaveFilePicker({
+				suggestedName: filename,
+				types: [{ description: ext.slice(1).toUpperCase(), accept: { [mime]: [ext] } }],
+			});
+			const writable = await handle.createWritable();
+			await writable.write(content);
+			await writable.close();
+			return;
+		} catch(e) {
+			if (e.name === 'AbortError') throw e;
+		}
 	}
 	const file = new File([content], filename, { type: mime });
 	if (navigator.canShare && navigator.canShare({ files: [file] })) {
-		await navigator.share({ files: [file] });
-		return;
+		try {
+			await navigator.share({ files: [file] });
+			return;
+		} catch(e) {
+			if (e.name === 'AbortError') throw e;
+		}
 	}
 	const blob = new Blob([content], { type: mime });
 	const url = URL.createObjectURL(blob);
@@ -3518,11 +3526,11 @@ async function _updateBijiHint() {
 
 async function _bijiSpecifyFile() {
 	try {
-		const handle = await window.showSaveFilePicker({
-			suggestedName: 'biji.json',
-			types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+		const [handle] = await window.showOpenFilePicker({
+			types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+			multiple: false,
 		});
-		// 尝试读取文件已有数据，询问是否合并导入
+		// 读取文件已有数据，询问是否合并导入
 		try {
 			const file = await handle.getFile();
 			const text = await readFileAsText(file);
@@ -3550,6 +3558,17 @@ async function _bijiSpecifyFile() {
 		_updateBijiHint();
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('指定文件失败：' + e.message);
+	}
+}
+
+async function _bijiReauthorize() {
+	const ok = await biji.verifyFileHandle();
+	if (ok) {
+		_updateBijiFileBtn();
+		_updateBijiHint();
+		_showToast('已重新获得授权');
+	} else {
+		_showToast('无法获得授权，请重新指定文件');
 	}
 }
 
@@ -3598,7 +3617,7 @@ async function _updateBijiFileBtn() {
 			DOM.bijiFileName.textContent = handle.name || 'biji.json';
 			DOM.bijiFileName.style.display = '';
 			DOM.bijiFileBtn.textContent = '重新授权';
-			DOM.bijiFileBtn.onclick = _bijiSpecifyFile;
+			DOM.bijiFileBtn.onclick = _bijiReauthorize;
 			DOM.bijiFileBtn.title = '';
 		}
 	} else {
