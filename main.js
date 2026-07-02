@@ -874,7 +874,12 @@ function renderDetails() {
 	const qStr = qa + qb + qc;
 	if (qStr) items.push(qStr);
 
-	// 8. 节庆民俗
+	// 8. FR.JQ
+	if (cell.FR && cell.FR.JQ && cell.FR.JQ.length > 0) {
+		items.push(cell.FR.JQ.join('，'));
+	}
+
+	// 9. 节庆民俗
 	if (cell.JS) {
 		const allJS = _getAllJSDetail(cell.JS);
 		if (allJS.length > 0) items.push(allJS.join('，'));
@@ -1023,7 +1028,7 @@ function bindEvents() {
 
 	// 设置页
 	DOM.spBack.addEventListener('click', _closeSettingsPage);
-	DOM.spCustomStyleBtn.addEventListener('click', () => { _openInfoPage('ZiTi', '字体与简繁切换'); });
+	DOM.spCustomStyleBtn.addEventListener('click', () => { _openInfoPage('ZiTi', '字体 与 简繁字型'); });
 	DOM.bgImageBtn.addEventListener('click', _onBgImageSelect);
 	DOM.bgImageRemove.addEventListener('click', () => { removeBgImage(); DOM.bgImageRemoveWrap.style.display = 'none'; });
 	DOM.bgBlurInput.addEventListener('change', () => {
