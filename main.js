@@ -815,7 +815,7 @@ function renderDetails() {
 	const idx = _findCurrentCellIdx(sp);
 	const mod7 = idx % 7;
 	const weekdayStr = formatWeekdayName(mod7);
-	items.push('华夏 ' + sp.Sui + ' 岁' + sp.Jie_Zi[cell.JL[0]] + " " + String(cell.JL[1]) + ' 日┆' + sp.Sui_GZh[0] + '岁 ' + sp.Jie_GZh[cell.JL[0]] + '节 ' + cell.GZh + '日┆' + weekdayStr);
+	items.push('华夏 ' + sp.Sui + ' 岁 ' + sp.Jie_Zi[cell.JL[0]] + " " + String(cell.JL[1]) + ' 日┆' + sp.Sui_GZh[0] + '岁 ' + sp.Jie_GZh[cell.JL[0]] + '节 ' + cell.GZh + '日┆' + weekdayStr);
 
 	// 2. FR.JL
 	if (cell.FR && cell.FR.JL && cell.FR.JL.length > 0) {
@@ -1052,7 +1052,7 @@ function bindEvents() {
 	const _fontPreviewTexts = {
 		Base: '节历 民俗 笔记 详情 设置',
 		SuiJie: '华夏　孟春　仲冬',
-		Hao: '1 3 7 15 30',
+		Hao: '1 3 7 15 20',
 		Ri: '初一　十五　冬至',
 		XiangQing: '甲子岁　冬至　日曜日',
 		BiJi: '历史事件　个人笔记',

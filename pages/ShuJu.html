@@ -11,7 +11,7 @@
 <p>本应用的数据文件可在<a href="https://gitee.com/suiyueli/suiyueli" target="_blank" rel="noopener noreferrer">源文件</a>子目录 <code>/assets</code> 下找到。</p>
 
 <h2>天文气朔数据</h2>
-<p>本应用中，对于实历之外的夏历编排，及全部节气、朔望时刻注历，使用预先计算的气朔数据表。</p>
+<p>本应用中，对于实历之外的夏历编排，及全部节气、朔望时刻之注历，使用预先计算的气朔数据表。</p>
 <p>气朔数据表基于廖育栋 ChineseCalendar 项目提供的 TDB 时间气朔数据，用 python 库 Pyswisseph 计算 delta-T（西元 1657 至 2033 段根据 IERS 数据自行插值计算、维护），转换为地球时。</p>
 <p>ChineseCalendar 项目的气朔数据由 IAU2006/2000A 岁差章动模型、[Vondr´ak et al 2011] 岁差模型和喷气推进实验室（JPL）的 DE440/441 星历表算得。</p>
 <p>需要特别提出的是，Pyswisseph 2.06+ 版的 delta-T 计算基于 F.R.Stephenson; L.V.Morrison; C.Y.Hohenkerk 发表于西元2016年的论文 <a href="https://doi.org/10.1098/rspa.2016.0404" target="_blank" rel="noopener noreferrer">Measurement of the Earth's rotation: 720 BC to AD 2015</a>，与主流的、版本更老的 NASA（Fred Espenak）版分段多项式拟合算法所得结果差异显著。</p>
