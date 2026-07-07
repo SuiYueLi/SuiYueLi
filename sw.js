@@ -1,4 +1,4 @@
-const APP_VERSION = '1.47230530.0';
+const APP_VERSION = '1.47230602.0';
 const CACHE_NAME = 'SuiYueLi_v' + APP_VERSION;
 
 const CACHE_FILES = [
@@ -99,6 +99,9 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
 	const url = new URL(event.request.url);
+
+	// 非 http(s) 协议（data:, blob: 等）交给浏览器原生处理，避免 SW 拦截导致下载失败
+	if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
 
 	if (url.pathname.endsWith('/sw.js')) {
 		event.respondWith(
