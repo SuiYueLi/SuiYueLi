@@ -2560,19 +2560,15 @@ async function _importJieSu() {
 
 async function _saveFile(content, filename, mime) {
 	if (window.showSaveFilePicker) {
-		try {
-			const ext = filename.slice(filename.lastIndexOf('.'));
-			const handle = await window.showSaveFilePicker({
-				suggestedName: filename,
-				types: [{ description: ext.slice(1).toUpperCase(), accept: { [mime]: [ext] } }],
-			});
-			const writable = await handle.createWritable();
-			await writable.write(content);
-			await writable.close();
-			return;
-		} catch(e) {
-			if (e.name === 'AbortError') throw e;
-		}
+		const ext = filename.slice(filename.lastIndexOf('.'));
+		const handle = await window.showSaveFilePicker({
+			suggestedName: filename,
+			types: [{ description: ext.slice(1).toUpperCase(), accept: { [mime]: [ext] } }],
+		});
+		const writable = await handle.createWritable();
+		await writable.write(content);
+		await writable.close();
+		return;
 	}
 	const blob = new Blob([content], { type: mime });
 	const url = URL.createObjectURL(blob);
