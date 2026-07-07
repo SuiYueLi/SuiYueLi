@@ -25,6 +25,10 @@ import {
 	resetAllCustomFonts
 } from "./config.js";
 
+// 移动端浏览器在 HTTPS 下可能暴露 File System Access API 的 stub，实际不可用
+// 借助 PWA 可安装性判断：触发 beforeinstallprompt 或处于 standalone 模式的是完整 Chromium
+let _hasFileSystemAccess = !!(window.showSaveFilePicker && window.matchMedia('(display-mode: standalone)').matches);
+
 const Jie_Ming = [ , "孟春", "仲春", "季春", "孟夏", "仲夏", "季夏", "孟秋", "仲秋", "季秋", "孟冬", "仲冬", "季冬"];
 
 // ========== 状态 ==========
@@ -2559,7 +2563,7 @@ async function _importJieSu() {
 }
 
 async function _saveFile(content, filename, mime) {
-	if (window.showSaveFilePicker) {
+	if (_hasFileSystemAccess) {
 		const ext = filename.slice(filename.lastIndexOf('.'));
 		const handle = await window.showSaveFilePicker({
 			suggestedName: filename,
@@ -3509,7 +3513,7 @@ async function _updateBijiHint() {
 			return;
 		}
 	}
-	if (window.showSaveFilePicker) {
+	if (_hasFileSystemAccess) {
 		DOM.bijiEditorHint.textContent = '笔记保存在浏览器缓存，请及时导出或指定本地文件保存 →';
 	} else {
 		DOM.bijiEditorHint.textContent = '笔记保存在浏览器缓存，请及时导出以防丢失 →';
@@ -3521,6 +3525,7 @@ async function _bijiSpecifyFile() {
 		const [handle] = await window.showOpenFilePicker({
 			types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
 			multiple: false,
+			mode: 'readwrite',
 		});
 		// 读取文件已有数据，询问是否合并导入
 		try {
@@ -3587,7 +3592,7 @@ async function _bijiUnlinkFile() {
 }
 
 async function _updateBijiFileBtn() {
-	if (!window.showSaveFilePicker) {
+	if (!_hasFileSystemAccess) {
 		const span = document.createElement('span');
 		span.textContent = '当前系统/浏览器不支持';
 		span.style.cssText = 'color:var(--text-tertiary);font-size:var(--small-size)';
@@ -3877,6 +3882,12 @@ function _initInstallPrompt() {
 		e.preventDefault();
 		_deferredInstallPrompt = e;
 		DOM.menuInstallApp.style.display = '';
+		// 触发 beforeinstallprompt 说明是完整 Chromium，支持 File System Access API
+		if (window.showSaveFilePicker && !_hasFileSystemAccess) {
+			_hasFileSystemAccess = true;
+			_updateBijiFileBtn();
+			_updateBijiHint();
+		}
 	});
 
 	window.addEventListener('appinstalled', () => {
