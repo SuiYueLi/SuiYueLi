@@ -242,24 +242,19 @@ function cacheDOM() {
 	DOM.boPage = $('boPage');
 	DOM.boBack = $('boBack');
 	DOM.boBody = $('boBody');
-	DOM.boSelectAll = $('boSelectAll');
-	DOM.boExpandAll = $('boExpandAll');
+	DOM.boExpandAllSui = $('boExpandAllSui');
 	DOM.boSortOrder = $('boSortOrder');
 	DOM.boIconFilter = $('boIconFilter');
 	DOM.boSearch = $('boSearch');
-	DOM.boSuiRow = $('boSuiRow');
 	DOM.boStartSui = $('boStartSui');
 	DOM.boEndSui = $('boEndSui');
 	DOM.boSuiConfirm = $('boSuiConfirm');
-	DOM.boSuiCancel = $('boSuiCancel');
 	DOM.boSearchRow = $('boSearchRow');
 	DOM.boSearchInput = $('boSearchInput');
-	DOM.boSearchClose = $('boSearchClose');
+	DOM.boSearchBtn = $('boSearchBtn');
 	DOM.boIconFilterRow = $('boIconFilterRow');
 	DOM.boIconList = $('boIconList');
 	DOM.boIconInvert = $('boIconInvert');
-	DOM.boSelectRow = $('boSelectRow');
-	DOM.boSelectInvert = $('boSelectInvert');
 	DOM.boDeleteSelected = $('boDeleteSelected');
 	DOM.settingsPage = $('settingsPage');
 	DOM.spBack = $('spBack');
@@ -1746,12 +1741,13 @@ let _boState = {
 	startSui: null,
 	endSui: null,
 	asc: true,
-	selectMode: false,
-	selectedKeys: new Set(),
-	expandedKeys: new Set(),
+	expandedSui: new Set(),      // 展开的岁
+	suiSelectModes: new Set(),   // 启用多选的岁
+	globalSelectMode: false,     // 全局多选（筛选/搜索时）
+	selectedKeys: new Set(),     // 多选选中的笔记 key
+	expandedKeys: new Set(),     // 展开的笔记 key
 	iconFilter: new Set(),
 	searchQuery: '',
-	allExpanded: false,
 };
 
 function _hasAnyBiji() {
@@ -1775,24 +1771,25 @@ function _updateBijiOverviewVisibility() {
 
 function _openBijiOverview() {
 	_boState = {
-		startSui: null,
-		endSui: null,
+		startSui: state.currentSui,
+		endSui: state.currentSui,
 		asc: true,
-		selectMode: false,
+		expandedSui: new Set([state.currentSui]),
+		suiSelectModes: new Set(),
+		globalSelectMode: false,
 		selectedKeys: new Set(),
 		expandedKeys: new Set(),
 		iconFilter: new Set(),
 		searchQuery: '',
-		allExpanded: false,
 	};
-	DOM.boSortOrder.textContent = '↑';
+	DOM.boSortOrder.textContent = 'ᐱ';
 	DOM.boSortOrder.dataset.asc = '1';
-	DOM.boSelectRow.style.display = 'none';
-	DOM.boSuiRow.style.display = 'none';
+	DOM.boStartSui.value = state.currentSui;
+	DOM.boEndSui.value = state.currentSui;
+	DOM.boExpandAllSui.classList.remove('active');
 	DOM.boSearchRow.style.display = 'none';
 	DOM.boIconFilterRow.style.display = 'none';
-	DOM.boSelectAll.classList.remove('active');
-	DOM.boExpandAll.classList.remove('active');
+	DOM.boDeleteSelected.style.display = 'none';
 	DOM.boIconFilter.classList.remove('active');
 	DOM.boSearch.classList.remove('active');
 	_renderBijiOverview();
@@ -1846,6 +1843,10 @@ function _collectBijiInRange() {
 	return results;
 }
 
+function _updateBODeleteBtn() {
+	DOM.boDeleteSelected.style.display = _boState.selectedKeys.size > 0 ? '' : 'none';
+}
+
 function _renderBijiOverview() {
 	let notes = _collectBijiInRange();
 	if (_boState.iconFilter.size > 0) {
@@ -1859,144 +1860,323 @@ function _renderBijiOverview() {
 		notes = notes.filter(n => n.biji.toLowerCase().includes(q));
 	}
 	DOM.boBody.innerHTML = '';
+	const filterActive = _boState.iconFilter.size > 0 || _boState.searchQuery;
+	if (!filterActive && _boState.globalSelectMode) {
+		_boState.globalSelectMode = false;
+	}
+	_updateBODeleteBtn();
 	if (notes.length === 0) {
 		DOM.boBody.innerHTML = '<div class="bo-empty">暂无笔记</div>';
 		return;
 	}
-	const countEl = document.createElement('div');
-	countEl.className = 'bo-count';
-	countEl.textContent = '共 ' + notes.length + ' 条';
-	DOM.boBody.appendChild(countEl);
-	const groups = new Map();
+	// 按岁分组
+	const suiGroups = new Map();
 	for (const n of notes) {
-		const gk = n.sui + ':' + n.hj;
-		if (!groups.has(gk)) groups.set(gk, { sui: n.sui, hj: n.hj, items: [] });
-		groups.get(gk).items.push(n);
+		if (!suiGroups.has(n.sui)) suiGroups.set(n.sui, []);
+		suiGroups.get(n.sui).push(n);
 	}
-	for (const [, g] of groups) {
-		const groupLabel = document.createElement('div');
-		groupLabel.className = 'bo-date-label';
-		let sjr = { S: g.sui, J: 1, R: 1 };
-		try {
-			const r = jl.HJvSJRSh(g.hj, 0).SJR;
-			if (r) sjr = r;
-		} catch(e) {}
-		groupLabel.textContent = sjr.S + '岁' + Jie_Ming[sjr.J] + sjr.R + '号';
-		DOM.boBody.appendChild(groupLabel);
-		const list = document.createElement('div');
-		list.className = 'biji-list bo-group-list';
-		for (let ni = 0; ni < g.items.length; ni++) {
-			const n = g.items[ni];
-			const item = document.createElement('div');
-			item.className = 'biji-item' + (_boState.expandedKeys.has(n.key) ? ' expanded' : '');
-			item.dataset.key = n.key;
-			const summary = document.createElement('div');
-			summary.className = 'biji-item-summary';
-			if (_boState.selectMode) {
-				const check = document.createElement('input');
-				check.type = 'checkbox';
-				check.className = 'bo-note-check';
-				check.checked = _boState.selectedKeys.has(n.key);
-				check.addEventListener('click', (e) => e.stopPropagation());
-				check.addEventListener('change', () => {
-					if (check.checked) _boState.selectedKeys.add(n.key);
-					else _boState.selectedKeys.delete(n.key);
-				});
-				summary.appendChild(check);
+	const suiList = [...suiGroups.keys()].sort((a, b) => _boState.asc ? a - b : b - a);
+	const totalCount = notes.length;
+	// 顶部计数行（含全局操作按钮）
+	const countRow = document.createElement('div');
+	countRow.className = 'bo-count-row';
+	const countText = document.createElement('span');
+	countText.className = 'bo-count';
+	countText.textContent = '共 ' + totalCount + ' 条';
+	countRow.appendChild(countText);
+	if (filterActive) {
+		const gBtnGroup = document.createElement('span');
+		gBtnGroup.className = 'bo-sui-btn-group';
+		const gInvert = document.createElement('button');
+		gInvert.type = 'button';
+		gInvert.className = 'bo-tool-btn-sm';
+		gInvert.title = '反选';
+		gInvert.textContent = '反选';
+		gInvert.style.display = _boState.globalSelectMode ? '' : 'none';
+		gInvert.addEventListener('click', () => {
+			for (const n of notes) {
+				if (_boState.selectedKeys.has(n.key)) _boState.selectedKeys.delete(n.key);
+				else _boState.selectedKeys.add(n.key);
 			}
-			const iconSpan = document.createElement('span');
-			iconSpan.className = 'biji-icon';
-			iconSpan.textContent = n.icon || biji.BIJI_DEFAULT_ICON;
-			summary.appendChild(iconSpan);
-			summary.appendChild(document.createTextNode(' ' + _bijiSummaryText(n.biji)));
-			item.appendChild(summary);
-			const expand = document.createElement('div');
-			expand.className = 'biji-item-expand';
-			const expIcon = document.createElement('span');
-			expIcon.className = 'biji-icon';
-			expIcon.textContent = n.icon || biji.BIJI_DEFAULT_ICON;
-			expand.appendChild(expIcon);
-			expand.appendChild(document.createTextNode(' ' + _bijiExpandText(n.biji)));
-			item.appendChild(expand);
-			const actions = document.createElement('div');
-			actions.className = 'biji-item-actions';
-			const btnEdit = document.createElement('button');
-			btnEdit.textContent = '✎';
-			btnEdit.title = '编辑';
-			btnEdit.addEventListener('click', (e) => {
-				e.stopPropagation();
-				_bijiOpenEditForSui(n.sui, n.hj, n.idx);
-			});
-			const btnUp = document.createElement('button');
-			btnUp.textContent = '⇧';
-			btnUp.title = '上移';
-			btnUp.disabled = ni === 0;
-			btnUp.addEventListener('click', (e) => {
-				e.stopPropagation();
-				biji.moveNote(n.sui, n.hj, n.idx, n.idx - 1);
-				_renderBijiOverview();
-				renderBar7();
-			});
-			const btnDown = document.createElement('button');
-			btnDown.textContent = '⇩';
-			btnDown.title = '下移';
-			btnDown.disabled = ni === g.items.length - 1;
-			btnDown.addEventListener('click', (e) => {
-				e.stopPropagation();
-				biji.moveNote(n.sui, n.hj, n.idx, n.idx + 1);
-				_renderBijiOverview();
-				renderBar7();
-			});
-			const btnCollapse = document.createElement('button');
-			btnCollapse.textContent = '⧋';
-			btnCollapse.title = '收起';
-			btnCollapse.addEventListener('click', (e) => {
-				e.stopPropagation();
-				item.classList.remove('expanded');
-				const ex = item.querySelector('.biji-item-expand');
-				if (ex) { ex.style.maxHeight = ''; ex.style.minHeight = ''; }
-				_boState.expandedKeys.delete(n.key);
-			});
-			actions.append(btnEdit, btnUp, btnDown, btnCollapse);
-			item.appendChild(actions);
-			item.addEventListener('click', () => {
-				const wasExpanded = item.classList.contains('expanded');
-				clearTimeout(_boActionsTimer);
-				if (wasExpanded) {
-					if (_boActionsVisible) {
-						_boActionsVisible = false;
-						item.classList.remove('actions-visible');
-						_boActionsTimer = setTimeout(() => {
-							if (_boActionsVisible) return;
-							item.classList.remove('actions-visible');
-						}, 0);
-					} else {
-						_boActionsVisible = true;
-						item.classList.add('actions-visible');
-						_boActionsTimer = setTimeout(() => {
-							_boActionsVisible = false;
-							item.classList.remove('actions-visible');
-						}, 5000);
+			_renderBijiOverview();
+		});
+		gBtnGroup.appendChild(gInvert);
+		const gSelect = document.createElement('button');
+		gSelect.type = 'button';
+		gSelect.className = 'bo-tool-btn-sm';
+		gSelect.title = '多选';
+		gSelect.textContent = '☐';
+		gSelect.classList.toggle('active', _boState.globalSelectMode);
+		gSelect.addEventListener('click', () => {
+			_boState.globalSelectMode = !_boState.globalSelectMode;
+			if (!_boState.globalSelectMode) {
+				for (const n of notes) _boState.selectedKeys.delete(n.key);
+			}
+			_renderBijiOverview();
+		});
+		gBtnGroup.appendChild(gSelect);
+		const gExpand = document.createElement('button');
+		gExpand.type = 'button';
+		gExpand.className = 'bo-tool-btn-sm';
+		gExpand.title = '全部展开/收起';
+		gExpand.textContent = '≚';
+		gExpand.classList.toggle('active', notes.every(n => _boState.expandedKeys.has(n.key)));
+		gExpand.addEventListener('click', () => {
+			const allExp = notes.every(n => _boState.expandedKeys.has(n.key));
+			if (allExp) {
+				for (const n of notes) _boState.expandedKeys.delete(n.key);
+			} else {
+				for (const n of notes) _boState.expandedKeys.add(n.key);
+			}
+			_renderBijiOverview();
+		});
+		gBtnGroup.appendChild(gExpand);
+		countRow.appendChild(gBtnGroup);
+	}
+	DOM.boBody.appendChild(countRow);
+	for (const sui of suiList) {
+		const suiNotes = suiGroups.get(sui);
+		// 岁分组头部
+		const suiHeader = document.createElement('div');
+		suiHeader.className = 'bo-sui-header';
+		suiHeader.dataset.sui = sui;
+		const toggle = document.createElement('span');
+		toggle.className = 'bo-sui-toggle';
+		suiHeader.appendChild(toggle);
+		const label = document.createElement('span');
+		label.className = 'bo-sui-label';
+		label.textContent = sui + ' 岁';
+		suiHeader.appendChild(label);
+		const count = document.createElement('span');
+		count.className = 'bo-sui-count';
+		count.textContent = suiNotes.length + ' 条';
+		suiHeader.appendChild(count);
+		// 右侧按钮组
+		const btnGroup = document.createElement('span');
+		btnGroup.className = 'bo-sui-btn-group';
+		const btnInvert = document.createElement('button');
+		btnInvert.type = 'button';
+		btnInvert.className = 'bo-tool-btn-sm bo-sui-invert';
+		btnInvert.title = '反选';
+		btnInvert.textContent = '反选';
+		btnInvert.style.display = 'none';
+		btnGroup.appendChild(btnInvert);
+		const btnSelect = document.createElement('button');
+		btnSelect.type = 'button';
+		btnSelect.className = 'bo-tool-btn-sm bo-sui-select';
+		btnSelect.title = '多选';
+		btnSelect.textContent = '☐';
+		btnGroup.appendChild(btnSelect);
+		const btnExpand = document.createElement('button');
+		btnExpand.type = 'button';
+		btnExpand.className = 'bo-tool-btn-sm bo-sui-expand';
+		btnExpand.title = '全部展开/收起';
+		btnExpand.textContent = '≚';
+		btnGroup.appendChild(btnExpand);
+		suiHeader.appendChild(btnGroup);
+		DOM.boBody.appendChild(suiHeader);
+		// 岁组内容
+		const suiBody = document.createElement('div');
+		suiBody.className = 'bo-sui-body';
+		// 按日分组
+		const dayGroups = new Map();
+		for (const n of suiNotes) {
+			const gk = n.hj;
+			if (!dayGroups.has(gk)) dayGroups.set(gk, []);
+			dayGroups.get(gk).push(n);
+		}
+		const dayKeys = [...dayGroups.keys()].sort((a, b) => _boState.asc ? a - b : b - a);
+		function _updateSuiExpanded() {
+			const expanded = _boState.expandedSui.has(sui);
+			suiHeader.classList.toggle('expanded', expanded);
+			toggle.textContent = expanded ? '⑇' : '⑉';
+			suiBody.style.display = expanded ? '' : 'none';
+		}
+		function _updateSelectUI() {
+			const selectMode = _boState.suiSelectModes.has(sui) || _boState.globalSelectMode;
+			btnSelect.style.display = _boState.globalSelectMode ? 'none' : '';
+			btnSelect.classList.toggle('active', _boState.suiSelectModes.has(sui));
+			btnInvert.style.display = selectMode ? '' : 'none';
+		}
+		btnSelect.addEventListener('click', (e) => {
+			e.stopPropagation();
+			if (_boState.suiSelectModes.has(sui)) {
+				_boState.suiSelectModes.delete(sui);
+				for (const n of suiNotes) _boState.selectedKeys.delete(n.key);
+			} else {
+				_boState.suiSelectModes.add(sui);
+			}
+			_updateSelectUI();
+			_updateBODeleteBtn();
+			_renderSuiItems();
+		});
+		btnInvert.addEventListener('click', (e) => {
+			e.stopPropagation();
+			for (const n of suiNotes) {
+				if (_boState.selectedKeys.has(n.key)) _boState.selectedKeys.delete(n.key);
+				else _boState.selectedKeys.add(n.key);
+			}
+			_renderSuiItems();
+			_updateBODeleteBtn();
+		});
+		btnExpand.addEventListener('click', (e) => {
+			e.stopPropagation();
+			const allExp = suiNotes.every(n => _boState.expandedKeys.has(n.key));
+			if (allExp) {
+				for (const n of suiNotes) _boState.expandedKeys.delete(n.key);
+			} else {
+				for (const n of suiNotes) _boState.expandedKeys.add(n.key);
+			}
+			_renderBijiOverview();
+		});
+		function _renderSuiItems() {
+			suiBody.innerHTML = '';
+			btnExpand.classList.toggle('active', suiNotes.every(n => _boState.expandedKeys.has(n.key)));
+			const showCheck = _boState.suiSelectModes.has(sui) || _boState.globalSelectMode;
+			for (const hj of dayKeys) {
+				const dayNotes = dayGroups.get(hj);
+				const dayLabel = document.createElement('div');
+				dayLabel.className = 'bo-date-label';
+				let sjr = { S: sui, J: 1, R: 1 };
+				try {
+					const r = jl.HJvSJRSh(hj, 0).SJR;
+					if (r) sjr = r;
+				} catch(e) {}
+				dayLabel.textContent = Jie_Ming[sjr.J] + ' ' + sjr.R + ' 日';
+				suiBody.appendChild(dayLabel);
+				const list = document.createElement('div');
+				list.className = 'biji-list bo-group-list';
+				for (let ni = 0; ni < dayNotes.length; ni++) {
+					const n = dayNotes[ni];
+					const item = document.createElement('div');
+					item.className = 'biji-item' + (_boState.expandedKeys.has(n.key) ? ' expanded' : '');
+					item.dataset.key = n.key;
+					const summary = document.createElement('div');
+					summary.className = 'biji-item-summary';
+					if (showCheck) {
+						const check = document.createElement('input');
+						check.type = 'checkbox';
+						check.className = 'bo-note-check';
+						check.checked = _boState.selectedKeys.has(n.key);
+						check.addEventListener('click', (e) => e.stopPropagation());
+						check.addEventListener('change', () => {
+							if (check.checked) _boState.selectedKeys.add(n.key);
+							else _boState.selectedKeys.delete(n.key);
+							_updateBODeleteBtn();
+						});
+						summary.appendChild(check);
 					}
-					return;
+					const iconSpan = document.createElement('span');
+					iconSpan.className = 'biji-icon';
+					iconSpan.textContent = n.icon || biji.BIJI_DEFAULT_ICON;
+					summary.appendChild(iconSpan);
+					summary.appendChild(document.createTextNode(' ' + _bijiSummaryText(n.biji)));
+					item.appendChild(summary);
+					const expand = document.createElement('div');
+					expand.className = 'biji-item-expand';
+					const expIcon = document.createElement('span');
+					expIcon.className = 'biji-icon';
+					expIcon.textContent = n.icon || biji.BIJI_DEFAULT_ICON;
+					expand.appendChild(expIcon);
+					expand.appendChild(document.createTextNode(' ' + _bijiExpandText(n.biji)));
+					item.appendChild(expand);
+					const actions = document.createElement('div');
+					actions.className = 'biji-item-actions';
+					const btnEdit = document.createElement('button');
+					btnEdit.textContent = '✎';
+					btnEdit.title = '编辑';
+					btnEdit.addEventListener('click', (e) => {
+						e.stopPropagation();
+						_bijiOpenEditForSui(n.sui, n.hj, n.idx);
+					});
+					const btnUp = document.createElement('button');
+					btnUp.textContent = '⇧';
+					btnUp.title = '上移';
+					btnUp.disabled = ni === 0;
+					btnUp.addEventListener('click', (e) => {
+						e.stopPropagation();
+						biji.moveNote(n.sui, n.hj, n.idx, n.idx - 1);
+						_renderBijiOverview();
+						renderBar7();
+					});
+					const btnDown = document.createElement('button');
+					btnDown.textContent = '⇩';
+					btnDown.title = '下移';
+					btnDown.disabled = ni === dayNotes.length - 1;
+					btnDown.addEventListener('click', (e) => {
+						e.stopPropagation();
+						biji.moveNote(n.sui, n.hj, n.idx, n.idx + 1);
+						_renderBijiOverview();
+						renderBar7();
+					});
+					const btnCollapse = document.createElement('button');
+					btnCollapse.textContent = '⧋';
+					btnCollapse.title = '收起';
+					btnCollapse.addEventListener('click', (e) => {
+						e.stopPropagation();
+						item.classList.remove('expanded');
+						const ex = item.querySelector('.biji-item-expand');
+						if (ex) { ex.style.maxHeight = ''; ex.style.minHeight = ''; }
+						_boState.expandedKeys.delete(n.key);
+						btnExpand.classList.remove('active');
+					});
+					actions.append(btnEdit, btnUp, btnDown, btnCollapse);
+					item.appendChild(actions);
+					item.addEventListener('click', () => {
+						const wasExpanded = item.classList.contains('expanded');
+						clearTimeout(_boActionsTimer);
+						if (wasExpanded) {
+							if (_boActionsVisible) {
+								_boActionsVisible = false;
+								item.classList.remove('actions-visible');
+								_boActionsTimer = setTimeout(() => {
+									if (_boActionsVisible) return;
+									item.classList.remove('actions-visible');
+								}, 0);
+							} else {
+								_boActionsVisible = true;
+								item.classList.add('actions-visible');
+								_boActionsTimer = setTimeout(() => {
+									_boActionsVisible = false;
+									item.classList.remove('actions-visible');
+								}, 5000);
+							}
+							return;
+						}
+						DOM.boBody.querySelectorAll('.biji-item.expanded').forEach(el => {
+							el.classList.remove('expanded', 'actions-visible');
+							const ex = el.querySelector('.biji-item-expand');
+							if (ex) { ex.style.maxHeight = ''; ex.style.minHeight = ''; }
+						});
+						item.classList.add('expanded');
+						_boState.expandedKeys.add(n.key);
+						_boActionsVisible = false;
+						_updateBOExpandMaxHeight(item);
+						btnExpand.classList.add('active');
+					});
+					list.appendChild(item);
 				}
-				DOM.boBody.querySelectorAll('.biji-item.expanded').forEach(el => {
-					el.classList.remove('expanded', 'actions-visible');
-					const ex = el.querySelector('.biji-item-expand');
-					if (ex) { ex.style.maxHeight = ''; ex.style.minHeight = ''; }
-				});
-				item.classList.add('expanded');
-				_boState.expandedKeys.add(n.key);
-				_boActionsVisible = false;
+				suiBody.appendChild(list);
+			}
+			suiBody.querySelectorAll('.biji-item.expanded').forEach(item => {
 				_updateBOExpandMaxHeight(item);
 			});
-			list.appendChild(item);
 		}
-		DOM.boBody.appendChild(list);
+		suiHeader.addEventListener('click', (e) => {
+			if (e.target.closest('button')) return;
+			if (_boState.expandedSui.has(sui)) {
+				_boState.expandedSui.delete(sui);
+			} else {
+				_boState.expandedSui.add(sui);
+				if (!suiBody.innerHTML) _renderSuiItems();
+			}
+			_updateSuiExpanded();
+		});
+		_updateSuiExpanded();
+		_updateSelectUI();
+		DOM.boBody.appendChild(suiBody);
+		if (_boState.expandedSui.has(sui)) _renderSuiItems();
 	}
-	DOM.boBody.querySelectorAll('.biji-item.expanded').forEach(item => {
-		_updateBOExpandMaxHeight(item);
-	});
 }
 
 function _collectIcons(notes) {
@@ -2024,65 +2204,36 @@ function _renderIconFilter() {
 }
 
 function _bindBijiOverviewEvents() {
-	DOM.boSelectAll.addEventListener('click', () => {
-		_boState.selectMode = !_boState.selectMode;
-		DOM.boSelectAll.classList.toggle('active', _boState.selectMode);
-		DOM.boSelectRow.style.display = _boState.selectMode ? 'flex' : 'none';
-		if (!_boState.selectMode) _boState.selectedKeys.clear();
-		_renderBijiOverview();
-	});
-	DOM.boSelectInvert.addEventListener('click', () => {
+	DOM.boExpandAllSui.addEventListener('click', () => {
 		const notes = _collectBijiInRange();
-		for (const n of notes) {
-			if (_boState.selectedKeys.has(n.key)) _boState.selectedKeys.delete(n.key);
-			else _boState.selectedKeys.add(n.key);
-		}
-		_renderBijiOverview();
-	});
-	DOM.boDeleteSelected.addEventListener('click', () => {
-		const count = _boState.selectedKeys.size;
-		if (count === 0) return;
-		if (!confirm('确认要删除' + count + '条录事吗？删除操作不可恢复。')) return;
-		const toDelete = {};
-		for (const key of _boState.selectedKeys) {
-			const [s, h, i] = key.split(':').map(Number);
-			const sk = String(s);
-			if (!toDelete[sk]) toDelete[sk] = {};
-			if (!toDelete[sk][h]) toDelete[sk][h] = [];
-			toDelete[sk][h].push(i);
-		}
-		for (const sk of Object.keys(toDelete)) {
-			const sui = parseInt(sk);
-			for (const hj of Object.keys(toDelete[sk])) {
-				const indices = toDelete[sk][hj].sort((a, b) => b - a);
-				for (const idx of indices) {
-					biji.deleteNote(sui, parseInt(hj), idx);
-				}
-			}
-		}
-		_boState.selectedKeys.clear();
-		_boState.selectMode = false;
-		DOM.boSelectAll.classList.remove('active');
-		DOM.boSelectRow.style.display = 'none';
-		_renderBijiOverview();
-		_updateBijiOverviewVisibility();
-		renderCalendar();
-	});
-	DOM.boExpandAll.addEventListener('click', () => {
-		_boState.allExpanded = !_boState.allExpanded;
-		DOM.boExpandAll.classList.toggle('active', _boState.allExpanded);
-		if (_boState.allExpanded) {
-			const notes = _collectBijiInRange();
-			for (const n of notes) _boState.expandedKeys.add(n.key);
+		const suiSet = new Set(notes.map(n => n.sui));
+		const allExpanded = [...suiSet].every(s => _boState.expandedSui.has(s));
+		if (allExpanded) {
+			for (const s of suiSet) _boState.expandedSui.delete(s);
+			DOM.boExpandAllSui.classList.remove('active');
 		} else {
-			_boState.expandedKeys.clear();
+			for (const s of suiSet) _boState.expandedSui.add(s);
+			DOM.boExpandAllSui.classList.add('active');
 		}
 		_renderBijiOverview();
 	});
 	DOM.boSortOrder.addEventListener('click', () => {
 		_boState.asc = !_boState.asc;
-		DOM.boSortOrder.textContent = _boState.asc ? '↑' : '↓';
+		DOM.boSortOrder.textContent = _boState.asc ? 'ᐱ' : 'ᐯ';
 		DOM.boSortOrder.dataset.asc = _boState.asc ? '1' : '0';
+		_renderBijiOverview();
+	});
+	DOM.boSuiConfirm.addEventListener('click', () => {
+		const startVal = DOM.boStartSui.value.trim();
+		const endVal = DOM.boEndSui.value.trim();
+		const startSui = startVal ? parseInt(startVal) : null;
+		const endSui = endVal ? parseInt(endVal) : null;
+		if (startSui !== null && endSui !== null && startSui > endSui) {
+			_showToast('首岁不能大于末岁');
+			return;
+		}
+		_boState.startSui = startSui;
+		_boState.endSui = endSui;
 		_renderBijiOverview();
 	});
 	DOM.boIconFilter.addEventListener('click', () => {
@@ -2110,45 +2261,49 @@ function _bindBijiOverviewEvents() {
 		const show = DOM.boSearchRow.style.display === 'none';
 		DOM.boSearchRow.style.display = show ? 'flex' : 'none';
 		DOM.boSearch.classList.toggle('active', show);
-		if (show) DOM.boSearchInput.focus();
-		else {
+		if (show) {
+			DOM.boSearchInput.focus();
+		} else {
 			_boState.searchQuery = '';
 			DOM.boSearchInput.value = '';
 			_renderBijiOverview();
 		}
 	});
-	DOM.boSearchInput.addEventListener('input', () => {
+	DOM.boSearchBtn.addEventListener('click', () => {
 		_boState.searchQuery = DOM.boSearchInput.value.trim();
 		_renderBijiOverview();
 	});
-	DOM.boSearchClose.addEventListener('click', () => {
-		DOM.boSearchRow.style.display = 'none';
-		DOM.boSearch.classList.remove('active');
-		_boState.searchQuery = '';
-		DOM.boSearchInput.value = '';
+	DOM.boSearchInput.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter') {
+			_boState.searchQuery = DOM.boSearchInput.value.trim();
+			_renderBijiOverview();
+		}
+	});
+	DOM.boDeleteSelected.addEventListener('click', () => {
+		const count = _boState.selectedKeys.size;
+		if (count === 0) return;
+		if (!confirm('确认要删除' + count + '条录事吗？删除操作不可恢复。')) return;
+		const toDelete = {};
+		for (const key of _boState.selectedKeys) {
+			const [s, h, i] = key.split(':').map(Number);
+			const sk = String(s);
+			if (!toDelete[sk]) toDelete[sk] = {};
+			if (!toDelete[sk][h]) toDelete[sk][h] = [];
+			toDelete[sk][h].push(i);
+		}
+		for (const sk of Object.keys(toDelete)) {
+			const sui = parseInt(sk);
+			for (const hj of Object.keys(toDelete[sk])) {
+				const indices = toDelete[sk][hj].sort((a, b) => b - a);
+				for (const idx of indices) biji.deleteNote(sui, parseInt(hj), idx);
+			}
+		}
+		_boState.selectedKeys.clear();
+		_boState.suiSelectModes.clear();
+		_boState.globalSelectMode = false;
 		_renderBijiOverview();
-	});
-	DOM.boStartSui.addEventListener('focus', () => {
-		DOM.boSuiRow.style.display = 'flex';
-	});
-	DOM.boEndSui.addEventListener('focus', () => {
-		DOM.boSuiRow.style.display = 'flex';
-	});
-	DOM.boSuiConfirm.addEventListener('click', () => {
-		const startVal = DOM.boStartSui.value.trim();
-		const endVal = DOM.boEndSui.value.trim();
-		_boState.startSui = startVal ? parseInt(startVal) : null;
-		_boState.endSui = endVal ? parseInt(endVal) : null;
-		DOM.boSuiRow.style.display = 'none';
-		_renderBijiOverview();
-	});
-	DOM.boSuiCancel.addEventListener('click', () => {
-		DOM.boStartSui.value = '';
-		DOM.boEndSui.value = '';
-		_boState.startSui = null;
-		_boState.endSui = null;
-		DOM.boSuiRow.style.display = 'none';
-		_renderBijiOverview();
+		_updateBijiOverviewVisibility();
+		renderCalendar();
 	});
 }
 

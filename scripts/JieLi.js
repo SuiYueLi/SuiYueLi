@@ -10,7 +10,7 @@
 * See the Mulan PSL v2 for more details.
 */
 
-//: 华夏岁月历之节历
+//: 华夏岁月历·节历
 import {roArray, D2HMS} from "./tools.js";
 export {HJ_ShvZh, jJieYue, SJRvHJ, HJvSJRSh};
 

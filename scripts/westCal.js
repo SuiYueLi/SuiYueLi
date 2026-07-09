@@ -14,7 +14,7 @@ import {D2HMS} from "./tools.js";
 import {HJ_ShvZh} from "./JieLi.js";
 export {wMonths, wMonthsHJ, wYMD2MJD, MJD2wYMDT};
 
-//: 计算西历年年首即1月1日0时简化儒略日数
+//: 计算西历年年首（1月1日0时）简化儒略日数
 function wY2MJD(year) {
 	let leapD = 0;
 	let yx = year - 2001;

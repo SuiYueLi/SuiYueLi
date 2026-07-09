@@ -611,32 +611,26 @@
   </div>
   <div class="bo-toolbar" id="boToolbar">
     <div class="bo-toolbar-row">
-      <button type="button" class="bo-tool-btn" id="boSelectAll" title="全选/反选">☐</button>
-      <button type="button" class="bo-tool-btn" id="boExpandAll" title="全部展开/收起">⊞</button>
-      <button type="button" class="bo-tool-btn" id="boSortOrder" title="升序/降序" data-asc="1">↑</button>
-      <button type="button" class="bo-tool-btn" id="boIconFilter" title="图标筛选">✑</button>
-      <button type="button" class="bo-tool-btn" id="boSearch" title="搜索">⌕</button>
-    </div>
-    <div class="bo-toolbar-row bo-sui-row" id="boSuiRow" style="display:none">
-      <span>起始岁</span>
-      <input type="number" id="boStartSui" step="1" title="起始岁" style="width:5em;text-align:center" />
-      <button type="button" class="bo-tool-btn-sm" id="boSuiConfirm">✓</button>
-      <button type="button" class="bo-tool-btn-sm" id="boSuiCancel">✕</button>
-      <span>～</span>
-      <span>截止岁</span>
-      <input type="number" id="boEndSui" step="1" title="截止岁" style="width:5em;text-align:center" />
+      <span class="bo-sui-range">
+        <input type="number" id="boStartSui" step="1" title="首岁（含），留空为全部" placeholder="首岁" style="width:4.5em;text-align:center" />
+        <span>～</span>
+        <input type="number" id="boEndSui" step="1" title="末岁（含，≥首岁），留空为全部" placeholder="末岁" style="width:4.5em;text-align:center" />
+      </span>
+      <button type="button" class="bo-tool-btn-sm" id="boSuiConfirm" title="确认岁范围">✓</button>
+      <span></span>
+      <button type="button" class="bo-tool-btn" id="boExpandAllSui" title="展开/折叠所有岁" style="transform: rotateY(180deg);">⑈</button>
+      <button type="button" class="bo-tool-btn" id="boSortOrder" title="升序/降序" data-asc="1">ᐱ</button>
+      <button type="button" class="bo-tool-btn" id="boIconFilter" title="图标筛选">☘</button>
+      <button type="button" class="bo-tool-btn" id="boSearch" title="搜索">🔎</button>
+      <button type="button" class="bo-delete-btn" id="boDeleteSelected" style="display:none">删除选中</button>
     </div>
     <div class="bo-toolbar-row bo-search-row" id="boSearchRow" style="display:none">
       <input type="text" id="boSearchInput" placeholder="输入关键字搜索" style="flex:1" />
-      <button type="button" class="bo-tool-btn-sm" id="boSearchClose">✕</button>
+      <button type="button" class="bo-tool-btn-sm" id="boSearchBtn">搜索</button>
     </div>
     <div class="bo-toolbar-row bo-icon-filter-row" id="boIconFilterRow" style="display:none">
       <div class="bo-icon-list" id="boIconList"></div>
       <button type="button" class="bo-tool-btn-sm" id="boIconInvert">反选</button>
-    </div>
-    <div class="bo-toolbar-row bo-select-row" id="boSelectRow" style="display:none">
-      <button type="button" class="bo-tool-btn" id="boSelectInvert">反选</button>
-      <button type="button" class="bo-delete-btn" id="boDeleteSelected">删除选中</button>
     </div>
   </div>
   <div class="bo-body" id="boBody"></div>

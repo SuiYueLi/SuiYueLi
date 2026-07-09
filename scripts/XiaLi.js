@@ -144,6 +144,7 @@ function aShiLiPu(nian) {
 }
 
 //: 【用气朔数据生成当前年夏正历谱】
+//: HX4604起，今算气朔日与实历完全一致
 function aQIvLiPu(nian) {
 	//: 需要取三组天正年数据，以防当前夏历年有闰十一、闰十二月
 	let [QI_q, QI_h, QI_s] = qu_QI(+nian, 3);

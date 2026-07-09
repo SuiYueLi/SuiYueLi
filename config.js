@@ -618,4 +618,3 @@ function _applyFontState(state) {
 		}
 	}
 }
-

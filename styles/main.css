@@ -1511,9 +1511,9 @@ body {
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: var(--body-size);
-  padding: 2px 8px;
+  padding: 0.125em 0.5em;
   cursor: pointer;
-  font-family: var(--font-family);
+  font-family: var(--font-songTi);
 }
 .bo-tool-btn:hover {
   border-color: var(--accent-primary);
@@ -1647,6 +1647,66 @@ body {
   font-size: var(--xs-size);
   color: var(--text-tertiary);
   padding: var(--gap-xs) 0;
+}
+.bo-count-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-xs);
+  padding: var(--gap-xs) 0;
+}
+.bo-sui-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.bo-sui-range input {
+  padding: 2px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: var(--small-size);
+  font-family: var(--font-family);
+}
+.bo-sui-header {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-md);
+  padding: var(--gap-xs) 0;
+  cursor: pointer;
+  font-size: var(--body-size);
+  font-weight: var(--subheading-weight);
+  color: var(--text-accent);
+  flex-wrap: nowrap;
+}
+.bo-sui-toggle {
+  display: inline-block;
+  color: var(--text-tertiary);
+  transition: transform 0.15s;
+  transform: rotateX(180deg);
+}
+.bo-sui-label {
+  flex-shrink: 0;
+}
+.bo-sui-count {
+  font-size: var(--xs-size);
+  color: var(--text-tertiary);
+  font-weight: normal;
+}
+.bo-sui-btn-group {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.bo-sui-body {
+  padding-left: var(--gap-md);
+  border-left: 2px solid var(--border-color);
+  margin-left: 0.4em;
+  margin-bottom: var(--gap-md);
 }
 
 /* ========== Toast ========== */

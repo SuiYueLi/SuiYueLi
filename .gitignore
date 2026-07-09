@@ -1,22 +1,22 @@
-# ===== Dependencies =====
-/node_modules/
-/vendor/
+# ===== OS =====
+.DS_Store
+Thumbs.db
 
 # ===== Editor =====
 /.vscode/
 
-# ===== Build output =====
-/dist/
-/build/
-/out/
+# ===== Dependencies =====
+/node_modules/
+/vendor/
 
 # ===== Environment =====
 /.env
 /.env.*
 
-# ===== OS =====
-.DS_Store
-Thumbs.db
+# ===== Build output =====
+/dist/
+/build/
+/out/
 
 # ===== wrangler files =====
 .wrangler
