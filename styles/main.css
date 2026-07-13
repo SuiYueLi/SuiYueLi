@@ -1507,11 +1507,13 @@ body {
 }
 .bo-tool-btn {
   background: none;
+  width: 2.1em;
+  height: 1.8em;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: var(--body-size);
-  padding: 0.125em 0.5em;
+  padding: 0.125em;
   cursor: pointer;
   font-family: var(--font-songTi);
 }
@@ -1526,6 +1528,8 @@ body {
 }
 .bo-tool-btn-sm {
   background: none;
+  width: 1.8em;
+  height: 1.8em;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   color: var(--text-tertiary);

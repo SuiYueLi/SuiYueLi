@@ -1105,7 +1105,7 @@ function bindEvents() {
 		if (!_fontSubmenuKey) return;
 		const key = _fontSubmenuKey;
 		try {
-			if (window.showOpenFilePicker) {
+			if (_hasFileSystemAccess) {
 				const [handle] = await window.showOpenFilePicker({
 					types: [{ description: '字体文件', accept: { 'font/*': ['.ttf', '.otf', '.woff', '.woff2'] } }],
 					multiple: false,
@@ -1919,7 +1919,7 @@ function _renderBijiOverview() {
 		gExpand.type = 'button';
 		gExpand.className = 'bo-tool-btn-sm';
 		gExpand.title = '全部展开/收起';
-		gExpand.textContent = '≚';
+		gExpand.textContent = '≛';
 		gExpand.classList.toggle('active', notes.every(n => _boState.expandedKeys.has(n.key)));
 		gExpand.addEventListener('click', () => {
 			const allExp = notes.every(n => _boState.expandedKeys.has(n.key));
@@ -1971,7 +1971,7 @@ function _renderBijiOverview() {
 		btnExpand.type = 'button';
 		btnExpand.className = 'bo-tool-btn-sm bo-sui-expand';
 		btnExpand.title = '全部展开/收起';
-		btnExpand.textContent = '≚';
+		btnExpand.textContent = '≛';
 		btnGroup.appendChild(btnExpand);
 		suiHeader.appendChild(btnGroup);
 		DOM.boBody.appendChild(suiHeader);
@@ -2110,7 +2110,7 @@ function _renderBijiOverview() {
 						renderBar7();
 					});
 					const btnCollapse = document.createElement('button');
-					btnCollapse.textContent = '⧋';
+					btnCollapse.textContent = '≙';
 					btnCollapse.title = '收起';
 					btnCollapse.addEventListener('click', (e) => {
 						e.stopPropagation();
@@ -2537,7 +2537,7 @@ function _syncFontSettingsUI() {
 
 async function _onBgImageSelect() {
 	try {
-		if (window.showOpenFilePicker) {
+		if (_hasFileSystemAccess) {
 			const [handle] = await window.showOpenFilePicker({
 				types: [{ description: '图片', accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.webp', '.gif'] } }],
 				multiple: false,
@@ -2679,7 +2679,7 @@ async function _rebuildAfterDataChange() {
 async function _importJieSu() {
 	try {
 		const mode = DOM.jieSuImportModeToggle.getAttribute('data-value') === '1' ? 'replace' : 'merge';
-		if (window.showOpenFilePicker) {
+		if (_hasFileSystemAccess) {
 			const [handle] = await window.showOpenFilePicker({
 				types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
 				multiple: false,
@@ -2752,7 +2752,7 @@ async function _exportJieSu() {
 async function _importFuRi() {
 	try {
 		const mode = DOM.fuRiImportModeToggle.getAttribute('data-value') === '1' ? 'replace' : 'merge';
-		if (window.showOpenFilePicker) {
+		if (_hasFileSystemAccess) {
 			const [handle] = await window.showOpenFilePicker({
 				types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
 				multiple: false,
@@ -3322,7 +3322,7 @@ function renderBar7() {
 		btnDown.disabled = i === notes.length - 1;
 		btnDown.addEventListener('click', (e) => { e.stopPropagation(); _bijiMoveItem(i, i + 1); });
 		const btnCollapse = document.createElement('button');
-		btnCollapse.textContent = '⧋';
+		btnCollapse.textContent = '≙';
 		btnCollapse.title = '收起';
 		btnCollapse.addEventListener('click', (e) => { e.stopPropagation(); _bijiCollapse(i); });
 		actions.append(btnEdit, btnUp, btnDown, btnCollapse);
