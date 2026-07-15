@@ -27,7 +27,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 7px 0 3px;
+  padding: 0 0.5em 0 0.2em;
   font-size: 0.85em;
   z-index: 0;
   opacity: 0.8;
@@ -51,10 +51,10 @@
   z-index: -1;
 }
 .biji-item-summary .biji-icon {
-  margin-right: 6px;
+  margin-right: 0.25em;
 }
 .biji-item-expand .biji-icon {
-  margin-right: 6px;
+  margin-right: 0.25em;
 }
 .biji-item.expanded .biji-item-summary {
   display: none;

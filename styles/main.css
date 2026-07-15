@@ -1528,7 +1528,6 @@ body {
 }
 .bo-tool-btn-sm {
   background: none;
-  width: 1.8em;
   height: 1.8em;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -1575,6 +1574,20 @@ body {
 .bo-icon-item.active {
   border-color: var(--accent-primary);
   background: var(--accent-primary);
+  color: #fff;
+}
+.bo-export-btn {
+  background: none;
+  border: 1px solid var(--text-accent);
+  border-radius: var(--radius-sm);
+  color: var(--text-accent);
+  font-size: var(--small-size);
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: var(--font-family);
+}
+.bo-export-btn:hover {
+  background: var(--text-accent);
   color: #fff;
 }
 .bo-delete-btn {
@@ -1636,10 +1649,17 @@ body {
 .bo-body .biji-item {
   position: relative;
 }
-.bo-body .bo-note-check {
-  vertical-align: middle;
-  margin-right: var(--gap-xs);
+.bo-body .biji-item.has-check {
+  padding-left: calc(var(--gap-md) + 1.4em);
+}
+.bo-body .biji-item .bo-note-check {
+  position: absolute;
+  top: var(--gap-sm);
+  left: var(--gap-sm);
+  margin: 0.45em 0;
   accent-color: var(--accent-primary);
+  z-index: 3;
+  cursor: pointer;
 }
 .bo-empty {
   text-align: center;

@@ -10,6 +10,14 @@ const DEFAULT_ICON = '\u2711';
 const IDB_NAME = 'jieLi_biji_idb';
 const IDB_STORE = 'handles';
 const IDB_KEY = 'fileHandle';
+const IDB_KEY_DIR = 'dirHandle';
+const BIJI_FILE_CONFIG_KEY = 'jieLi_biji_file_config';
+const DEFAULT_FILE_NAME = 'BiJi';
+// 分段后缀
+const SUFFIX_GU = '_gu';   // 今岁之前
+const SUFFIX_JIN = '_jin'; // 今岁
+const SUFFIX_LAI = '_lai'; // 今岁之后
+const JIN_META_KEY = '__jin__';
 
 function _suiKey(sui) { return STORAGE_PREFIX + sui; }
 
@@ -148,6 +156,70 @@ export function hasDraft() {
 export function exportAll(startSui, endSui, format) {
 	if (format === 'text') return _exportText(startSui, endSui);
 	return _exportJson(startSui, endSui);
+}
+
+export function exportSelected(selectedKeys, format) {
+	if (format === 'text') return _exportSelectedText(selectedKeys);
+	return _exportSelectedJson(selectedKeys);
+}
+
+function _exportSelectedJson(selectedKeys) {
+	const result = {};
+	for (const key of selectedKeys) {
+		const parts = key.split(':');
+		if (parts.length < 3) continue;
+		const s = Number(parts[0]); const h = Number(parts[1]); const i = Number(parts[2]);
+		if (isNaN(s) || isNaN(h) || isNaN(i)) continue;
+		const k = _suiKey(s);
+		let data;
+		try { data = JSON.parse(localStorage.getItem(k) || '{}'); } catch(e) { continue; }
+		if (!data[h] || !data[h][i]) continue;
+		if (!result[k]) result[k] = {};
+		if (!result[k][h]) result[k][h] = [];
+		result[k][h].push(data[h][i]);
+	}
+	return JSON.stringify(result, null, 2);
+}
+
+function _exportSelectedText(selectedKeys) {
+	const grouped = new Map();
+	for (const key of selectedKeys) {
+		const parts = key.split(':');
+		if (parts.length < 3) continue;
+		const s = Number(parts[0]); const h = Number(parts[1]); const i = Number(parts[2]);
+		if (isNaN(s) || isNaN(h) || isNaN(i)) continue;
+		const gk = s + ':' + h;
+		if (!grouped.has(gk)) grouped.set(gk, { sui: s, hj: h, notes: [] });
+		const k = _suiKey(s);
+		let data;
+		try { data = JSON.parse(localStorage.getItem(k) || '{}'); } catch(e) { continue; }
+		if (data[h] && data[h][i]) grouped.get(gk).notes.push(data[h][i]);
+	}
+	const sortedKeys = [...grouped.keys()].sort((a, b) => {
+		const [sa, ha] = a.split(':').map(Number);
+		const [sb, hb] = b.split(':').map(Number);
+		return sa !== sb ? sa - sb : ha - hb;
+	});
+	const lines = [];
+	let lastSui = null;
+	for (const gk of sortedKeys) {
+		const { sui, hj, notes } = grouped.get(gk);
+		if (sui !== lastSui) {
+			lines.push('# ' + sui);
+			lastSui = sui;
+		}
+		const dateStr = _hjToDateStr(hj, sui);
+		lines.push('## ' + dateStr);
+		for (const n of notes) {
+			const ts = n.created ?? '';
+			const us = n.updated ?? '';
+			const ex = excerpt(n.biji, 15);
+			lines.push('### "' + ex + '" `' + (n.icon || DEFAULT_ICON) + ' [' + ts + ' | ' + us + ']`');
+			lines.push(n.biji || '');
+			lines.push('');
+		}
+	}
+	return lines.join('\n');
 }
 
 function _exportJson(startSui, endSui) {
@@ -415,38 +487,46 @@ function _openIDB() {
 	});
 }
 
-export async function saveFileHandle(handle) {
+export async function checkPersistence() {
+	if (navigator.storage && navigator.storage.persisted) {
+		return await navigator.storage.persisted();
+	}
+	return false;
+}
+
+// ========== 本地存储文件夹（目录句柄） ==========
+export async function saveDirHandle(handle) {
 	const db = await _openIDB();
 	return new Promise((resolve, reject) => {
 		const tx = db.transaction(IDB_STORE, 'readwrite');
-		tx.objectStore(IDB_STORE).put(handle, IDB_KEY);
+		tx.objectStore(IDB_STORE).put(handle, IDB_KEY_DIR);
 		tx.oncomplete = () => resolve();
 		tx.onerror = () => reject(tx.error);
 	});
 }
 
-export async function getFileHandle() {
+export async function getDirHandle() {
 	const db = await _openIDB();
 	return new Promise((resolve, reject) => {
 		const tx = db.transaction(IDB_STORE, 'readonly');
-		const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+		const req = tx.objectStore(IDB_STORE).get(IDB_KEY_DIR);
 		req.onsuccess = () => resolve(req.result || null);
 		req.onerror = () => reject(req.error);
 	});
 }
 
-export async function removeFileHandle() {
+export async function removeDirHandle() {
 	const db = await _openIDB();
 	return new Promise((resolve, reject) => {
 		const tx = db.transaction(IDB_STORE, 'readwrite');
-		tx.objectStore(IDB_STORE).delete(IDB_KEY);
+		tx.objectStore(IDB_STORE).delete(IDB_KEY_DIR);
 		tx.oncomplete = () => resolve();
 		tx.onerror = () => reject(tx.error);
 	});
 }
 
-export async function verifyFileHandle() {
-	const handle = await getFileHandle();
+export async function verifyDirHandle() {
+	const handle = await getDirHandle();
 	if (!handle) return false;
 	try {
 		const perm = await handle.queryPermission({ mode: 'readwrite' });
@@ -458,40 +538,326 @@ export async function verifyFileHandle() {
 	}
 }
 
-export async function writeCurrentDataToFile() {
-	const handle = await getFileHandle();
-	if (!handle) return false;
-	const ok = await verifyFileHandle();
-	if (!ok) return false;
-	const allData = {};
-	for (let i = 0; i < localStorage.length; i++) {
-		const k = localStorage.key(i);
-		if (k && k.startsWith(STORAGE_PREFIX) && !_EXCLUDED_KEYS.has(k)) {
-			try { allData[k] = JSON.parse(localStorage.getItem(k)); } catch(e) {}
-		}
+// ========== 笔记文件配置（文件名 + 分割节点） ==========
+export function getBijiFileConfig() {
+	try {
+		const raw = localStorage.getItem(BIJI_FILE_CONFIG_KEY);
+		if (!raw) return { fileName: DEFAULT_FILE_NAME, splitNodes: [] };
+		const cfg = JSON.parse(raw);
+		return {
+			fileName: (cfg.fileName && typeof cfg.fileName === 'string') ? cfg.fileName : DEFAULT_FILE_NAME,
+			splitNodes: Array.isArray(cfg.splitNodes) ? cfg.splitNodes.filter(n => Number.isFinite(n)).map(n => Math.trunc(n)) : []
+		};
+	} catch(e) {
+		return { fileName: DEFAULT_FILE_NAME, splitNodes: [] };
 	}
-	const json = JSON.stringify(allData, null, 2);
-	const writable = await handle.createWritable();
+}
+
+export function setBijiFileConfig(cfg) {
+	const cur = getBijiFileConfig();
+	const next = {
+		fileName: (cfg && cfg.fileName && typeof cfg.fileName === 'string') ? cfg.fileName : cur.fileName,
+		splitNodes: (cfg && Array.isArray(cfg.splitNodes))
+			? cfg.splitNodes.filter(n => Number.isFinite(n)).map(n => Math.trunc(n))
+			: cur.splitNodes
+	};
+	try { localStorage.setItem(BIJI_FILE_CONFIG_KEY, JSON.stringify(next)); } catch(e) {}
+	return next;
+}
+
+export function clearBijiFileConfig() {
+	try { localStorage.removeItem(BIJI_FILE_CONFIG_KEY); } catch(e) {}
+}
+
+// ========== 分段计算 ==========
+// 给定今岁 jin 和用户节点列表 nodes，返回有序分段数组。
+// 每段 { suffix, start, end }，start/end 为岁值（含端点），-Infinity/+Infinity 表示开区间。
+// 规则：jin 单独成段 (_jin)；jin 之前合并为 _gu；jin 之后合并为 _lai；
+// 用户节点 N 在 jin 之前/之后时，对应段后缀为 _N。
+export function computeSegments(jin, nodes) {
+	const cleanNodes = Array.from(new Set((nodes || []).filter(n => Number.isFinite(n)).map(n => Math.trunc(n)))).sort((a, b) => a - b);
+	const before = cleanNodes.filter(n => n < jin);
+	const after = cleanNodes.filter(n => n > jin);
+	const segments = [];
+	// _gu 段：从 -∞ 到 jin-1，内部按节点切分
+	const guBounds = before.length ? before : null;
+	if (guBounds && guBounds.length > 0) {
+		// _gu 自身只覆盖 -∞ 到 guBounds[0]-1；其余按节点切分
+		segments.push({ suffix: SUFFIX_GU, start: -Infinity, end: guBounds[0] - 1 });
+		for (let i = 0; i < guBounds.length; i++) {
+			const start = guBounds[i];
+			const end = (i + 1 < guBounds.length) ? guBounds[i + 1] - 1 : jin - 1;
+			segments.push({ suffix: '_' + start, start, end });
+		}
+	} else {
+		segments.push({ suffix: SUFFIX_GU, start: -Infinity, end: jin - 1 });
+	}
+	// _jin 段
+	segments.push({ suffix: SUFFIX_JIN, start: jin, end: jin });
+	// _lai 段及之后节点
+	const laiBounds = after;
+	if (laiBounds.length > 0) {
+		// jin+1 到 laiBounds[0]-1 归为 _lai
+		segments.push({ suffix: SUFFIX_LAI, start: jin + 1, end: laiBounds[0] - 1 });
+		for (let i = 0; i < laiBounds.length; i++) {
+			const start = laiBounds[i];
+			const end = (i + 1 < laiBounds.length) ? laiBounds[i + 1] - 1 : +Infinity;
+			segments.push({ suffix: '_' + start, start, end });
+		}
+	} else {
+		segments.push({ suffix: SUFFIX_LAI, start: jin + 1, end: +Infinity });
+	}
+	return segments;
+}
+
+export function findSegmentForSui(sui, jin, nodes) {
+	const segs = computeSegments(jin, nodes);
+	for (const s of segs) {
+		if (sui >= s.start && sui <= s.end) return s;
+	}
+	// 兜底
+	return segs[segs.length - 1];
+}
+
+// ========== 文件名/路径 ==========
+function _bijiFileName(fileName, suffix) {
+	return (fileName || DEFAULT_FILE_NAME) + suffix + '.json';
+}
+
+// 在目录句柄下原子写入单个分段文件
+async function _writeSegmentFile(dirHandle, fileName, suffix, dataObj, jin) {
+	const ok = await verifyDirHandle();
+	if (!ok) return false;
+	const payload = { ...dataObj };
+	if (jin !== undefined && jin !== null) payload[JIN_META_KEY] = jin;
+	const json = JSON.stringify(payload, null, 2);
+	const fileHandle = await dirHandle.getFileHandle(_bijiFileName(fileName, suffix), { create: true });
+	const writable = await fileHandle.createWritable();
 	await writable.write(json);
 	await writable.close();
 	return true;
 }
 
-export async function readDataFromFile() {
-	const handle = await getFileHandle();
-	if (!handle) return null;
-	const ok = await verifyFileHandle();
-	if (!ok) return null;
-	const file = await handle.getFile();
-	const text = await readFileAsText(file);
-	return JSON.parse(text);
+async function _readSegmentFile(dirHandle, fileName, suffix) {
+	try {
+		const fileHandle = await dirHandle.getFileHandle(_bijiFileName(fileName, suffix), { create: false });
+		const file = await fileHandle.getFile();
+		const text = await readFileAsText(file);
+		if (!text || !text.trim()) return null;
+		return JSON.parse(text);
+	} catch(e) {
+		return null;
+	}
 }
 
-export async function checkPersistence() {
-	if (navigator.storage && navigator.storage.persisted) {
-		return await navigator.storage.persisted();
+async function _removeSegmentFile(dirHandle, fileName, suffix) {
+	try {
+		await dirHandle.removeEntry(_bijiFileName(fileName, suffix));
+		return true;
+	} catch(e) {
+		return false;
 	}
-	return false;
+}
+
+// 列出目录中所有属于该 fileName 前缀的分段文件后缀
+export async function listSegmentSuffixes() {
+	const dirHandle = await getDirHandle();
+	if (!dirHandle) return [];
+	const cfg = getBijiFileConfig();
+	const prefix = (cfg.fileName || DEFAULT_FILE_NAME);
+	const result = [];
+	try {
+		for await (const entry of dirHandle.values()) {
+			if (entry.kind !== 'file') continue;
+			if (!entry.name.startsWith(prefix) || !entry.name.endsWith('.json')) continue;
+			const mid = entry.name.slice(prefix.length, entry.name.length - '.json'.length);
+			if (mid === SUFFIX_GU || mid === SUFFIX_JIN || mid === SUFFIX_LAI || /^_\d+$/.test(mid)) {
+				result.push(mid);
+			}
+		}
+	} catch(e) {}
+	return result;
+}
+
+// ========== 原子写入（按岁区间） ==========
+// 收集 localStorage 中落在 [start, end] 范围内的笔记数据
+function _collectSuiRange(start, end) {
+	const out = {};
+	for (let i = 0; i < localStorage.length; i++) {
+		const k = localStorage.key(i);
+		if (!k || !k.startsWith(STORAGE_PREFIX) || _EXCLUDED_KEYS.has(k) || k === BIJI_FILE_CONFIG_KEY) continue;
+		const sui = parseInt(k.slice(STORAGE_PREFIX.length));
+		if (isNaN(sui)) continue;
+		if (sui < start || sui > end) continue;
+		try { out[k] = JSON.parse(localStorage.getItem(k)); } catch(e) {}
+	}
+	return out;
+}
+
+// 全量收集所有笔记数据
+function _collectAllSui() {
+	const out = {};
+	for (let i = 0; i < localStorage.length; i++) {
+		const k = localStorage.key(i);
+		if (!k || !k.startsWith(STORAGE_PREFIX) || _EXCLUDED_KEYS.has(k) || k === BIJI_FILE_CONFIG_KEY) continue;
+		const sui = parseInt(k.slice(STORAGE_PREFIX.length));
+		if (isNaN(sui)) continue;
+		try { out[k] = JSON.parse(localStorage.getItem(k)); } catch(e) {}
+	}
+	return out;
+}
+
+// 检查目录中 BiJi_jin 文件记录的今岁是否与当前一致
+export async function checkJinConsistency(jin) {
+	const dirHandle = await getDirHandle();
+	if (!dirHandle) return { consistent: true, hasDir: false };
+	const cfg = getBijiFileConfig();
+	const jinData = await _readSegmentFile(dirHandle, cfg.fileName, SUFFIX_JIN);
+	if (!jinData) return { consistent: true, hasDir: true, hasJinFile: false };
+	const fileJin = jinData[JIN_META_KEY];
+	if (fileJin === undefined || fileJin === null) return { consistent: true, hasDir: true, hasJinFile: true, fileJin: null };
+	return { consistent: (fileJin === jin), hasDir: true, hasJinFile: true, fileJin };
+}
+
+// 全量重写所有分段文件（按当前 jin 与节点配置）
+export async function rewriteAllSegmentFiles(jin) {
+	const dirHandle = await getDirHandle();
+	if (!dirHandle) return false;
+	const ok = await verifyDirHandle();
+	if (!ok) return false;
+	const cfg = getBijiFileConfig();
+	const segments = computeSegments(jin, cfg.splitNodes);
+	// 先收集所有数据
+	const allData = _collectAllSui();
+	// 旧文件后缀列表（需清理已不存在的分段）
+	const oldSuffixes = await listSegmentSuffixes();
+	const newSuffixes = segments.map(s => s.suffix);
+	for (const s of segments) {
+		const rangeData = {};
+		for (const k of Object.keys(allData)) {
+			const sui = parseInt(k.slice(STORAGE_PREFIX.length));
+			if (sui >= s.start && sui <= s.end) {
+				rangeData[k] = allData[k];
+			}
+		}
+		const written = await _writeSegmentFile(dirHandle, cfg.fileName, s.suffix, rangeData, jin);
+		if (!written) return false;
+	}
+	// 删除多余旧文件
+	for (const old of oldSuffixes) {
+		if (!newSuffixes.includes(old)) {
+			await _removeSegmentFile(dirHandle, cfg.fileName, old);
+		}
+	}
+	return true;
+}
+
+// 保存动作：先检查 BiJi_jin 的今岁一致性，再决定写入范围
+// sui: 当前操作的岁；jin: 当前今岁
+export async function writeNoteToFiles(sui, jin) {
+	const dirHandle = await getDirHandle();
+	if (!dirHandle) return { ok: false, reason: 'noDir' };
+	const ok = await verifyDirHandle();
+	if (!ok) return { ok: false, reason: 'noPerm' };
+	const cfg = getBijiFileConfig();
+	// 1. 检查 BiJi_jin 一致性
+	const jinData = await _readSegmentFile(dirHandle, cfg.fileName, SUFFIX_JIN);
+	const fileJin = jinData ? jinData[JIN_META_KEY] : undefined;
+	const jinConsistent = (fileJin === undefined || fileJin === null || fileJin === jin);
+	if (!jinConsistent) {
+		// 今岁发生变化：将本地文件夹中所有笔记读入内存与 localStorage 合并，
+		// 然后按当前 jin 重新分割写入全部文件。
+		const merged = _collectAllSui();
+		const oldSuffixes = await listSegmentSuffixes();
+		for (const suf of oldSuffixes) {
+			const data = await _readSegmentFile(dirHandle, cfg.fileName, suf);
+			if (!data) continue;
+			for (const k of Object.keys(data)) {
+				if (k === JIN_META_KEY) continue;
+				if (!k.startsWith(STORAGE_PREFIX) || _EXCLUDED_KEYS.has(k) || k === BIJI_FILE_CONFIG_KEY) continue;
+				const sk = parseInt(k.slice(STORAGE_PREFIX.length));
+				if (isNaN(sk)) continue;
+				// 不覆盖本地已存在（本地为最新编辑）
+				if (merged[k] === undefined) {
+					merged[k] = data[k];
+				}
+			}
+		}
+		// 重新分割并写入
+		const segments = computeSegments(jin, cfg.splitNodes);
+		const newSuffixes = segments.map(s => s.suffix);
+		for (const s of segments) {
+			const rangeData = {};
+			for (const k of Object.keys(merged)) {
+				const sk = parseInt(k.slice(STORAGE_PREFIX.length));
+				if (sk >= s.start && sk <= s.end) rangeData[k] = merged[k];
+			}
+			const written = await _writeSegmentFile(dirHandle, cfg.fileName, s.suffix, rangeData, jin);
+			if (!written) return { ok: false, reason: 'writeFail', scope: 'all' };
+		}
+		for (const old of oldSuffixes) {
+			if (!newSuffixes.includes(old)) await _removeSegmentFile(dirHandle, cfg.fileName, old);
+		}
+		return { ok: true, scope: 'all' };
+	}
+	// 2. 一致：仅覆盖该条笔记所在区间的文件
+	const seg = findSegmentForSui(sui, jin, cfg.splitNodes);
+	const rangeData = _collectSuiRange(seg.start, seg.end);
+	// jin 段写入时附带 jin 元数据；其他段不附带
+	const metaJin = (seg.suffix === SUFFIX_JIN) ? jin : undefined;
+	const written = await _writeSegmentFile(dirHandle, cfg.fileName, seg.suffix, rangeData, metaJin);
+	if (!written) return { ok: false, reason: 'writeFail', scope: 'segment' };
+	return { ok: true, scope: 'segment', suffix: seg.suffix };
+}
+
+// ========== 清空应用内笔记 ==========
+// 清空 localStorage 中所有笔记数据（保留 settings、draft、字体配置等）
+export function clearAllBijiInStorage() {
+	const keysToRemove = [];
+	for (let i = 0; i < localStorage.length; i++) {
+		const k = localStorage.key(i);
+		if (!k) continue;
+		if (!k.startsWith(STORAGE_PREFIX)) continue;
+		if (_EXCLUDED_KEYS.has(k) || k === BIJI_FILE_CONFIG_KEY) continue;
+		const sui = parseInt(k.slice(STORAGE_PREFIX.length));
+		if (isNaN(sui)) continue;
+		keysToRemove.push(k);
+	}
+	for (const k of keysToRemove) {
+		try { localStorage.removeItem(k); } catch(e) {}
+	}
+	return keysToRemove.length;
+}
+
+// 强制解除本地保存（不解除文件夹句柄）：
+// 仅清除笔记文件配置，让"本地同步保存笔记"按钮回到未指定状态
+export function unlinkBijiFileSync() {
+	clearBijiFileConfig();
+}
+
+// ========== 多文件导入：从目录读取所有分段文件并合并 ==========
+export async function readAllSegmentFiles() {
+	const dirHandle = await getDirHandle();
+	if (!dirHandle) return null;
+	const ok = await verifyDirHandle();
+	if (!ok) return null;
+	const cfg = getBijiFileConfig();
+	const suffixes = await listSegmentSuffixes();
+	const merged = {};
+	let fileJin = null;
+	for (const suf of suffixes) {
+		const data = await _readSegmentFile(dirHandle, cfg.fileName, suf);
+		if (!data) continue;
+		if (suf === SUFFIX_JIN && data[JIN_META_KEY] !== undefined) fileJin = data[JIN_META_KEY];
+		for (const k of Object.keys(data)) {
+			if (k === JIN_META_KEY) continue;
+			if (!k.startsWith(STORAGE_PREFIX) || _EXCLUDED_KEYS.has(k) || k === BIJI_FILE_CONFIG_KEY) continue;
+			const sui = parseInt(k.slice(STORAGE_PREFIX.length));
+			if (isNaN(sui)) continue;
+			if (merged[k] === undefined) merged[k] = data[k];
+		}
+	}
+	return { data: merged, jin: fileJin, suffixes };
 }
 
 export const BIJI_MAX_LEN = MAX_LEN;

@@ -298,6 +298,37 @@
     </div>
 
     <div class="sp-section">
+      <h3>笔记与本地存储</h3>
+      <div class="sp-option">
+        <span>清空应用内笔记</span>
+        <button type="button" id="lsClearBtn">清空</button>
+      </div>
+      <div class="sp-option" id="lsDirRow" style="display:none">
+        <span>指定本地存储文件夹</span>
+        <span id="lsDirName" style="color:var(--text-tertiary); font-size:var(--small-size); font-style:italic; display:none; margin-left:auto; margin-right:0.5em;"></span>
+        <button type="button" id="lsDirBtn">指定文件夹</button>
+      </div>
+      <div class="sp-option" id="lsFileRow" style="display:none">
+        <span>本地同步保存笔记</span>
+        <span id="lsFileName" style="color:var(--text-tertiary); font-size:var(--small-size); font-style:italic; display:none; margin-left:auto; margin-right:0.5em;"></span>
+        <button type="button" id="lsFileBtn" disabled>指定文件名</button>
+      </div>
+      <div class="sp-option" id="lsSplitWrap" style="display:none;flex-direction:column;align-items:stretch;gap:6px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="color:var(--text-secondary);">本地笔记文件分割 (岁)</span>
+          <button type="button" id="lsSplitToggle" style="padding:4px 12px;border:1px solid var(--border-color);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);font-size:var(--small-size);cursor:pointer;font-family:var(--font-family);">当前共0段</button>
+        </div>
+        <div id="lsSplitDropdown" style="display:none;">
+          <div class="vli-list" id="lsSplitList" style="max-height:200px;"></div>
+          <div style="display:flex;gap:4px;align-items:center;margin-top:4px;">
+            <input type="number" id="lsSplitAddInput" placeholder="输入岁值" step="1" style="flex:1;padding:2px 6px;border:1px solid var(--border-color);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);font-size:var(--small-size);font-family:var(--font-family)" />
+            <button type="button" id="lsSplitAddBtn">添加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sp-section">
       <h3>在线更新</h3>
       <div class="sp-option">
         <span>当前版本</span>
@@ -520,26 +551,23 @@
     <div class="sp-section">
       <h3>笔记</h3>
       <div class="sp-option">
-        <span>在本地文件存储笔记</span>
-        <span id="bijiFileName" style="color:var(--text-tertiary); font-size:var(--small-size); font-style:italic; display:none; margin-left:auto; margin-right:0.5em;"></span>
-        <button type="button" id="bijiFileBtn">指定文件</button>
-      </div>
-      <div class="sp-option">
         <span>导出起止岁 (留空为全部)</span>
-        <input type="number" id="bijiExportStart" aria-label="起始岁" step="1" style="width:3.3em;text-align:right">～
-        <input type="number" id="bijiExportEnd" aria-label="终止岁" step="1" style="width:3.3em;text-align:right">
+        <div>
+          <input type="number" id="bijiExportStart" aria-label="起始岁" step="1" style="width:3.3em;text-align:right">～
+          <input type="number" id="bijiExportEnd" aria-label="终止岁" step="1" style="width:3.3em;text-align:right">
+        </div>
       </div>
       <div class="sp-option">
         <span>导出格式</span>
-        <div class="week-start-toggle" id="bijiExportFormat" data-value="0">
+        <div class="week-start-toggle" id="bijiExportFormat" data-value="1">
           <span>JSON</span>
           <div class="toggle-track"><div class="toggle-thumb"></div></div>
           <span>文本</span>
         </div>
       </div>
       <div class="sp-option">
-        <span></span>
-        <button type="button" id="bijiExportBtn">导出笔记</button>
+        <span>导出笔记</span>
+        <button type="button" id="bijiExportBtn">导出</button>
       </div>
       <div class="sp-option">
         <span>导入模式</span>
@@ -550,15 +578,15 @@
         </div>
       </div>
       <div class="sp-option">
-        <span></span>
-        <button type="button" id="bijiImportBtn">导入笔记</button>
+        <span>导入笔记</span>
+        <button type="button" id="bijiImportBtn">选择文件</button>
       </div>
     </div>
     <div class="sp-section">
       <h3>节庆民俗列表</h3>
       <div class="sp-option">
-        <span>导入自定义列表</span>
-        <button type="button" id="jieSuImportBtn">选择文件</button>
+        <span>导出当前列表</span>
+        <button type="button" id="jieSuExportBtn">导出</button>
       </div>
       <div class="sp-option">
         <span>导入模式</span>
@@ -569,8 +597,8 @@
         </div>
       </div>
       <div class="sp-option">
-        <span>导出当前列表</span>
-        <button type="button" id="jieSuExportBtn">导出</button>
+        <span>导入自定义列表</span>
+        <button type="button" id="jieSuImportBtn">选择文件</button>
       </div>
       <div class="sp-option">
         <span>恢复预设列表</span>
@@ -580,8 +608,8 @@
     <div class="sp-section">
       <h3>每年重复日列表</h3>
       <div class="sp-option">
-        <span>导入自定义列表</span>
-        <button type="button" id="fuRiImportBtn">选择文件</button>
+        <span>导出当前列表</span>
+        <button type="button" id="fuRiExportBtn">导出</button>
       </div>
       <div class="sp-option">
         <span>导入模式</span>
@@ -592,8 +620,8 @@
         </div>
       </div>
       <div class="sp-option">
-        <span>导出当前列表</span>
-        <button type="button" id="fuRiExportBtn">导出</button>
+        <span>导入自定义列表</span>
+        <button type="button" id="fuRiImportBtn">选择文件</button>
       </div>
       <div class="sp-option">
         <span>恢复预设列表</span>
@@ -622,6 +650,7 @@
       <button type="button" class="bo-tool-btn" id="boSortOrder" title="升序/降序" data-asc="1">ᐱ</button>
       <button type="button" class="bo-tool-btn" id="boIconFilter" title="图标筛选">☘</button>
       <button type="button" class="bo-tool-btn" id="boSearch" title="搜索">🔎</button>
+      <button type="button" class="bo-export-btn" id="boExportSelected" style="display:none">导出选中</button>
       <button type="button" class="bo-delete-btn" id="boDeleteSelected" style="display:none">删除选中</button>
     </div>
     <div class="bo-toolbar-row bo-search-row" id="boSearchRow" style="display:none">

@@ -199,8 +199,19 @@ function cacheDOM() {
 	DOM.bijiEditCancel = $('bijiEditCancel');
 	DOM.bijiEditSave = $('bijiEditSave');
 	DOM.bijiEditorHint = $('bijiEditorHint');
-	DOM.bijiFileBtn = $('bijiFileBtn');
-	DOM.bijiFileName = $('bijiFileName');
+	DOM.lsDirBtn = $('lsDirBtn');
+	DOM.lsDirName = $('lsDirName');
+	DOM.lsDirRow = $('lsDirRow');
+	DOM.lsFileBtn = $('lsFileBtn');
+	DOM.lsFileName = $('lsFileName');
+	DOM.lsFileRow = $('lsFileRow');
+	DOM.lsSplitWrap = $('lsSplitWrap');
+	DOM.lsSplitToggle = $('lsSplitToggle');
+	DOM.lsSplitDropdown = $('lsSplitDropdown');
+	DOM.lsSplitList = $('lsSplitList');
+	DOM.lsSplitAddInput = $('lsSplitAddInput');
+	DOM.lsSplitAddBtn = $('lsSplitAddBtn');
+	DOM.lsClearBtn = $('lsClearBtn');
 	DOM.bijiExportBtn = $('bijiExportBtn');
 	DOM.bijiImportBtn = $('bijiImportBtn');
 	DOM.bijiImportModeToggle = $('bijiImportModeToggle');
@@ -256,6 +267,7 @@ function cacheDOM() {
 	DOM.boIconList = $('boIconList');
 	DOM.boIconInvert = $('boIconInvert');
 	DOM.boDeleteSelected = $('boDeleteSelected');
+	DOM.boExportSelected = $('boExportSelected');
 	DOM.settingsPage = $('settingsPage');
 	DOM.spBack = $('spBack');
 	DOM.spCustomStyleBtn = $('spCustomStyleBtn');
@@ -984,8 +996,16 @@ function bindEvents() {
 		_bijiEditState.open = false;
 		clearTimeout(_bijiEditState.draftTimer);
 		clearTimeout(_bijiEditState.debounceTimer);
-		_openIEPage();
+		_openSettingsPage();
 	});
+
+	// 本地存储文件夹设置
+	DOM.lsDirBtn.addEventListener('click', _onLsDirBtnClick);
+	DOM.lsFileBtn.addEventListener('click', _onLsFileBtnClick);
+	DOM.lsSplitToggle.addEventListener('click', _toggleLsSplitDropdown);
+	DOM.lsSplitAddBtn.addEventListener('click', _lsAddSplitNode);
+	DOM.lsSplitAddInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); _lsAddSplitNode(); } });
+	DOM.lsClearBtn.addEventListener('click', _lsClearBiji);
 
 	// 纪年切换
 	DOM.eraToggle.addEventListener('click', () => {
@@ -1698,6 +1718,7 @@ async function _preloadAdjacentSui() {
 // ========== 设置页 ==========
 function _openSettingsPage() {
 	_syncSettingsUI();
+	_updateLsUI();
 	DOM.settingsPage.classList.add('open');
 	_navOnOpen();
 }
@@ -1726,7 +1747,6 @@ function _closeFontSubmenu(commit) {
 }
 
 function _openIEPage() {
-	_updateBijiFileBtn();
 	DOM.iePage.classList.add('open');
 	_navOnOpen();
 }
@@ -1790,6 +1810,7 @@ function _openBijiOverview() {
 	DOM.boSearchRow.style.display = 'none';
 	DOM.boIconFilterRow.style.display = 'none';
 	DOM.boDeleteSelected.style.display = 'none';
+	DOM.boExportSelected.style.display = 'none';
 	DOM.boIconFilter.classList.remove('active');
 	DOM.boSearch.classList.remove('active');
 	_renderBijiOverview();
@@ -1844,7 +1865,9 @@ function _collectBijiInRange() {
 }
 
 function _updateBODeleteBtn() {
-	DOM.boDeleteSelected.style.display = _boState.selectedKeys.size > 0 ? '' : 'none';
+	const show = _boState.selectedKeys.size > 0;
+	DOM.boDeleteSelected.style.display = show ? '' : 'none';
+	DOM.boExportSelected.style.display = show ? '' : 'none';
 }
 
 function _renderBijiOverview() {
@@ -2054,6 +2077,7 @@ function _renderBijiOverview() {
 					const summary = document.createElement('div');
 					summary.className = 'biji-item-summary';
 					if (showCheck) {
+						item.classList.add('has-check');
 						const check = document.createElement('input');
 						check.type = 'checkbox';
 						check.className = 'bo-note-check';
@@ -2064,7 +2088,7 @@ function _renderBijiOverview() {
 							else _boState.selectedKeys.delete(n.key);
 							_updateBODeleteBtn();
 						});
-						summary.appendChild(check);
+						item.appendChild(check);
 					}
 					const iconSpan = document.createElement('span');
 					iconSpan.className = 'biji-icon';
@@ -2305,6 +2329,40 @@ function _bindBijiOverviewEvents() {
 		_updateBijiOverviewVisibility();
 		renderCalendar();
 	});
+	DOM.boExportSelected.addEventListener('click', _bijiExportSelected);
+}
+
+function _bijiTimestamp() {
+	const sui = String(state.currentSui);
+	const jie = String(state.currentJie).padStart(2, '0');
+	const hao = String(state.currentHao).padStart(2, '0');
+	const now = new Date();
+	const hh = String(now.getHours()).padStart(2, '0');
+	const mm = String(now.getMinutes()).padStart(2, '0');
+	return sui + jie + hao + '_T' + hh + mm;
+}
+
+function _bijiExportSelected() {
+	const count = _boState.selectedKeys.size;
+	if (count === 0) return;
+	const format = confirm('导出格式选择：\n确定 = 文本格式 (.txt)\n取消 = JSON 格式 (.json)') ? 'text' : 'json';
+	const content = biji.exportSelected([..._boState.selectedKeys], format);
+	if (!content || content === '{}' || content === '') {
+		_showToast('没有笔记数据可导出');
+		return;
+	}
+	try {
+		const ext = format === 'text' ? '.txt' : '.json';
+		const mime = format === 'text' ? 'text/plain' : 'application/json';
+		const filename = '岁月历_选中笔记_' + _bijiTimestamp() + ext;
+		_saveFile(content, filename, mime).then(() => {
+			_showToast('已导出 ' + count + ' 条笔记');
+		}).catch(e => {
+			if (e.name !== 'AbortError') _showToast('导出失败：' + e.message);
+		});
+	} catch(e) {
+		if (e.name !== 'AbortError') _showToast('导出失败：' + e.message);
+	}
 }
 
 function _hsvToHex(h, s, v) {
@@ -2742,7 +2800,7 @@ async function _exportJieSu() {
 	try {
 		const data = getJieSu();
 		const content = JSON.stringify(data, null, '\t') + '\n';
-		await _saveFile(content, 'JieSu.json', 'application/json');
+		await _saveFile(content, '岁月历_节庆民俗列表.json', 'application/json');
 		_showToast('节庆民俗列表已导出', 3000);
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('导出失败：' + e.message);
@@ -2794,7 +2852,7 @@ async function _exportFuRi() {
 	try {
 		const data = getFuRi();
 		const content = JSON.stringify(data, null, '\t') + '\n';
-		await _saveFile(content, 'FuRi.json', 'application/json');
+		await _saveFile(content, '岁月历_每年重复日列表.json', 'application/json');
 		_showToast('每年重复日列表已导出', 3000);
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('导出失败：' + e.message);
@@ -3545,7 +3603,7 @@ function _bijiSave() {
 		biji.addNote(_bijiEditState.sui, _bijiEditState.hj, text, icon, _bijiEditState.created);
 	}
 	biji.clearDraft();
-	biji.writeCurrentDataToFile().catch(() => { _showToast('本地文件写入失败'); });
+	_bijiWriteToFile(_bijiEditState.sui);
 	_bijiCloseEditor();
 	renderBar7();
 	renderCalendar();
@@ -3561,7 +3619,7 @@ function _bijiDeleteFromEditor() {
 	if (!confirm('笔记删除后无法恢复，确定删除吗？')) return;
 	biji.deleteNote(_bijiEditState.sui, _bijiEditState.hj, _bijiEditState.idx);
 	biji.clearDraft();
-	biji.writeCurrentDataToFile().catch(() => { _showToast('本地文件写入失败'); });
+	_bijiWriteToFile(_bijiEditState.sui);
 	_bijiCloseEditor();
 	renderBar7();
 	renderCalendar();
@@ -3571,7 +3629,7 @@ function _bijiDeleteFromEditor() {
 function _bijiDeleteItem(idx) {
 	if (!confirm('笔记删除后无法恢复，确定删除吗？')) return;
 	biji.deleteNote(state.currentSui, _getCurrentHJ(), idx);
-	biji.writeCurrentDataToFile().catch(() => { _showToast('本地文件写入失败'); });
+	_bijiWriteToFile(state.currentSui);
 	renderBar7();
 	renderCalendar();
 	if (DOM.boPage.classList.contains('open')) _renderBijiOverview();
@@ -3660,124 +3718,301 @@ async function _updateBijiHint() {
 		DOM.bijiEditorHint.textContent = '';
 		return;
 	}
-	const handle = await biji.getFileHandle();
-	if (handle) {
-		const ok = await biji.verifyFileHandle();
+	const dirHandle = await biji.getDirHandle();
+	if (dirHandle) {
+		const ok = await biji.verifyDirHandle();
 		if (ok) {
-			DOM.bijiEditorHint.textContent = '';
-			return;
+			const cfg = biji.getBijiFileConfig();
+			if (cfg.fileName) {
+				DOM.bijiEditorHint.textContent = '';
+				return;
+			}
 		}
 	}
-	if (_hasFileSystemAccess) {
-		DOM.bijiEditorHint.textContent = '笔记保存在浏览器缓存，请及时导出或指定本地文件保存 →';
-	} else {
-		DOM.bijiEditorHint.textContent = '笔记保存在浏览器缓存，请及时导出以防丢失 →';
-	}
+	DOM.bijiEditorHint.textContent = '笔记保存在浏览器缓存，请及时导出或在设置中指定本地存储文件夹 →';
 }
 
-async function _bijiSpecifyFile() {
+// 笔记保存到本地文件（按岁区间原子写入，自动处理今岁一致性）
+function _bijiWriteToFile(sui) {
+	const jin = state.todaySui;
+	biji.writeNoteToFiles(sui, jin).then(result => {
+		if (!result || result.ok) return;
+		if (result.reason === 'noDir') return; // 未指定文件夹，静默
+		if (result.reason === 'noPerm') { _showToast('本地文件夹授权失效，请在设置中重新授权'); return; }
+		_showToast('本地文件写入失败');
+	}).catch(() => { _showToast('本地文件写入失败'); });
+}
+
+// ========== 本地存储文件夹设置 ==========
+async function _lsSpecifyDir() {
+	if (!(_hasFileSystemAccess && window.showDirectoryPicker)) { _showToast('当前浏览器不支持选择文件夹'); return; }
 	try {
-		const [handle] = await window.showOpenFilePicker({
-			types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
-			multiple: false,
-			mode: 'readwrite',
-		});
-		// 读取文件已有数据，询问是否合并导入
-		try {
-			const file = await handle.getFile();
-			const text = await readFileAsText(file);
-			if (text && text.trim()) {
-				const fileData = JSON.parse(text);
-				if (fileData && Object.keys(fileData).length > 0) {
-					if (confirm('文件已有数据，是否合并导入？')) {
-						_importJsonBiji(text, 'merge');
-					}
-				}
-			}
-		} catch(e) {}
-		await biji.saveFileHandle(handle);
-		const written = await biji.writeCurrentDataToFile();
-		if (written) {
-			_showToast('已指定本地文件并写入数据');
-			const perm = await handle.queryPermission({ mode: 'readwrite' });
-			if (perm !== 'granted') {
-				_showToast('因系统限制，后续每次保存可能都需要权限确认');
-			}
-		} else {
-			_showToast('已指定本地文件，但写入失败');
-		}
-		_updateBijiFileBtn();
+		const handle = await window.showDirectoryPicker({ id: 'bijiRoot', mode: 'readwrite' });
+		await biji.saveDirHandle(handle);
+		_showToast('已指定本地存储文件夹');
+		_updateLsUI();
 		_updateBijiHint();
 	} catch(e) {
-		if (e.name !== 'AbortError') _showToast('指定文件失败：' + e.message);
+		if (e.name !== 'AbortError') _showToast('指定文件夹失败：' + e.message);
 	}
 }
 
-async function _bijiReauthorize() {
-	const ok = await biji.verifyFileHandle();
+async function _lsUnlinkDir() {
+	const handle = await biji.getDirHandle();
+	const name = handle ? (handle.name || '') : '';
+	const doImport = confirm('解除文件夹不会丢失应用中现有笔记' + (name ? '，也不会删除「' + name + '」中的文件' : '') + '。是否同时从文件夹读取最后一次保存的笔记并合并到应用？');
+	if (doImport) {
+		try {
+			const result = await biji.readAllSegmentFiles();
+			if (result && result.data && Object.keys(result.data).length > 0) {
+				_importJsonBiji(JSON.stringify(result.data), 'merge');
+			} else {
+				_showToast('文件夹中未读取到笔记数据');
+			}
+		} catch(e) { _showToast('读取本地文件失败'); }
+	}
+	await biji.removeDirHandle();
+	biji.clearBijiFileConfig();
+	_updateLsUI();
+	_updateBijiHint();
+	_showToast('已解除本地存储文件夹');
+}
+
+async function _lsReauthorizeDir() {
+	const ok = await biji.verifyDirHandle();
 	if (ok) {
-		_updateBijiFileBtn();
+		_updateLsUI();
 		_updateBijiHint();
 		_showToast('已重新获得授权');
 	} else {
-		_showToast('无法获得授权，请重新指定文件');
+		_showToast('无法获得授权，请重新指定文件夹');
 	}
 }
 
-async function _bijiUnlinkFile() {
-	const handle = await biji.getFileHandle();
-	const name = handle ? (handle.name || 'biji.json') : 'biji.json';
-	const doImport = confirm('解除不会丢失应用中现有笔记。保险起见可再导入一次「' + name + '」的数据，是否执行？');
-	if (doImport) {
+async function _lsSpecifyFile() {
+	const dirHandle = await biji.getDirHandle();
+	if (!dirHandle) { _showToast('请先指定本地存储文件夹'); return; }
+	const ok = await biji.verifyDirHandle();
+	if (!ok) { _showToast('文件夹授权失效，请重新授权'); _updateLsUI(); return; }
+	const cfg = biji.getBijiFileConfig();
+	const name = prompt('请输入笔记文件名（不含扩展名，仅允许汉字、字母、数字、下划线、连字符）', cfg.fileName || 'BiJi');
+	if (name === null) return;
+	const trimmed = name.trim();
+	if (!trimmed) { _showToast('文件名不能为空'); return; }
+	if (!/^[\w\u4e00-\u9fa5\-]+$/.test(trimmed)) { _showToast('文件名仅允许汉字、字母、数字、下划线、连字符'); return; }
+	// 先临时设置文件名以便读取已有文件
+	biji.setBijiFileConfig({ fileName: trimmed });
+	// 检查文件冲突
+	try {
+		await dirHandle.getFileHandle(trimmed + '_jin.json', { create: false });
+		// 文件已存在，读取所有分段文件并询问合并
 		try {
-			const fileData = await biji.readDataFromFile();
-			if (fileData && typeof fileData === 'object') {
-				_importJsonBiji(JSON.stringify(fileData), 'merge');
-			} else {
-				_showToast('无法读取本地文件数据');
+			const result = await biji.readAllSegmentFiles();
+			if (result && result.data && Object.keys(result.data).length > 0) {
+				if (confirm('文件已存在数据，是否合并导入到应用？')) {
+					_importJsonBiji(JSON.stringify(result.data), 'merge');
+				}
 			}
-		} catch(e) {
-			_showToast('读取本地文件失败');
-		}
-	}
-	await biji.removeFileHandle();
-	_updateBijiFileBtn();
-	_updateBijiHint();
-	_showToast('已解除本地文件关联');
-}
-
-async function _updateBijiFileBtn() {
-	if (!_hasFileSystemAccess) {
-		const span = document.createElement('span');
-		span.textContent = '当前系统/浏览器不支持';
-		span.style.cssText = 'color:var(--text-tertiary);font-size:var(--small-size)';
-		DOM.bijiFileBtn.replaceWith(span);
-		DOM.bijiFileBtn = span;
-		DOM.bijiFileName.style.display = 'none';
-		return;
-	}
-	const handle = await biji.getFileHandle();
-	if (handle) {
-		const ok = await biji.verifyFileHandle();
-		if (ok) {
-			DOM.bijiFileName.textContent = handle.name || 'biji.json';
-			DOM.bijiFileName.style.display = '';
-			DOM.bijiFileBtn.textContent = '解除本地保存';
-			DOM.bijiFileBtn.onclick = _bijiUnlinkFile;
-			DOM.bijiFileBtn.title = '';
-		} else {
-			DOM.bijiFileName.textContent = handle.name || 'biji.json';
-			DOM.bijiFileName.style.display = '';
-			DOM.bijiFileBtn.textContent = '重新授权';
-			DOM.bijiFileBtn.onclick = _bijiReauthorize;
-			DOM.bijiFileBtn.title = '';
+		} catch(e) {}
+	} catch(e) { /* 文件不存在，正常 */ }
+	// 写入当前数据
+	const written = await biji.rewriteAllSegmentFiles(state.todaySui);
+	if (written) {
+		_showToast('已指定文件名并写入数据');
+		const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+		if (perm !== 'granted') {
+			_showToast('因系统限制，后续每次保存可能都需要权限确认');
 		}
 	} else {
-		DOM.bijiFileName.style.display = 'none';
-		DOM.bijiFileBtn.textContent = '指定文件';
-		DOM.bijiFileBtn.onclick = _bijiSpecifyFile;
-		DOM.bijiFileBtn.title = '';
+		_showToast('已指定文件名，但写入失败');
 	}
+	_updateLsUI();
+	_updateBijiHint();
+}
+
+async function _lsUnlinkFile() {
+	const cfg = biji.getBijiFileConfig();
+	const name = cfg.fileName || 'BiJi';
+	if (!confirm('解除本地保存不会丢失应用中现有笔记，也不会删除本地文件「' + name + '」。是否继续？')) return;
+	biji.unlinkBijiFileSync();
+	_updateLsUI();
+	_updateBijiHint();
+	_showToast('已解除本地保存');
+}
+
+function _toggleLsSplitDropdown() {
+	const open = DOM.lsSplitDropdown.style.display !== 'none';
+	DOM.lsSplitDropdown.style.display = open ? 'none' : '';
+}
+
+function _fmtSegPoint(v, jin) {
+	if (v === -Infinity) return '远古';
+	if (v === +Infinity) return '未来';
+	if (v === jin) return '今岁 (' + jin + ')';
+	return String(v);
+}
+
+function _fmtSegRange(seg, jin) {
+	if (seg.start === seg.end) return _fmtSegPoint(seg.start, jin);
+	return _fmtSegPoint(seg.start, jin) + '~' + _fmtSegPoint(seg.end, jin);
+}
+
+function _buildLsSplitList() {
+	const jin = state.todaySui;
+	const cfg = biji.getBijiFileConfig();
+	const segs = biji.computeSegments(jin, cfg.splitNodes || []);
+	// 将 _lai 段移到末尾，使列表顺序为 -∞、<jin 节点、今、>jin 节点、∞
+	const laiIdx = segs.findIndex(s => s.suffix === '_lai');
+	if (laiIdx !== -1 && laiIdx !== segs.length - 1) {
+		segs.push(segs.splice(laiIdx, 1)[0]);
+	}
+	DOM.lsSplitList.innerHTML = '';
+	for (const s of segs) {
+		const name = s.suffix === '_gu' ? '-∞' :
+			s.suffix === '_jin' ? '今' :
+			(s.suffix === '_lai' ? '∞' : s.suffix);
+		const removable = !/^_(gu|jin|lai)$/.test(s.suffix);
+		const nodeVal = removable ? parseInt(s.suffix.slice(1)) : null;
+		DOM.lsSplitList.appendChild(_makeLsSplitItem(name, _fmtSegRange(s, jin), removable, nodeVal));
+	}
+	DOM.lsSplitToggle.textContent = '当前共' + segs.length + '段';
+}
+
+function _makeLsSplitItem(name, range, removable, nodeVal) {
+	const item = document.createElement('div');
+	item.className = 'vli-item';
+	item.innerHTML =
+		'<span class="vli-item-name">' + name + '</span>' +
+		'<span class="vli-item-cha">' + range + '</span>' +
+		(removable ? '<button type="button" class="vli-item-del" title="删除">&times;</button>' : '');
+	if (removable) {
+		item.querySelector('.vli-item-del').addEventListener('click', (e) => {
+			e.stopPropagation();
+			_lsRemoveSplitNode(nodeVal);
+		});
+	}
+	return item;
+}
+
+function _lsAddSplitNode() {
+	const raw = DOM.lsSplitAddInput.value.trim();
+	if (!raw) { _showToast('请输入岁值'); return; }
+	const n = Number(raw);
+	if (!Number.isInteger(n)) { _showToast('请输入整数'); return; }
+	const jin = state.todaySui;
+	if (n === jin) { _showToast('不能与今岁相同'); return; }
+	const cfg = biji.getBijiFileConfig();
+	const nodes = cfg.splitNodes || [];
+	if (nodes.includes(n)) { _showToast('该节点已存在'); return; }
+	nodes.push(n);
+	biji.setBijiFileConfig({ splitNodes: nodes });
+	// 同步写入文件
+	biji.rewriteAllSegmentFiles(jin).then(ok => {
+		_showToast(ok ? '已添加节点' : '已添加节点，但写入文件失败');
+	}).catch(() => { _showToast('已添加节点，但写入文件失败'); });
+	DOM.lsSplitAddInput.value = '';
+	_buildLsSplitList();
+}
+
+function _lsRemoveSplitNode(nodeVal) {
+	const cfg = biji.getBijiFileConfig();
+	const nodes = (cfg.splitNodes || []).filter(n => n !== nodeVal);
+	biji.setBijiFileConfig({ splitNodes: nodes });
+	biji.rewriteAllSegmentFiles(state.todaySui).then(ok => {
+		_showToast(ok ? '已删除节点' : '已删除节点，但写入文件失败');
+	}).catch(() => { _showToast('已删除节点，但写入文件失败'); });
+	_buildLsSplitList();
+}
+
+async function _lsClearBiji() {
+	if (!confirm('清空应用内笔记将删除所有应用内保存的笔记数据。此操作不可恢复。本地文件夹中的已有文件不会被删除。是否继续？')) return;
+	if (!confirm('再次确认：确定要清空所有应用内笔记吗？')) return;
+	biji.clearAllBijiInStorage();
+	// 强制解除本地保存（不解除文件夹句柄）
+	biji.unlinkBijiFileSync();
+	_updateLsUI();
+	renderBar7();
+	renderCalendar();
+	if (DOM.boPage.classList.contains('open')) _renderBijiOverview();
+	_showToast('已清空应用内笔记并解除本地保存');
+}
+
+async function _updateLsUI() {
+	// 不支持时：文件夹行显示"不支持"文本，其余依赖句柄行隐藏，清空行始终显示
+	if (!(_hasFileSystemAccess && window.showDirectoryPicker)) {
+		DOM.lsDirRow.style.display = '';
+		DOM.lsDirName.style.display = 'none';
+		if (DOM.lsDirBtn.tagName !== 'SPAN') {
+			const span = document.createElement('span');
+			span.textContent = '当前系统/浏览器不支持';
+			span.style.cssText = 'color:var(--text-tertiary);font-size:var(--small-size)';
+			DOM.lsDirBtn.replaceWith(span);
+			DOM.lsDirBtn = span;
+		}
+		DOM.lsFileRow.style.display = 'none';
+		DOM.lsSplitWrap.style.display = 'none';
+		return;
+	}
+	// 支持时：若按钮曾被替换为文本，恢复为按钮
+	if (DOM.lsDirBtn.tagName === 'SPAN') {
+		const btn = document.createElement('button');
+		btn.type = 'button';
+		btn.id = 'lsDirBtn';
+		btn.addEventListener('click', _onLsDirBtnClick);
+		DOM.lsDirBtn.replaceWith(btn);
+		DOM.lsDirBtn = btn;
+	}
+	DOM.lsDirRow.style.display = '';
+	// 文件夹按钮
+	const dirHandle = await biji.getDirHandle();
+	const hasDir = !!dirHandle;
+	let dirOk = false;
+	if (hasDir) {
+		dirOk = await biji.verifyDirHandle();
+		DOM.lsDirName.textContent = dirHandle.name || '';
+		DOM.lsDirName.style.display = '';
+		DOM.lsDirBtn.textContent = dirOk ? '解除文件夹' : '重新授权';
+	} else {
+		DOM.lsDirName.style.display = 'none';
+		DOM.lsDirBtn.textContent = '指定文件夹';
+	}
+	DOM.lsDirBtn.dataset.state = hasDir ? (dirOk ? 'unlink' : 'reauth') : 'specify';
+	// 文件名（本地同步保存）
+	DOM.lsFileRow.style.display = hasDir ? '' : 'none';
+	if (!hasDir) { DOM.lsSplitWrap.style.display = 'none'; return; }
+	DOM.lsFileBtn.disabled = !hasDir;
+	const cfg = biji.getBijiFileConfig();
+	const hasFile = hasDir && cfg.fileName;
+	if (hasFile) {
+		DOM.lsFileName.textContent = cfg.fileName + '_jin.json 等';
+		DOM.lsFileName.style.display = '';
+		DOM.lsFileBtn.textContent = '解除本地保存';
+	} else {
+		DOM.lsFileName.style.display = 'none';
+		DOM.lsFileBtn.textContent = '指定文件名';
+	}
+	DOM.lsFileBtn.dataset.state = hasFile ? 'unlink' : 'specify';
+	// 分割节点
+	if (hasFile) {
+		DOM.lsSplitWrap.style.display = '';
+		_buildLsSplitList();
+	} else {
+		DOM.lsSplitWrap.style.display = 'none';
+	}
+}
+
+async function _onLsDirBtnClick() {
+	const st = DOM.lsDirBtn.dataset.state;
+	if (st === 'specify') await _lsSpecifyDir();
+	else if (st === 'unlink') await _lsUnlinkDir();
+	else if (st === 'reauth') await _lsReauthorizeDir();
+}
+
+async function _onLsFileBtnClick() {
+	if (DOM.lsFileBtn.disabled) return;
+	const st = DOM.lsFileBtn.dataset.state;
+	if (st === 'specify') await _lsSpecifyFile();
+	else if (st === 'unlink') await _lsUnlinkFile();
 }
 
 async function _bijiExport() {
@@ -3792,7 +4027,7 @@ async function _bijiExport() {
 	try {
 		const ext = format === 'text' ? '.txt' : '.json';
 		const mime = format === 'text' ? 'text/plain' : 'application/json';
-		const filename = '岁月历_笔记_' + new Date().toISOString().slice(0, 10) + ext;
+		const filename = '岁月历_导出笔记_' + _bijiTimestamp() + ext;
 		await _saveFile(content, filename, mime);
 		_showToast('笔记已导出');
 	} catch(e) {
@@ -3805,22 +4040,80 @@ function _bijiImport() {
 	const input = document.createElement('input');
 	input.type = 'file';
 	input.accept = '.json,.txt';
-	input.onchange = () => {
-		const file = input.files[0];
-		if (!file) return;
-		const reader = new FileReader();
-		reader.onload = () => {
-			const text = reader.result;
-			const isText = file.name.endsWith('.txt') || !text.trimStart().startsWith('{');
-			if (isText) {
-				_importTextBiji(text, mode);
-			} else {
-				_importJsonBiji(text, mode);
+	input.multiple = true;
+	input.onchange = async () => {
+		const files = Array.from(input.files || []);
+		if (files.length === 0) return;
+		if (files.length === 1) {
+			// 单文件：保持原逻辑（带冲突对话框）
+			_importBijiFile(files[0], mode);
+			return;
+		}
+		// 多文件：按文件名排序后依次合并导入；可选记录分割节点
+		const recordNodes = confirm('将导入 ' + files.length + ' 个文件。是否从文件名后缀记录分割节点（如 BiJi_4700.json 中的 4700）到本地保存配置？');
+		files.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+		if (mode === 'replace') {
+			if (!confirm('替换模式下多文件导入将先清空应用内笔记再依次合并，是否继续？')) return;
+			biji.clearAllBijiInStorage();
+		}
+		let importedCount = 0;
+		for (const f of files) {
+			await new Promise(resolve => {
+				const reader = new FileReader();
+				reader.onload = () => {
+					const text = reader.result;
+					if (!text) { resolve(); return; }
+					const isText = f.name.endsWith('.txt') || !text.trimStart().startsWith('{');
+					if (isText) {
+						const parsed = biji.parseTextImport(text);
+						biji.applyTextImport(parsed, []);
+					} else {
+						biji.importAll(text, 'merge');
+					}
+					importedCount++;
+					resolve();
+				};
+				reader.onerror = () => resolve();
+				reader.readAsText(f);
+			});
+		}
+		// 记录分割节点
+		if (recordNodes) {
+			const nodes = [];
+			for (const f of files) {
+				const m = f.name.match(/_(\d+)\.json$/);
+				if (m) nodes.push(parseInt(m[1]));
 			}
-		};
-		reader.readAsText(file);
+			if (nodes.length > 0) {
+				const cfg = biji.getBijiFileConfig();
+				biji.setBijiFileConfig({ splitNodes: nodes });
+				// 如已指定本地文件夹和文件名，重写文件以应用新节点
+				const dirHandle = await biji.getDirHandle();
+				if (dirHandle && cfg.fileName) {
+					await biji.rewriteAllSegmentFiles(state.todaySui);
+				}
+			}
+		}
+		_showToast('已导入 ' + importedCount + ' 个文件' + (recordNodes ? '并记录分割节点' : ''), 3000);
+		renderBar7();
+		renderCalendar();
+		if (DOM.boPage.classList.contains('open')) _renderBijiOverview();
 	};
 	input.click();
+}
+
+function _importBijiFile(file, mode) {
+	const reader = new FileReader();
+	reader.onload = () => {
+		const text = reader.result;
+		const isText = file.name.endsWith('.txt') || !text.trimStart().startsWith('{');
+		if (isText) {
+			_importTextBiji(text, mode);
+		} else {
+			_importJsonBiji(text, mode);
+		}
+	};
+	reader.readAsText(file);
 }
 
 function _importJsonBiji(text, mode) {
@@ -4040,7 +4333,7 @@ function _initInstallPrompt() {
 		// 触发 beforeinstallprompt 说明是完整 Chromium，支持 File System Access API
 		if (window.showSaveFilePicker && !_hasFileSystemAccess) {
 			_hasFileSystemAccess = true;
-			_updateBijiFileBtn();
+			_updateLsUI();
 			_updateBijiHint();
 		}
 	});
