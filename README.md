@@ -26,9 +26,9 @@
 
 ## 截图
 
-<img src="screenshots/华夏岁月历_亮.jpg" alt="华夏岁月历_亮" width="60%;" />
-
 <img src="screenshots/华夏岁月历_图.jpg" alt="华夏岁月历_图" width="60%;" />
+
+<img src="screenshots/华夏岁月历_亮.jpg" alt="华夏岁月历_亮" width="60%;" />
 
 ## 关于程序
 
