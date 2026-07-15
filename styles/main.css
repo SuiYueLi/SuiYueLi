@@ -1590,17 +1590,7 @@ body {
   background: var(--text-accent);
   color: #fff;
 }
-.bo-delete-btn {
-  background: none;
-  border: 1px solid var(--text-red);
-  border-radius: var(--radius-sm);
-  color: var(--text-red);
-  font-size: var(--small-size);
-  padding: 2px 8px;
-  cursor: pointer;
-  font-family: var(--font-family);
-}
-.bo-delete-btn:hover {
+.bo-delete-btn:hover, .settings-page .sp-option .bo-delete-btn:hover {
   background: var(--text-red);
   color: #fff;
 }

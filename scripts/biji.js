@@ -12,7 +12,7 @@ const IDB_STORE = 'handles';
 const IDB_KEY = 'fileHandle';
 const IDB_KEY_DIR = 'dirHandle';
 const BIJI_FILE_CONFIG_KEY = 'jieLi_biji_file_config';
-const DEFAULT_FILE_NAME = 'BiJi';
+const FILE_PREFIX = '笔记_';
 // 分段后缀
 const SUFFIX_GU = '_gu';   // 今岁之前
 const SUFFIX_JIN = '_jin'; // 今岁
@@ -538,25 +538,25 @@ export async function verifyDirHandle() {
 	}
 }
 
-// ========== 笔记文件配置（文件名 + 分割节点） ==========
+// ========== 笔记文件配置（启用标志 + 分割节点） ==========
 export function getBijiFileConfig() {
 	try {
 		const raw = localStorage.getItem(BIJI_FILE_CONFIG_KEY);
-		if (!raw) return { fileName: DEFAULT_FILE_NAME, splitNodes: [] };
+		if (!raw) return { enabled: false, splitNodes: [] };
 		const cfg = JSON.parse(raw);
 		return {
-			fileName: (cfg.fileName && typeof cfg.fileName === 'string') ? cfg.fileName : DEFAULT_FILE_NAME,
+			enabled: !!cfg.enabled,
 			splitNodes: Array.isArray(cfg.splitNodes) ? cfg.splitNodes.filter(n => Number.isFinite(n)).map(n => Math.trunc(n)) : []
 		};
 	} catch(e) {
-		return { fileName: DEFAULT_FILE_NAME, splitNodes: [] };
+		return { enabled: false, splitNodes: [] };
 	}
 }
 
 export function setBijiFileConfig(cfg) {
 	const cur = getBijiFileConfig();
 	const next = {
-		fileName: (cfg && cfg.fileName && typeof cfg.fileName === 'string') ? cfg.fileName : cur.fileName,
+		enabled: (cfg && typeof cfg.enabled === 'boolean') ? cfg.enabled : cur.enabled,
 		splitNodes: (cfg && Array.isArray(cfg.splitNodes))
 			? cfg.splitNodes.filter(n => Number.isFinite(n)).map(n => Math.trunc(n))
 			: cur.splitNodes
@@ -620,27 +620,40 @@ export function findSegmentForSui(sui, jin, nodes) {
 }
 
 // ========== 文件名/路径 ==========
-function _bijiFileName(fileName, suffix) {
-	return (fileName || DEFAULT_FILE_NAME) + suffix + '.json';
+function _fmtPoint(v, jin) {
+	if (v === -Infinity) return '远古';
+	if (v === +Infinity) return '未来';
+	if (v === jin) return '今岁(' + jin + ')';
+	return String(v);
 }
 
-// 在目录句柄下原子写入单个分段文件
-async function _writeSegmentFile(dirHandle, fileName, suffix, dataObj, jin) {
+function _segLabel(seg, jin) {
+	const s = _fmtPoint(seg.start, jin);
+	const e = _fmtPoint(seg.end, jin);
+	return s === e ? s : s + '~' + e;
+}
+
+function _bijiFileName(seg, jin) {
+	return FILE_PREFIX + _segLabel(seg, jin) + '.json';
+}
+
+// 在目录句柄下原子写入单个分段文件（所有文件均存 jin 元数据）
+async function _writeSegmentFile(dirHandle, seg, jin, dataObj) {
 	const ok = await verifyDirHandle();
 	if (!ok) return false;
 	const payload = { ...dataObj };
-	if (jin !== undefined && jin !== null) payload[JIN_META_KEY] = jin;
+	payload[JIN_META_KEY] = jin;
 	const json = JSON.stringify(payload, null, 2);
-	const fileHandle = await dirHandle.getFileHandle(_bijiFileName(fileName, suffix), { create: true });
+	const fileHandle = await dirHandle.getFileHandle(_bijiFileName(seg, jin), { create: true });
 	const writable = await fileHandle.createWritable();
 	await writable.write(json);
 	await writable.close();
 	return true;
 }
 
-async function _readSegmentFile(dirHandle, fileName, suffix) {
+async function _readSegmentFile(dirHandle, fileName) {
 	try {
-		const fileHandle = await dirHandle.getFileHandle(_bijiFileName(fileName, suffix), { create: false });
+		const fileHandle = await dirHandle.getFileHandle(fileName, { create: false });
 		const file = await fileHandle.getFile();
 		const text = await readFileAsText(file);
 		if (!text || !text.trim()) return null;
@@ -650,30 +663,25 @@ async function _readSegmentFile(dirHandle, fileName, suffix) {
 	}
 }
 
-async function _removeSegmentFile(dirHandle, fileName, suffix) {
+async function _removeSegmentFile(dirHandle, fileName) {
 	try {
-		await dirHandle.removeEntry(_bijiFileName(fileName, suffix));
+		await dirHandle.removeEntry(fileName);
 		return true;
 	} catch(e) {
 		return false;
 	}
 }
 
-// 列出目录中所有属于该 fileName 前缀的分段文件后缀
-export async function listSegmentSuffixes() {
+// 列出目录中所有属于笔记的分段文件名
+export async function listBijiFiles() {
 	const dirHandle = await getDirHandle();
 	if (!dirHandle) return [];
-	const cfg = getBijiFileConfig();
-	const prefix = (cfg.fileName || DEFAULT_FILE_NAME);
 	const result = [];
 	try {
 		for await (const entry of dirHandle.values()) {
 			if (entry.kind !== 'file') continue;
-			if (!entry.name.startsWith(prefix) || !entry.name.endsWith('.json')) continue;
-			const mid = entry.name.slice(prefix.length, entry.name.length - '.json'.length);
-			if (mid === SUFFIX_GU || mid === SUFFIX_JIN || mid === SUFFIX_LAI || /^_\d+$/.test(mid)) {
-				result.push(mid);
-			}
+			if (!entry.name.startsWith(FILE_PREFIX) || !entry.name.endsWith('.json')) continue;
+			result.push(entry.name);
 		}
 	} catch(e) {}
 	return result;
@@ -707,19 +715,25 @@ function _collectAllSui() {
 	return out;
 }
 
-// 检查目录中 BiJi_jin 文件记录的今岁是否与当前一致
+// 检查目录中笔记文件记录的今岁是否与当前一致
 export async function checkJinConsistency(jin) {
 	const dirHandle = await getDirHandle();
 	if (!dirHandle) return { consistent: true, hasDir: false };
-	const cfg = getBijiFileConfig();
-	const jinData = await _readSegmentFile(dirHandle, cfg.fileName, SUFFIX_JIN);
-	if (!jinData) return { consistent: true, hasDir: true, hasJinFile: false };
-	const fileJin = jinData[JIN_META_KEY];
-	if (fileJin === undefined || fileJin === null) return { consistent: true, hasDir: true, hasJinFile: true, fileJin: null };
+	const files = await listBijiFiles();
+	let fileJin = undefined;
+	for (const fn of files) {
+		const data = await _readSegmentFile(dirHandle, fn);
+		if (!data) continue;
+		if (data[JIN_META_KEY] !== undefined && data[JIN_META_KEY] !== null) {
+			fileJin = data[JIN_META_KEY];
+			break;
+		}
+	}
+	if (fileJin === undefined) return { consistent: true, hasDir: true, hasJinFile: false };
 	return { consistent: (fileJin === jin), hasDir: true, hasJinFile: true, fileJin };
 }
 
-// 全量重写所有分段文件（按当前 jin 与节点配置）
+// 全量重写所有分段文件（按当前 jin 与节点配置）；空段落不创建文件
 export async function rewriteAllSegmentFiles(jin) {
 	const dirHandle = await getDirHandle();
 	if (!dirHandle) return false;
@@ -727,11 +741,9 @@ export async function rewriteAllSegmentFiles(jin) {
 	if (!ok) return false;
 	const cfg = getBijiFileConfig();
 	const segments = computeSegments(jin, cfg.splitNodes);
-	// 先收集所有数据
 	const allData = _collectAllSui();
-	// 旧文件后缀列表（需清理已不存在的分段）
-	const oldSuffixes = await listSegmentSuffixes();
-	const newSuffixes = segments.map(s => s.suffix);
+	const oldFiles = await listBijiFiles();
+	const newFileNames = [];
 	for (const s of segments) {
 		const rangeData = {};
 		for (const k of Object.keys(allData)) {
@@ -740,72 +752,65 @@ export async function rewriteAllSegmentFiles(jin) {
 				rangeData[k] = allData[k];
 			}
 		}
-		const written = await _writeSegmentFile(dirHandle, cfg.fileName, s.suffix, rangeData, jin);
+		if (Object.keys(rangeData).length === 0) continue;
+		const fn = _bijiFileName(s, jin);
+		newFileNames.push(fn);
+		const written = await _writeSegmentFile(dirHandle, s, jin, rangeData);
 		if (!written) return false;
 	}
 	// 删除多余旧文件
-	for (const old of oldSuffixes) {
-		if (!newSuffixes.includes(old)) {
-			await _removeSegmentFile(dirHandle, cfg.fileName, old);
+	for (const old of oldFiles) {
+		if (!newFileNames.includes(old)) {
+			await _removeSegmentFile(dirHandle, old);
 		}
 	}
 	return true;
 }
 
-// 保存动作：先检查 BiJi_jin 的今岁一致性，再决定写入范围
-// sui: 当前操作的岁；jin: 当前今岁
+// 保存动作：先检查文件中的今岁一致性，再决定写入范围；空段落不创建文件
 export async function writeNoteToFiles(sui, jin) {
 	const dirHandle = await getDirHandle();
 	if (!dirHandle) return { ok: false, reason: 'noDir' };
 	const ok = await verifyDirHandle();
 	if (!ok) return { ok: false, reason: 'noPerm' };
 	const cfg = getBijiFileConfig();
-	// 1. 检查 BiJi_jin 一致性
-	const jinData = await _readSegmentFile(dirHandle, cfg.fileName, SUFFIX_JIN);
-	const fileJin = jinData ? jinData[JIN_META_KEY] : undefined;
+	const oldFiles = await listBijiFiles();
+	// 1. 读取所有文件，检查 jin 一致性
+	let fileJin = undefined;
+	const allFileData = {};
+	for (const fn of oldFiles) {
+		const data = await _readSegmentFile(dirHandle, fn);
+		if (!data) continue;
+		if (fileJin === undefined && data[JIN_META_KEY] !== undefined && data[JIN_META_KEY] !== null) {
+			fileJin = data[JIN_META_KEY];
+		}
+		for (const k of Object.keys(data)) {
+			if (k === JIN_META_KEY) continue;
+			if (!k.startsWith(STORAGE_PREFIX) || _EXCLUDED_KEYS.has(k) || k === BIJI_FILE_CONFIG_KEY) continue;
+			if (allFileData[k] === undefined) allFileData[k] = data[k];
+		}
+	}
 	const jinConsistent = (fileJin === undefined || fileJin === null || fileJin === jin);
 	if (!jinConsistent) {
-		// 今岁发生变化：将本地文件夹中所有笔记读入内存与 localStorage 合并，
-		// 然后按当前 jin 重新分割写入全部文件。
-		const merged = _collectAllSui();
-		const oldSuffixes = await listSegmentSuffixes();
-		for (const suf of oldSuffixes) {
-			const data = await _readSegmentFile(dirHandle, cfg.fileName, suf);
-			if (!data) continue;
-			for (const k of Object.keys(data)) {
-				if (k === JIN_META_KEY) continue;
-				if (!k.startsWith(STORAGE_PREFIX) || _EXCLUDED_KEYS.has(k) || k === BIJI_FILE_CONFIG_KEY) continue;
-				const sk = parseInt(k.slice(STORAGE_PREFIX.length));
-				if (isNaN(sk)) continue;
-				// 不覆盖本地已存在（本地为最新编辑）
-				if (merged[k] === undefined) {
-					merged[k] = data[k];
-				}
+		// 今岁变化：将文件数据合并到 localStorage，再全量重写
+		for (const k of Object.keys(allFileData)) {
+			if (localStorage.getItem(k) === null) {
+				try { localStorage.setItem(k, JSON.stringify(allFileData[k])); } catch(e) {}
 			}
 		}
-		// 重新分割并写入
-		const segments = computeSegments(jin, cfg.splitNodes);
-		const newSuffixes = segments.map(s => s.suffix);
-		for (const s of segments) {
-			const rangeData = {};
-			for (const k of Object.keys(merged)) {
-				const sk = parseInt(k.slice(STORAGE_PREFIX.length));
-				if (sk >= s.start && sk <= s.end) rangeData[k] = merged[k];
-			}
-			const written = await _writeSegmentFile(dirHandle, cfg.fileName, s.suffix, rangeData, jin);
-			if (!written) return { ok: false, reason: 'writeFail', scope: 'all' };
-		}
-		for (const old of oldSuffixes) {
-			if (!newSuffixes.includes(old)) await _removeSegmentFile(dirHandle, cfg.fileName, old);
-		}
-		return { ok: true, scope: 'all' };
+		const result = await rewriteAllSegmentFiles(jin);
+		return result ? { ok: true, scope: 'all' } : { ok: false, reason: 'writeFail', scope: 'all' };
 	}
 	// 2. 一致：仅覆盖该条笔记所在区间的文件
 	const seg = findSegmentForSui(sui, jin, cfg.splitNodes);
 	const rangeData = _collectSuiRange(seg.start, seg.end);
-	// jin 段写入时附带 jin 元数据；其他段不附带
-	const metaJin = (seg.suffix === SUFFIX_JIN) ? jin : undefined;
-	const written = await _writeSegmentFile(dirHandle, cfg.fileName, seg.suffix, rangeData, metaJin);
+	const fn = _bijiFileName(seg, jin);
+	if (Object.keys(rangeData).length === 0) {
+		// 空段落：删除已有文件（如果存在）
+		if (oldFiles.includes(fn)) await _removeSegmentFile(dirHandle, fn);
+		return { ok: true, scope: 'segment', suffix: seg.suffix };
+	}
+	const written = await _writeSegmentFile(dirHandle, seg, jin, rangeData);
 	if (!written) return { ok: false, reason: 'writeFail', scope: 'segment' };
 	return { ok: true, scope: 'segment', suffix: seg.suffix };
 }
@@ -841,14 +846,13 @@ export async function readAllSegmentFiles() {
 	if (!dirHandle) return null;
 	const ok = await verifyDirHandle();
 	if (!ok) return null;
-	const cfg = getBijiFileConfig();
-	const suffixes = await listSegmentSuffixes();
+	const files = await listBijiFiles();
 	const merged = {};
 	let fileJin = null;
-	for (const suf of suffixes) {
-		const data = await _readSegmentFile(dirHandle, cfg.fileName, suf);
+	for (const fn of files) {
+		const data = await _readSegmentFile(dirHandle, fn);
 		if (!data) continue;
-		if (suf === SUFFIX_JIN && data[JIN_META_KEY] !== undefined) fileJin = data[JIN_META_KEY];
+		if (data[JIN_META_KEY] !== undefined && data[JIN_META_KEY] !== null) fileJin = data[JIN_META_KEY];
 		for (const k of Object.keys(data)) {
 			if (k === JIN_META_KEY) continue;
 			if (!k.startsWith(STORAGE_PREFIX) || _EXCLUDED_KEYS.has(k) || k === BIJI_FILE_CONFIG_KEY) continue;
@@ -857,7 +861,7 @@ export async function readAllSegmentFiles() {
 			if (merged[k] === undefined) merged[k] = data[k];
 		}
 	}
-	return { data: merged, jin: fileJin, suffixes };
+	return { data: merged, jin: fileJin, files };
 }
 
 export const BIJI_MAX_LEN = MAX_LEN;

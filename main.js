@@ -3723,17 +3723,19 @@ async function _updateBijiHint() {
 		const ok = await biji.verifyDirHandle();
 		if (ok) {
 			const cfg = biji.getBijiFileConfig();
-			if (cfg.fileName) {
+			if (cfg.enabled) {
 				DOM.bijiEditorHint.textContent = '';
 				return;
 			}
 		}
 	}
-	DOM.bijiEditorHint.textContent = '笔记保存在浏览器缓存，请及时导出或在设置中指定本地存储文件夹 →';
+	DOM.bijiEditorHint.textContent = '笔记保存在浏览器缓存，请及时导出或在设置中启用本地同步保存 →';
 }
 
 // 笔记保存到本地文件（按岁区间原子写入，自动处理今岁一致性）
 function _bijiWriteToFile(sui) {
+	const cfg = biji.getBijiFileConfig();
+	if (!cfg.enabled) return;
 	const jin = state.todaySui;
 	biji.writeNoteToFiles(sui, jin).then(result => {
 		if (!result || result.ok) return;
@@ -3752,6 +3754,9 @@ async function _lsSpecifyDir() {
 		_showToast('已指定本地存储文件夹');
 		_updateLsUI();
 		_updateBijiHint();
+		if (confirm('是否立即启用笔记本地保存？')) {
+			await _lsEnableFile();
+		}
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('指定文件夹失败：' + e.message);
 	}
@@ -3760,17 +3765,7 @@ async function _lsSpecifyDir() {
 async function _lsUnlinkDir() {
 	const handle = await biji.getDirHandle();
 	const name = handle ? (handle.name || '') : '';
-	const doImport = confirm('解除文件夹不会丢失应用中现有笔记' + (name ? '，也不会删除「' + name + '」中的文件' : '') + '。是否同时从文件夹读取最后一次保存的笔记并合并到应用？');
-	if (doImport) {
-		try {
-			const result = await biji.readAllSegmentFiles();
-			if (result && result.data && Object.keys(result.data).length > 0) {
-				_importJsonBiji(JSON.stringify(result.data), 'merge');
-			} else {
-				_showToast('文件夹中未读取到笔记数据');
-			}
-		} catch(e) { _showToast('读取本地文件失败'); }
-	}
+	if (!confirm('解除文件夹权限不会丢失应用中现有笔记' + (name ? '，也不会删除「' + name + '」中的文件' : '') + '，但会解除其中的笔记本地保存（若已启用）。是否继续？')) return;
 	await biji.removeDirHandle();
 	biji.clearBijiFileConfig();
 	_updateLsUI();
@@ -3789,51 +3784,40 @@ async function _lsReauthorizeDir() {
 	}
 }
 
-async function _lsSpecifyFile() {
+async function _lsEnableFile() {
 	const dirHandle = await biji.getDirHandle();
 	if (!dirHandle) { _showToast('请先指定本地存储文件夹'); return; }
 	const ok = await biji.verifyDirHandle();
 	if (!ok) { _showToast('文件夹授权失效，请重新授权'); _updateLsUI(); return; }
-	const cfg = biji.getBijiFileConfig();
-	const name = prompt('请输入笔记文件名（不含扩展名，仅允许汉字、字母、数字、下划线、连字符）', cfg.fileName || 'BiJi');
-	if (name === null) return;
-	const trimmed = name.trim();
-	if (!trimmed) { _showToast('文件名不能为空'); return; }
-	if (!/^[\w\u4e00-\u9fa5\-]+$/.test(trimmed)) { _showToast('文件名仅允许汉字、字母、数字、下划线、连字符'); return; }
-	// 先临时设置文件名以便读取已有文件
-	biji.setBijiFileConfig({ fileName: trimmed });
-	// 检查文件冲突
-	try {
-		await dirHandle.getFileHandle(trimmed + '_jin.json', { create: false });
-		// 文件已存在，读取所有分段文件并询问合并
+	// 检查目录中是否有已有笔记文件
+	const existingFiles = await biji.listBijiFiles();
+	if (existingFiles.length > 0) {
 		try {
 			const result = await biji.readAllSegmentFiles();
 			if (result && result.data && Object.keys(result.data).length > 0) {
-				if (confirm('文件已存在数据，是否合并导入到应用？')) {
+				if (confirm('目录中检测到已有笔记数据，是否合并导入到应用？')) {
 					_importJsonBiji(JSON.stringify(result.data), 'merge');
 				}
 			}
 		} catch(e) {}
-	} catch(e) { /* 文件不存在，正常 */ }
-	// 写入当前数据
+	}
+	biji.setBijiFileConfig({ enabled: true });
 	const written = await biji.rewriteAllSegmentFiles(state.todaySui);
 	if (written) {
-		_showToast('已指定文件名并写入数据');
+		_showToast('已启用本地保存笔记');
 		const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
 		if (perm !== 'granted') {
 			_showToast('因系统限制，后续每次保存可能都需要权限确认');
 		}
 	} else {
-		_showToast('已指定文件名，但写入失败');
+		_showToast('已启用，但写入文件失败');
 	}
 	_updateLsUI();
 	_updateBijiHint();
 }
 
 async function _lsUnlinkFile() {
-	const cfg = biji.getBijiFileConfig();
-	const name = cfg.fileName || 'BiJi';
-	if (!confirm('解除本地保存不会丢失应用中现有笔记，也不会删除本地文件「' + name + '」。是否继续？')) return;
+	if (!confirm('解除本地保存不会丢失应用中现有笔记，也不会删除本地文件。是否继续？')) return;
 	biji.unlinkBijiFileSync();
 	_updateLsUI();
 	_updateBijiHint();
@@ -3925,8 +3909,8 @@ function _lsRemoveSplitNode(nodeVal) {
 }
 
 async function _lsClearBiji() {
-	if (!confirm('清空应用内笔记将删除所有应用内保存的笔记数据。此操作不可恢复。本地文件夹中的已有文件不会被删除。是否继续？')) return;
-	if (!confirm('再次确认：确定要清空所有应用内笔记吗？')) return;
+	if (!confirm('清空应用内笔记将删除应用内保存的所有笔记数据。本地文件夹中的文件不受影响。是否继续？')) return;
+	if (!confirm('再次确认：未备份的数据将无法找回，确定要清空应用内所有笔记吗？')) return;
 	biji.clearAllBijiInStorage();
 	// 强制解除本地保存（不解除文件夹句柄）
 	biji.unlinkBijiFileSync();
@@ -3982,16 +3966,13 @@ async function _updateLsUI() {
 	if (!hasDir) { DOM.lsSplitWrap.style.display = 'none'; return; }
 	DOM.lsFileBtn.disabled = !hasDir;
 	const cfg = biji.getBijiFileConfig();
-	const hasFile = hasDir && cfg.fileName;
+	const hasFile = hasDir && cfg.enabled;
 	if (hasFile) {
-		DOM.lsFileName.textContent = cfg.fileName + '_jin.json 等';
-		DOM.lsFileName.style.display = '';
-		DOM.lsFileBtn.textContent = '解除本地保存';
+		DOM.lsFileBtn.textContent = '解除本地笔记';
 	} else {
-		DOM.lsFileName.style.display = 'none';
-		DOM.lsFileBtn.textContent = '指定文件名';
+		DOM.lsFileBtn.textContent = '启用本地笔记';
 	}
-	DOM.lsFileBtn.dataset.state = hasFile ? 'unlink' : 'specify';
+	DOM.lsFileBtn.dataset.state = hasFile ? 'unlink' : 'enable';
 	// 分割节点
 	if (hasFile) {
 		DOM.lsSplitWrap.style.display = '';
@@ -4011,7 +3992,7 @@ async function _onLsDirBtnClick() {
 async function _onLsFileBtnClick() {
 	if (DOM.lsFileBtn.disabled) return;
 	const st = DOM.lsFileBtn.dataset.state;
-	if (st === 'specify') await _lsSpecifyFile();
+	if (st === 'enable') await _lsEnableFile();
 	else if (st === 'unlink') await _lsUnlinkFile();
 }
 
@@ -4081,15 +4062,15 @@ function _bijiImport() {
 		if (recordNodes) {
 			const nodes = [];
 			for (const f of files) {
-				const m = f.name.match(/_(\d+)\.json$/);
+				const m = f.name.match(/^笔记_(\d+)~/);
 				if (m) nodes.push(parseInt(m[1]));
 			}
 			if (nodes.length > 0) {
 				const cfg = biji.getBijiFileConfig();
 				biji.setBijiFileConfig({ splitNodes: nodes });
-				// 如已指定本地文件夹和文件名，重写文件以应用新节点
+				// 如已指定本地文件夹并启用本地保存，重写文件以应用新节点
 				const dirHandle = await biji.getDirHandle();
-				if (dirHandle && cfg.fileName) {
+				if (dirHandle && cfg.enabled) {
 					await biji.rewriteAllSegmentFiles(state.todaySui);
 				}
 			}
