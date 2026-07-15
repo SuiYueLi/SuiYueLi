@@ -2014,6 +2014,7 @@ function _renderBijiOverview() {
 			suiHeader.classList.toggle('expanded', expanded);
 			toggle.textContent = expanded ? '⑇' : '⑉';
 			suiBody.style.display = expanded ? '' : 'none';
+			btnGroup.style.display = expanded ? '' : 'none';
 		}
 		function _updateSelectUI() {
 			const selectMode = _boState.suiSelectModes.has(sui) || _boState.globalSelectMode;
@@ -3881,7 +3882,7 @@ function _makeLsSplitItem(name, range, removable, nodeVal) {
 
 function _lsAddSplitNode() {
 	const raw = DOM.lsSplitAddInput.value.trim();
-	if (!raw) { _showToast('请输入岁值'); return; }
+	if (!raw) { _showToast('请输入纪年数'); return; }
 	const n = Number(raw);
 	if (!Number.isInteger(n)) { _showToast('请输入整数'); return; }
 	const jin = state.todaySui;

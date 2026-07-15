@@ -340,7 +340,7 @@ export function parseTextImport(text) {
 		if (line.startsWith('# ') && !line.startsWith('## ') && !line.startsWith('### ')) {
 			_flushNote();
 			currentSui = parseInt(line.slice(2).trim());
-			if (isNaN(currentSui)) { result.errors.push({ line: ln, reason: '无效的岁值' }); currentSui = null; continue; }
+			if (isNaN(currentSui)) { result.errors.push({ line: ln, reason: '无效的纪年数' }); currentSui = null; continue; }
 			currentDayKey = null;
 			if (!result.data[_suiKey(currentSui)]) result.data[_suiKey(currentSui)] = {};
 			continue;
@@ -571,7 +571,7 @@ export function clearBijiFileConfig() {
 
 // ========== 分段计算 ==========
 // 给定今岁 jin 和用户节点列表 nodes，返回有序分段数组。
-// 每段 { suffix, start, end }，start/end 为岁值（含端点），-Infinity/+Infinity 表示开区间。
+// 每段 { suffix, start, end }，start/end 为纪年数（含端点），-Infinity/+Infinity 表示开区间。
 // 规则：jin 单独成段 (_jin)；jin 之前合并为 _gu；jin 之后合并为 _lai；
 // 用户节点 N 在 jin 之前/之后时，对应段后缀为 _N。
 export function computeSegments(jin, nodes) {
@@ -713,24 +713,6 @@ function _collectAllSui() {
 		try { out[k] = JSON.parse(localStorage.getItem(k)); } catch(e) {}
 	}
 	return out;
-}
-
-// 检查目录中笔记文件记录的今岁是否与当前一致
-export async function checkJinConsistency(jin) {
-	const dirHandle = await getDirHandle();
-	if (!dirHandle) return { consistent: true, hasDir: false };
-	const files = await listBijiFiles();
-	let fileJin = undefined;
-	for (const fn of files) {
-		const data = await _readSegmentFile(dirHandle, fn);
-		if (!data) continue;
-		if (data[JIN_META_KEY] !== undefined && data[JIN_META_KEY] !== null) {
-			fileJin = data[JIN_META_KEY];
-			break;
-		}
-	}
-	if (fileJin === undefined) return { consistent: true, hasDir: true, hasJinFile: false };
-	return { consistent: (fileJin === jin), hasDir: true, hasJinFile: true, fileJin };
 }
 
 // 全量重写所有分段文件（按当前 jin 与节点配置）；空段落不创建文件
