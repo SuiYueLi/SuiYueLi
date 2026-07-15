@@ -1793,7 +1793,7 @@ function _openBijiOverview() {
 	_boState = {
 		startSui: state.currentSui,
 		endSui: state.currentSui,
-		asc: true,
+		asc: localStorage.getItem('jieLi_bo_sort_asc') !== '0',
 		expandedSui: new Set([state.currentSui]),
 		suiSelectModes: new Set(),
 		globalSelectMode: false,
@@ -1802,8 +1802,8 @@ function _openBijiOverview() {
 		iconFilter: new Set(),
 		searchQuery: '',
 	};
-	DOM.boSortOrder.textContent = 'ᐱ';
-	DOM.boSortOrder.dataset.asc = '1';
+	DOM.boSortOrder.textContent = _boState.asc ? 'ᐱ' : 'ᐯ';
+	DOM.boSortOrder.dataset.asc = _boState.asc ? '1' : '0';
 	DOM.boStartSui.value = state.currentSui;
 	DOM.boEndSui.value = state.currentSui;
 	DOM.boExpandAllSui.classList.remove('active');
@@ -2245,6 +2245,7 @@ function _bindBijiOverviewEvents() {
 		_boState.asc = !_boState.asc;
 		DOM.boSortOrder.textContent = _boState.asc ? 'ᐱ' : 'ᐯ';
 		DOM.boSortOrder.dataset.asc = _boState.asc ? '1' : '0';
+		localStorage.setItem('jieLi_bo_sort_asc', _boState.asc ? '1' : '0');
 		_renderBijiOverview();
 	});
 	DOM.boSuiConfirm.addEventListener('click', () => {
@@ -3795,7 +3796,7 @@ async function _lsEnableFile() {
 		try {
 			const result = await biji.readAllSegmentFiles();
 			if (result && result.data && Object.keys(result.data).length > 0) {
-				if (confirm('目录中检测到已有笔记数据，是否合并导入到应用？')) {
+				if (confirm('目录中检测到已有笔记数据文件，是否合并导入到应用？【注意】：取消可能导致现有文件丢失！')) {
 					_importJsonBiji(JSON.stringify(result.data), 'merge');
 				}
 			}
