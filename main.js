@@ -202,9 +202,6 @@ function cacheDOM() {
 	DOM.lsDirBtn = $('lsDirBtn');
 	DOM.lsDirName = $('lsDirName');
 	DOM.lsDirRow = $('lsDirRow');
-	DOM.lsFileBtn = $('lsFileBtn');
-	DOM.lsFileName = $('lsFileName');
-	DOM.lsFileRow = $('lsFileRow');
 	DOM.lsSplitWrap = $('lsSplitWrap');
 	DOM.lsSplitToggle = $('lsSplitToggle');
 	DOM.lsSplitDropdown = $('lsSplitDropdown');
@@ -999,19 +996,9 @@ function bindEvents() {
 		clearTimeout(_bijiEditState.debounceTimer);
 		_openIEPage();
 	});
-	DOM.bijiEditorHint.querySelector('#bijiHintLs').addEventListener('click', (e) => {
-		e.stopPropagation();
-		DOM.bijiEditor.classList.remove('open', 'fullscreen');
-		DOM.bijiEditorOverlay.classList.remove('active');
-		_bijiEditState.open = false;
-		clearTimeout(_bijiEditState.draftTimer);
-		clearTimeout(_bijiEditState.debounceTimer);
-		_openSettingsPage();
-	});
 
 	// 本地存储文件夹设置
 	DOM.lsDirBtn.addEventListener('click', _onLsDirBtnClick);
-	DOM.lsFileBtn.addEventListener('click', _onLsFileBtnClick);
 	DOM.lsSplitToggle.addEventListener('click', _toggleLsSplitDropdown);
 	DOM.lsSplitAddBtn.addEventListener('click', _lsAddSplitNode);
 	DOM.lsSplitAddInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); _lsAddSplitNode(); } });
@@ -3742,10 +3729,9 @@ async function _updateBijiHint() {
 		}
 	}
 	DOM.bijiEditorHint.style.display = '';
-	// 不支持本地存储文件夹时隐藏"启用本地同步保存"
-	const lsSpan = DOM.bijiEditorHint.querySelector('#bijiHintLsSpan');
+	// 不支持本地存储文件夹时只显示"导出"，支持时显示"导出或启用本地同步保存"
 	const hasFS = _hasFileSystemAccess && typeof window.showDirectoryPicker === 'function';
-	lsSpan.style.display = hasFS ? '' : 'none';
+	DOM.bijiEditorHint.querySelector('#bijiHintExport').textContent = hasFS ? '导出或启用本地同步保存' : '导出';
 }
 
 // 笔记保存到本地文件（按岁区间原子写入，自动处理今岁一致性）
@@ -3767,12 +3753,31 @@ async function _lsSpecifyDir() {
 	try {
 		const handle = await window.showDirectoryPicker({ id: 'bijiRoot', mode: 'readwrite' });
 		await biji.saveDirHandle(handle);
-		_showToast('已指定本地存储文件夹');
+		// 检查目录中是否有已有笔记文件，提示合并导入
+		const existingFiles = await biji.listBijiFiles();
+		if (existingFiles.length > 0) {
+			try {
+				const result = await biji.readAllSegmentFiles();
+				if (result && result.data && Object.keys(result.data).length > 0) {
+					if (confirm('目录中检测到已有笔记数据文件，是否合并导入到应用？【注意】：取消可能导致现有文件丢失！')) {
+						_importJsonBiji(JSON.stringify(result.data), 'merge');
+					}
+				}
+			} catch(e) {}
+		}
+		biji.setBijiFileConfig({ enabled: true });
+		const written = await biji.rewriteAllSegmentFiles(state.todaySui);
+		if (written) {
+			_showToast('已指定文件夹并启用本地保存');
+			const perm = await handle.queryPermission({ mode: 'readwrite' });
+			if (perm !== 'granted') {
+				_showToast('因系统限制，后续每次保存可能都需要权限确认');
+			}
+		} else {
+			_showToast('已启用，但写入文件失败');
+		}
 		_updateLsUI();
 		_updateBijiHint();
-		if (confirm('是否立即启用笔记本地保存？')) {
-			await _lsEnableFile();
-		}
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('指定文件夹失败：' + e.message);
 	}
@@ -3781,7 +3786,7 @@ async function _lsSpecifyDir() {
 async function _lsUnlinkDir() {
 	const handle = await biji.getDirHandle();
 	const name = handle ? (handle.name || '') : '';
-	if (!confirm('解除文件夹权限不会丢失应用中现有笔记' + (name ? '，也不会删除「' + name + '」中的文件' : '') + '，但会解除其中的笔记本地保存（若已启用）。是否继续？')) return;
+	if (!confirm('解除文件夹权限不会丢失应用中现有笔记，也不会删除「' + (name || '本地') + '」中的文件。是否继续？')) return;
 	await biji.removeDirHandle();
 	biji.clearBijiFileConfig();
 	_updateLsUI();
@@ -3798,46 +3803,6 @@ async function _lsReauthorizeDir() {
 	} else {
 		_showToast('无法获得授权，请重新指定文件夹');
 	}
-}
-
-async function _lsEnableFile() {
-	const dirHandle = await biji.getDirHandle();
-	if (!dirHandle) { _showToast('请先指定本地存储文件夹'); return; }
-	const ok = await biji.verifyDirHandle();
-	if (!ok) { _showToast('文件夹授权失效，请重新授权'); _updateLsUI(); return; }
-	// 检查目录中是否有已有笔记文件
-	const existingFiles = await biji.listBijiFiles();
-	if (existingFiles.length > 0) {
-		try {
-			const result = await biji.readAllSegmentFiles();
-			if (result && result.data && Object.keys(result.data).length > 0) {
-				if (confirm('目录中检测到已有笔记数据文件，是否合并导入到应用？【注意】：取消可能导致现有文件丢失！')) {
-					_importJsonBiji(JSON.stringify(result.data), 'merge');
-				}
-			}
-		} catch(e) {}
-	}
-	biji.setBijiFileConfig({ enabled: true });
-	const written = await biji.rewriteAllSegmentFiles(state.todaySui);
-	if (written) {
-		_showToast('已启用本地保存笔记');
-		const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
-		if (perm !== 'granted') {
-			_showToast('因系统限制，后续每次保存可能都需要权限确认');
-		}
-	} else {
-		_showToast('已启用，但写入文件失败');
-	}
-	_updateLsUI();
-	_updateBijiHint();
-}
-
-async function _lsUnlinkFile() {
-	if (!confirm('解除本地保存不会丢失应用中现有笔记，也不会删除本地文件。是否继续？')) return;
-	biji.unlinkBijiFileSync();
-	_updateLsUI();
-	_updateBijiHint();
-	_showToast('已解除本地保存');
 }
 
 function _toggleLsSplitDropdown() {
@@ -3938,7 +3903,7 @@ async function _lsClearBiji() {
 }
 
 async function _updateLsUI() {
-	// 不支持时：文件夹行显示"不支持"文本，其余依赖句柄行隐藏，清空行始终显示
+	// 不支持时：文件夹行显示"不支持"文本，分割节点行隐藏
 	if (!(_hasFileSystemAccess && window.showDirectoryPicker)) {
 		DOM.lsDirRow.style.display = '';
 		DOM.lsDirName.style.display = 'none';
@@ -3949,7 +3914,6 @@ async function _updateLsUI() {
 			DOM.lsDirBtn.replaceWith(span);
 			DOM.lsDirBtn = span;
 		}
-		DOM.lsFileRow.style.display = 'none';
 		DOM.lsSplitWrap.style.display = 'none';
 		return;
 	}
@@ -3969,31 +3933,18 @@ async function _updateLsUI() {
 	let dirOk = false;
 	if (hasDir) {
 		dirOk = await biji.verifyDirHandle();
+		// 仅显示目录名
 		DOM.lsDirName.textContent = dirHandle.name || '';
 		DOM.lsDirName.style.display = '';
 		DOM.lsDirBtn.textContent = dirOk ? '解除文件夹' : '重新授权';
 	} else {
-		DOM.lsDirName.style.display = 'none';
+		DOM.lsDirName.textContent = '未启用';
+		DOM.lsDirName.style.display = '';
 		DOM.lsDirBtn.textContent = '指定文件夹';
 	}
 	DOM.lsDirBtn.dataset.state = hasDir ? (dirOk ? 'unlink' : 'reauth') : 'specify';
-	// 文件名（本地同步保存）
-	DOM.lsFileRow.style.display = hasDir ? '' : 'none';
-	if (!hasDir) { DOM.lsSplitWrap.style.display = 'none'; return; }
-	DOM.lsFileBtn.disabled = !hasDir;
-	const cfg = biji.getBijiFileConfig();
-	const hasFile = hasDir && cfg.enabled;
-	if (hasFile) {
-		DOM.lsFileBtn.textContent = '解除本地笔记';
-		DOM.lsFileName.textContent = '已启用';
-		DOM.lsFileName.style.display = '';
-	} else {
-		DOM.lsFileBtn.textContent = '启用本地笔记';
-		DOM.lsFileName.style.display = 'none';
-	}
-	DOM.lsFileBtn.dataset.state = hasFile ? 'unlink' : 'enable';
-	// 分割节点
-	if (hasFile) {
+	// 分割节点：指定文件夹后即显示（配置项，不依赖授权状态）
+	if (hasDir) {
 		DOM.lsSplitWrap.style.display = '';
 		_buildLsSplitList();
 	} else {
@@ -4006,13 +3957,6 @@ async function _onLsDirBtnClick() {
 	if (st === 'specify') await _lsSpecifyDir();
 	else if (st === 'unlink') await _lsUnlinkDir();
 	else if (st === 'reauth') await _lsReauthorizeDir();
-}
-
-async function _onLsFileBtnClick() {
-	if (DOM.lsFileBtn.disabled) return;
-	const st = DOM.lsFileBtn.dataset.state;
-	if (st === 'enable') await _lsEnableFile();
-	else if (st === 'unlink') await _lsUnlinkFile();
 }
 
 async function _bijiExport() {
