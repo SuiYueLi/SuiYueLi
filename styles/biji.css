@@ -366,7 +366,10 @@
   font-size: 0.65rem;
   color: var(--text-secondary);
   flex-shrink: 0;
-  cursor: pointer;
+}
+.biji-editor-hint a {
   text-decoration: underline;
   text-underline-offset: 2px;
+  color: var(--text-accent);
+  cursor: pointer;
 }

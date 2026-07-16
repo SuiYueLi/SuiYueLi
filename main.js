@@ -990,7 +990,17 @@ function bindEvents() {
 		const v = DOM.bijiExportFormat.getAttribute('data-value') === '1' ? '0' : '1';
 		DOM.bijiExportFormat.setAttribute('data-value', v);
 	});
-	DOM.bijiEditorHint.addEventListener('click', () => {
+	DOM.bijiEditorHint.querySelector('#bijiHintExport').addEventListener('click', (e) => {
+		e.stopPropagation();
+		DOM.bijiEditor.classList.remove('open', 'fullscreen');
+		DOM.bijiEditorOverlay.classList.remove('active');
+		_bijiEditState.open = false;
+		clearTimeout(_bijiEditState.draftTimer);
+		clearTimeout(_bijiEditState.debounceTimer);
+		_openIEPage();
+	});
+	DOM.bijiEditorHint.querySelector('#bijiHintLs').addEventListener('click', (e) => {
+		e.stopPropagation();
 		DOM.bijiEditor.classList.remove('open', 'fullscreen');
 		DOM.bijiEditorOverlay.classList.remove('active');
 		_bijiEditState.open = false;
@@ -3717,7 +3727,7 @@ function _bijiOnDragStart(e) {
 async function _updateBijiHint() {
 	const persisted = await biji.checkPersistence();
 	if (persisted) {
-		DOM.bijiEditorHint.textContent = '';
+		DOM.bijiEditorHint.style.display = 'none';
 		return;
 	}
 	const dirHandle = await biji.getDirHandle();
@@ -3726,12 +3736,16 @@ async function _updateBijiHint() {
 		if (ok) {
 			const cfg = biji.getBijiFileConfig();
 			if (cfg.enabled) {
-				DOM.bijiEditorHint.textContent = '';
+				DOM.bijiEditorHint.style.display = 'none';
 				return;
 			}
 		}
 	}
-	DOM.bijiEditorHint.textContent = '笔记保存在浏览器缓存，请及时导出或在设置中启用本地同步保存 →';
+	DOM.bijiEditorHint.style.display = '';
+	// 不支持本地存储文件夹时隐藏"启用本地同步保存"
+	const lsSpan = DOM.bijiEditorHint.querySelector('#bijiHintLsSpan');
+	const hasFS = _hasFileSystemAccess && typeof window.showDirectoryPicker === 'function';
+	lsSpan.style.display = hasFS ? '' : 'none';
 }
 
 // 笔记保存到本地文件（按岁区间原子写入，自动处理今岁一致性）
@@ -3971,8 +3985,11 @@ async function _updateLsUI() {
 	const hasFile = hasDir && cfg.enabled;
 	if (hasFile) {
 		DOM.lsFileBtn.textContent = '解除本地笔记';
+		DOM.lsFileName.textContent = '已启用';
+		DOM.lsFileName.style.display = '';
 	} else {
 		DOM.lsFileBtn.textContent = '启用本地笔记';
+		DOM.lsFileName.style.display = 'none';
 	}
 	DOM.lsFileBtn.dataset.state = hasFile ? 'unlink' : 'enable';
 	// 分割节点
