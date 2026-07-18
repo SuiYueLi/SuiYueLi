@@ -292,10 +292,12 @@ function cacheDOM() {
 	DOM.jieSuExportBtn = $('jieSuExportBtn');
 	DOM.jieSuResetBtn = $('jieSuResetBtn');
 	DOM.jieSuImportModeToggle = $('jieSuImportModeToggle');
+	DOM.jieSuExportFormat = $('jieSuExportFormat');
 	DOM.fuRiImportBtn = $('fuRiImportBtn');
 	DOM.fuRiExportBtn = $('fuRiExportBtn');
 	DOM.fuRiResetBtn = $('fuRiResetBtn');
 	DOM.fuRiImportModeToggle = $('fuRiImportModeToggle');
+	DOM.fuRiExportFormat = $('fuRiExportFormat');
 	DOM.mergeDialog = $('mergeDialog');
 	DOM.mergeDialogBody = $('mergeDialogBody');
 	DOM.mergeIgnoreBtn = $('mergeIgnoreBtn');
@@ -1190,12 +1192,20 @@ function bindEvents() {
 		const v = DOM.jieSuImportModeToggle.getAttribute('data-value') === '1' ? '0' : '1';
 		DOM.jieSuImportModeToggle.setAttribute('data-value', v);
 	});
+	DOM.jieSuExportFormat.addEventListener('click', () => {
+		const v = DOM.jieSuExportFormat.getAttribute('data-value') === '1' ? '0' : '1';
+		DOM.jieSuExportFormat.setAttribute('data-value', v);
+	});
 	DOM.fuRiImportBtn.addEventListener('click', _importFuRi);
 	DOM.fuRiExportBtn.addEventListener('click', _exportFuRi);
 	DOM.fuRiResetBtn.addEventListener('click', _resetFuRi);
 	DOM.fuRiImportModeToggle.addEventListener('click', () => {
 		const v = DOM.fuRiImportModeToggle.getAttribute('data-value') === '1' ? '0' : '1';
 		DOM.fuRiImportModeToggle.setAttribute('data-value', v);
+	});
+	DOM.fuRiExportFormat.addEventListener('click', () => {
+		const v = DOM.fuRiExportFormat.getAttribute('data-value') === '1' ? '0' : '1';
+		DOM.fuRiExportFormat.setAttribute('data-value', v);
 	});
 
 	// 更新检查
@@ -2628,6 +2638,131 @@ async function _onBgImageSelect() {
 }
 
 // ========== 节庆民俗/每年重复日 导入/导出 ==========
+
+// CSV 字段转义：含逗号、引号、换行符或首尾空格时用双引号包裹，内部双引号加倍
+function _csvEscape(field) {
+	const s = String(field == null ? '' : field);
+	if (/[",\r\n]/.test(s) || /^\s|\s$/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+	return s;
+}
+function _csvEncodeRow(fields) { return fields.map(_csvEscape).join(','); }
+
+// CSV 文本解析为二维数组（支持引号转义、字段内换行）
+function _csvParse(text) {
+	if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // 去 BOM
+	const rows = [];
+	let row = [], field = '', inQuotes = false;
+	for (let i = 0; i < text.length; i++) {
+		const c = text[i];
+		if (inQuotes) {
+			if (c === '"') {
+				if (text[i + 1] === '"') { field += '"'; i++; }
+				else inQuotes = false;
+			} else field += c;
+		} else {
+			if (c === '"') inQuotes = true;
+			else if (c === ',') { row.push(field); field = ''; }
+			else if (c === '\r' || c === '\n') {
+				if (c === '\r' && text[i + 1] === '\n') i++;
+				row.push(field); rows.push(row); row = []; field = '';
+			} else field += c;
+		}
+	}
+	if (field !== '' || row.length > 0) { row.push(field); rows.push(row); }
+	return rows;
+}
+
+// 节庆民俗列表 CSV 编码：表头 历法,始行年,月,日,日历格名,详情名,终行年
+function _jieSuToCsv(data) {
+	const lines = ['\uFEFF历法,始行年,月,日,日历格名,详情名,终行年'];
+	for (const key of Object.keys(data)) {
+		if (!Array.isArray(data[key])) continue;
+		for (const item of data[key]) {
+			const startYear = Number.isInteger(item[0]) ? item[0] : '';
+			const endYear = Number.isInteger(item[4]) ? item[4] : '';
+			const names = Array.isArray(item[3]) ? item[3] : ['', ''];
+			lines.push(_csvEncodeRow([key, startYear, item[1], item[2], names[0] || '', names[1] || '', endYear]));
+		}
+	}
+	return lines.join('\n') + '\n';
+}
+function _jieSuFromCsv(text) {
+	const rows = _csvParse(text);
+	if (rows.length < 1) throw new Error('CSV 为空');
+	const expected = ['历法', '始行年', '月', '日', '日历格名', '详情名', '终行年'];
+	const header = rows[0];
+	if (header.length < expected.length) throw new Error('CSV 表头字段不足');
+	for (let i = 0; i < expected.length; i++) {
+		if (header[i] !== expected[i]) throw new Error('CSV 表头不匹配：第' + (i + 1) + '列应为「' + expected[i] + '」');
+	}
+	const data = {};
+	for (let i = 1; i < rows.length; i++) {
+		const r = rows[i];
+		if (r.length === 1 && r[0] === '') continue; // 空行
+		if (r.length < 6) throw new Error('第' + (i + 1) + '行字段不足');
+		const key = r[0];
+		if (!key) throw new Error('第' + (i + 1) + '行历法为空');
+		const startYear = r[1] === '' ? '' : Number(r[1]);
+		if (r[1] !== '' && isNaN(startYear)) throw new Error('第' + (i + 1) + '行始行年无效');
+		const month = Number(r[2]);
+		const day = Number(r[3]);
+		if (isNaN(month) || isNaN(day)) throw new Error('第' + (i + 1) + '行月或日无效');
+		const endYearStr = r[6] != null ? r[6] : '';
+		const endYear = endYearStr === '' ? '' : Number(endYearStr);
+		if (endYearStr !== '' && isNaN(endYear)) throw new Error('第' + (i + 1) + '行终行年无效');
+		if (!data[key]) data[key] = [];
+		data[key].push([startYear, month, day, [r[4], r[5]], endYear]);
+	}
+	return data;
+}
+
+// 每年重复日列表 CSV 编码：表头 历法,始行年,月,日,详情名,终行年,图标
+function _fuRiToCsv(data) {
+	const lines = ['\uFEFF历法,始行年,月,日,详情名,终行年,图标'];
+	for (const key of Object.keys(data)) {
+		if (!Array.isArray(data[key])) continue;
+		for (const item of data[key]) {
+			const startYear = Number.isInteger(item[0]) ? item[0] : '';
+			const endYear = Number.isInteger(item[4]) ? item[4] : '';
+			const icon = (item.length > 5 && item[5] != null) ? item[5] : '';
+			lines.push(_csvEncodeRow([key, startYear, item[1], item[2], item[3] || '', endYear, icon]));
+		}
+	}
+	return lines.join('\n') + '\n';
+}
+function _fuRiFromCsv(text) {
+	const rows = _csvParse(text);
+	if (rows.length < 1) throw new Error('CSV 为空');
+	const expected = ['历法', '始行年', '月', '日', '详情名', '终行年', '图标'];
+	const header = rows[0];
+	if (header.length < expected.length) throw new Error('CSV 表头字段不足');
+	for (let i = 0; i < expected.length; i++) {
+		if (header[i] !== expected[i]) throw new Error('CSV 表头不匹配：第' + (i + 1) + '列应为「' + expected[i] + '」');
+	}
+	const data = {};
+	for (let i = 1; i < rows.length; i++) {
+		const r = rows[i];
+		if (r.length === 1 && r[0] === '') continue;
+		if (r.length < 5) throw new Error('第' + (i + 1) + '行字段不足');
+		const key = r[0];
+		if (!key) throw new Error('第' + (i + 1) + '行历法为空');
+		const startYear = r[1] === '' ? '' : Number(r[1]);
+		if (r[1] !== '' && isNaN(startYear)) throw new Error('第' + (i + 1) + '行始行年无效');
+		const month = Number(r[2]);
+		const day = Number(r[3]);
+		if (isNaN(month) || isNaN(day)) throw new Error('第' + (i + 1) + '行月或日无效');
+		const detailName = r[4] != null ? r[4] : '';
+		const endYearStr = r[5] != null ? r[5] : '';
+		const endYear = endYearStr === '' ? '' : Number(endYearStr);
+		if (endYearStr !== '' && isNaN(endYear)) throw new Error('第' + (i + 1) + '行终行年无效');
+		const icon = r[6] != null ? r[6] : '';
+		if (!data[key]) data[key] = [];
+		// 保持与原数据结构兼容：终行年非数字时仍占位为空字符串，图标始终追加
+		data[key].push([startYear, month, day, detailName, endYear, icon]);
+	}
+	return data;
+}
+
 function _validateJieSu(data) {
 	if (!data || typeof data !== 'object') throw new Error('须为JSON对象');
 	for (const key of Object.keys(data)) {
@@ -2736,15 +2871,15 @@ async function _rebuildAfterDataChange() {
 async function _importJieSu() {
 	try {
 		const mode = DOM.jieSuImportModeToggle.getAttribute('data-value') === '1' ? 'replace' : 'merge';
+		const acceptTypes = { 'application/json': ['.json'], 'text/csv': ['.csv'] };
 		if (_hasFileSystemAccess) {
 			const [handle] = await window.showOpenFilePicker({
-				types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+				types: [{ description: 'JSON 或 CSV', accept: acceptTypes }],
 				multiple: false,
 			});
 			const file = await handle.getFile();
 			const text = await readFileAsText(file);
-			const data = JSON.parse(text);
-			_validateJieSu(data);
+			const data = _parseJieSuText(text, file.name);
 			const result = mode === 'replace' ? data : await _mergeWithData(getJieSu(), data, 'jieSu');
 			if (!result) { _showToast('导入已取消'); return; }
 			setJieSu(result);
@@ -2752,14 +2887,13 @@ async function _importJieSu() {
 			_showToast(mode === 'replace' ? '节庆民俗列表已替换' : '节庆民俗列表已合并', 3000);
 		} else {
 			const input = document.createElement('input');
-			input.type = 'file'; input.accept = '.json';
+			input.type = 'file'; input.accept = '.json,.csv';
 			input.onchange = async () => {
 				const file = input.files[0];
 				if (!file) return;
 				try {
 					const text = await readFileAsText(file);
-					const data = JSON.parse(text);
-					_validateJieSu(data);
+					const data = _parseJieSuText(text, file.name);
 					const result = mode === 'replace' ? data : await _mergeWithData(getJieSu(), data, 'jieSu');
 					if (!result) { _showToast('导入已取消'); return; }
 					setJieSu(result);
@@ -2772,6 +2906,20 @@ async function _importJieSu() {
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('导入失败：' + e.message);
 	}
+}
+
+// 解析节庆民俗文本：根据扩展名或内容自动识别 JSON/CSV
+function _parseJieSuText(text, filename) {
+	const ext = (filename.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+	let data;
+	if (ext === '.csv') data = _jieSuFromCsv(text);
+	else if (ext === '.json') data = JSON.parse(text);
+	else {
+		try { data = JSON.parse(text); }
+		catch(e) { data = _jieSuFromCsv(text); }
+	}
+	_validateJieSu(data);
+	return data;
 }
 
 async function _saveFile(content, filename, mime) {
@@ -2798,8 +2946,14 @@ async function _saveFile(content, filename, mime) {
 async function _exportJieSu() {
 	try {
 		const data = getJieSu();
-		const content = JSON.stringify(data, null, '\t') + '\n';
-		await _saveFile(content, '岁月历_节庆民俗列表.json', 'application/json');
+		const asCsv = DOM.jieSuExportFormat.getAttribute('data-value') === '1';
+		if (asCsv) {
+			const content = _jieSuToCsv(data);
+			await _saveFile(content, '岁月历_节庆民俗列表.csv', 'text/csv');
+		} else {
+			const content = JSON.stringify(data, null, '\t') + '\n';
+			await _saveFile(content, '岁月历_节庆民俗列表.json', 'application/json');
+		}
 		_showToast('节庆民俗列表已导出', 3000);
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('导出失败：' + e.message);
@@ -2809,15 +2963,15 @@ async function _exportJieSu() {
 async function _importFuRi() {
 	try {
 		const mode = DOM.fuRiImportModeToggle.getAttribute('data-value') === '1' ? 'replace' : 'merge';
+		const acceptTypes = { 'application/json': ['.json'], 'text/csv': ['.csv'] };
 		if (_hasFileSystemAccess) {
 			const [handle] = await window.showOpenFilePicker({
-				types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+				types: [{ description: 'JSON 或 CSV', accept: acceptTypes }],
 				multiple: false,
 			});
 			const file = await handle.getFile();
 			const text = await readFileAsText(file);
-			const data = JSON.parse(text);
-			_validateFuRi(data);
+			const data = _parseFuRiText(text, file.name);
 			const result = mode === 'replace' ? data : await _mergeWithData(getFuRi(), data, 'fuRi');
 			if (!result) { _showToast('导入已取消'); return; }
 			setFuRi(result);
@@ -2825,14 +2979,13 @@ async function _importFuRi() {
 			_showToast(mode === 'replace' ? '每年重复日列表已替换' : '每年重复日列表已合并', 3000);
 		} else {
 			const input = document.createElement('input');
-			input.type = 'file'; input.accept = '.json';
+			input.type = 'file'; input.accept = '.json,.csv';
 			input.onchange = async () => {
 				const file = input.files[0];
 				if (!file) return;
 				try {
 					const text = await readFileAsText(file);
-					const data = JSON.parse(text);
-					_validateFuRi(data);
+					const data = _parseFuRiText(text, file.name);
 					const result = mode === 'replace' ? data : await _mergeWithData(getFuRi(), data, 'fuRi');
 					if (!result) { _showToast('导入已取消'); return; }
 					setFuRi(result);
@@ -2847,11 +3000,31 @@ async function _importFuRi() {
 	}
 }
 
+// 解析每年重复日文本：根据扩展名或内容自动识别 JSON/CSV
+function _parseFuRiText(text, filename) {
+	const ext = (filename.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+	let data;
+	if (ext === '.csv') data = _fuRiFromCsv(text);
+	else if (ext === '.json') data = JSON.parse(text);
+	else {
+		try { data = JSON.parse(text); }
+		catch(e) { data = _fuRiFromCsv(text); }
+	}
+	_validateFuRi(data);
+	return data;
+}
+
 async function _exportFuRi() {
 	try {
 		const data = getFuRi();
-		const content = JSON.stringify(data, null, '\t') + '\n';
-		await _saveFile(content, '岁月历_每年重复日列表.json', 'application/json');
+		const asCsv = DOM.fuRiExportFormat.getAttribute('data-value') === '1';
+		if (asCsv) {
+			const content = _fuRiToCsv(data);
+			await _saveFile(content, '岁月历_每年重复日列表.csv', 'text/csv');
+		} else {
+			const content = JSON.stringify(data, null, '\t') + '\n';
+			await _saveFile(content, '岁月历_每年重复日列表.json', 'application/json');
+		}
 		_showToast('每年重复日列表已导出', 3000);
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('导出失败：' + e.message);
