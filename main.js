@@ -265,6 +265,9 @@ function cacheDOM() {
 	DOM.boIconInvert = $('boIconInvert');
 	DOM.boDeleteSelected = $('boDeleteSelected');
 	DOM.boExportSelected = $('boExportSelected');
+	DOM.boExportRow = $('boExportRow');
+	DOM.boExportFormat = $('boExportFormat');
+	DOM.boExportConfirm = $('boExportConfirm');
 	DOM.settingsPage = $('settingsPage');
 	DOM.spBack = $('spBack');
 	DOM.spCustomStyleBtn = $('spCustomStyleBtn');
@@ -1359,6 +1362,16 @@ function bindEvents() {
 			return;
 		}
 		_navGuardActive = false;
+		// 笔记总览导出附加栏打开时，先关闭它（不关闭整个笔记总览页）
+		if (DOM.boExportRow?.classList.contains('open')) {
+			DOM.boExportRow.classList.remove('open');
+			_navFromPopstate = true;
+			// 同步补回守卫，拦截下一次返回
+			history.pushState(null, '');
+			_navGuardActive = true;
+			_navFromPopstate = false;
+			return;
+		}
 		if (_anyPageOpen()) {
 			_navFromPopstate = true;
 			_closeTopmost();
@@ -1392,11 +1405,22 @@ function bindEvents() {
 				return;
 			}
 			if (isInput) return;
+			// 笔记总览导出附加栏打开时，先关闭它
+			if (DOM.boExportRow?.classList.contains('open')) {
+				DOM.boExportRow.classList.remove('open');
+				e.preventDefault();
+				return;
+			}
 			if (_anyPageOpen()) {
 				_closeTopmost();
 				e.preventDefault();
 			}
 		} else if (e.key === 'BrowserBack') {
+			if (DOM.boExportRow?.classList.contains('open')) {
+				DOM.boExportRow.classList.remove('open');
+				e.preventDefault();
+				return;
+			}
 			if (_anyPageOpen()) {
 				_closeTopmost();
 				e.preventDefault();
@@ -1818,6 +1842,8 @@ function _openBijiOverview() {
 	DOM.boIconFilterRow.style.display = 'none';
 	DOM.boDeleteSelected.style.display = 'none';
 	DOM.boExportSelected.style.display = 'none';
+	DOM.boExportRow.classList.remove('open');
+	DOM.boExportFormat.setAttribute('data-value', '1');
 	DOM.boIconFilter.classList.remove('active');
 	DOM.boSearch.classList.remove('active');
 	_renderBijiOverview();
@@ -1826,6 +1852,7 @@ function _openBijiOverview() {
 }
 
 function _closeBijiOverview() {
+	DOM.boExportRow.classList.remove('open');
 	DOM.boPage.classList.remove('open');
 	_navOnClose();
 }
@@ -1875,6 +1902,9 @@ function _updateBODeleteBtn() {
 	const show = _boState.selectedKeys.size > 0;
 	DOM.boDeleteSelected.style.display = show ? '' : 'none';
 	DOM.boExportSelected.style.display = show ? '' : 'none';
+	if (!show && DOM.boExportRow.classList.contains('open')) {
+		DOM.boExportRow.classList.remove('open');
+	}
 }
 
 function _renderBijiOverview() {
@@ -2332,13 +2362,16 @@ function _bindBijiOverviewEvents() {
 			}
 		}
 		_boState.selectedKeys.clear();
-		_boState.suiSelectModes.clear();
-		_boState.globalSelectMode = false;
 		_renderBijiOverview();
 		_updateBijiOverviewVisibility();
 		renderCalendar();
 	});
-	DOM.boExportSelected.addEventListener('click', _bijiExportSelected);
+	DOM.boExportSelected.addEventListener('click', _toggleBoExportPanel);
+	DOM.boExportConfirm.addEventListener('click', _confirmBoExport);
+	DOM.boExportFormat.addEventListener('click', () => {
+		const v = DOM.boExportFormat.getAttribute('data-value') === '1' ? '0' : '1';
+		DOM.boExportFormat.setAttribute('data-value', v);
+	});
 }
 
 function _bijiTimestamp() {
@@ -2351,13 +2384,24 @@ function _bijiTimestamp() {
 	return sui + jie + hao + '_T' + hh + mm;
 }
 
-function _bijiExportSelected() {
+// 切换"导出选中"附加栏显隐
+function _toggleBoExportPanel() {
+	if (_boState.selectedKeys.size === 0) return;
+	DOM.boExportRow.classList.toggle('open');
+}
+
+// 执行导出并关闭附加栏
+function _confirmBoExport() {
 	const count = _boState.selectedKeys.size;
-	if (count === 0) return;
-	const format = confirm('导出格式选择：\n确定 = 文本格式 (.txt)\n取消 = JSON 格式 (.json)') ? 'text' : 'json';
+	if (count === 0) {
+		DOM.boExportRow.classList.remove('open');
+		return;
+	}
+	const format = DOM.boExportFormat.getAttribute('data-value') === '1' ? 'text' : 'json';
 	const content = biji.exportSelected([..._boState.selectedKeys], format);
 	if (!content || content === '{}' || content === '') {
 		_showToast('没有笔记数据可导出');
+		DOM.boExportRow.classList.remove('open');
 		return;
 	}
 	try {
@@ -2366,6 +2410,7 @@ function _bijiExportSelected() {
 		const filename = '岁月历_选中笔记_' + _bijiTimestamp() + ext;
 		_saveFile(content, filename, mime).then(() => {
 			_showToast('已导出 ' + count + ' 条笔记');
+			DOM.boExportRow.classList.remove('open');
 		}).catch(e => {
 			if (e.name !== 'AbortError') _showToast('导出失败：' + e.message);
 		});

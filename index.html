@@ -109,7 +109,7 @@
   <div class="biji-editor-hint" id="bijiEditorHint">笔记存储在浏览器缓存，请及时<a id="bijiHintExport">导出</a></div>
   <div class="biji-editor-footer">
     <div class="biji-editor-icon" id="bijiEditIcon" title="修改图标">✑</div>
-    <span class="biji-editor-count" id="bijiEditCount">0/16000</span>
+    <span class="biji-editor-count" id="bijiEditCount">0/8000</span>
     <div class="biji-editor-btns">
       <button type="button" class="danger" id="bijiEditDelete" style="display:none">删除</button>
       <button type="button" id="bijiEditCancel">取消</button>
@@ -667,6 +667,19 @@
     <div class="bo-toolbar-row bo-icon-filter-row" id="boIconFilterRow" style="display:none">
       <div class="bo-icon-list" id="boIconList"></div>
       <button type="button" class="bo-tool-btn-sm" id="boIconInvert">反选</button>
+    </div>
+    <div class="bo-toolbar-row bo-export-row" id="boExportRow">
+      <div class="bo-export-content">
+        <div class="bo-export-line">
+          <div class="week-start-toggle" id="boExportFormat" data-value="1">
+          <span style="color:var(--accent-secondary)">导出格式：</span>
+            <span>JSON</span>
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+            <span>文本</span>
+          </div>
+          <button type="button" class="bo-export-btn" id="boExportConfirm">导出</button>
+        </div>
+      </div>
     </div>
   </div>
   <div class="bo-body" id="boBody"></div>

@@ -1509,6 +1509,33 @@ body {
   gap: var(--gap-sm);
   padding: var(--gap-xs) 0;
 }
+.bo-export-row {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0;
+  transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease;
+}
+.bo-export-row.open {
+  max-height: 160px;
+  opacity: 1;
+  padding: var(--gap-xs) 0;
+}
+.bo-export-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
+  width: 100%;
+}
+.bo-export-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-sm);
+}
+.bo-export-line-btn {
+  justify-content: flex-end;
+}
 .bo-tool-btn {
   background: none;
   width: 2.1em;
