@@ -214,7 +214,8 @@ function _exportSelectedText(selectedKeys) {
 			const ts = n.created ?? '';
 			const us = n.updated ?? '';
 			const ex = excerpt(n.biji, 15);
-			lines.push('### "' + ex + '" `' + (n.icon || DEFAULT_ICON) + ' [' + ts + ' | ' + us + ']`');
+			lines.push('### `' + (n.icon || DEFAULT_ICON) + '` ' + ex);
+			lines.push('`[' + ts + ' | ' + us + ']`');
 			lines.push(n.biji || '');
 			lines.push('');
 		}
@@ -266,7 +267,8 @@ function _exportText(startSui, endSui) {
 				const ts = n.created ?? '';
 				const us = n.updated ?? '';
 				const ex = excerpt(n.biji, 15);
-				lines.push('### "' + ex + '" `' + (n.icon || DEFAULT_ICON) + ' [' + ts + ' | ' + us + ']`');
+				lines.push('### `' + (n.icon || DEFAULT_ICON) + '` ' + ex);
+			lines.push('`[' + ts + ' | ' + us + ']`');
 				lines.push(n.biji || '');
 				lines.push('');
 			}
@@ -326,6 +328,7 @@ export function parseTextImport(text) {
 
 	function _flushNote() {
 		if (!currentNote || currentSui === null || currentDayKey === null) return;
+		delete currentNote._tsParsed;
 		const sk = _suiKey(currentSui);
 		if (!result.data[sk]) result.data[sk] = {};
 		if (!result.data[sk][currentDayKey]) result.data[sk][currentDayKey] = [];
@@ -360,12 +363,29 @@ export function parseTextImport(text) {
 			_flushNote();
 			if (!currentSui || currentDayKey === null) { result.errors.push({ line: ln, reason: '缺少日期标题行' }); continue; }
 			const meta = line.slice(4);
-			const tsMatch = meta.match(/`\s*(\S)\s*\[\s*(\d+)\s*\|\s*(\d*)\s*\]\s*`/);
+			// 新格式：### `icon` excerpt
+			const newMatch = meta.match(/^`(\S)`\s*(.*)/);
+			if (newMatch) {
+				currentNote = { icon: newMatch[1], biji: '', created: _nowMs(), updated: _nowSec() };
+				continue;
+			}
+			// 旧格式：### "excerpt" `icon [created | updated]`
+			const tsMatch = meta.match(/"`\s*(\S)\s*\[\s*(\d+)\s*\|\s*(\d*)\s*\]\s*`/);
 			const icon = tsMatch ? tsMatch[1] : DEFAULT_ICON;
 			const created = tsMatch ? Number(tsMatch[2]) : _nowMs();
 			const updated = tsMatch && tsMatch[3] ? Number(tsMatch[3]) : _nowSec();
 			currentNote = { icon, biji: '', created, updated };
 			continue;
+		}
+		// 新格式第二行：`[created | updated]`
+		if (currentNote && !currentNote._tsParsed && line.startsWith('`[') && line.endsWith('`]`')) {
+			const tsMatch = line.match(/^`\[\s*(\d+)\s*\|\s*(\d*)\s*\]`$/);
+			if (tsMatch) {
+				currentNote.created = Number(tsMatch[1]);
+				currentNote.updated = tsMatch[2] ? Number(tsMatch[2]) : _nowSec();
+				currentNote._tsParsed = true;
+				continue;
+			}
 		}
 		if (currentNote && currentSui && currentDayKey !== null) {
 			currentNote.biji += (currentNote.biji ? '\n' : '') + line;
