@@ -216,6 +216,7 @@ function _exportSelectedText(selectedKeys) {
 			const ex = excerpt(n.biji, 15);
 			lines.push('### `' + (n.icon || DEFAULT_ICON) + '` ' + ex);
 			lines.push('`[' + ts + ' | ' + us + ']`');
+			lines.push('');
 			lines.push(n.biji || '');
 			lines.push('');
 		}
@@ -268,7 +269,8 @@ function _exportText(startSui, endSui) {
 				const us = n.updated ?? '';
 				const ex = excerpt(n.biji, 15);
 				lines.push('### `' + (n.icon || DEFAULT_ICON) + '` ' + ex);
-			lines.push('`[' + ts + ' | ' + us + ']`');
+				lines.push('`[' + ts + ' | ' + us + ']`');
+				lines.push('');
 				lines.push(n.biji || '');
 				lines.push('');
 			}
@@ -630,7 +632,7 @@ export function computeSegments(jin, nodes) {
 	return segments;
 }
 
-export function findSegmentForSui(sui, jin, nodes) {
+function findSegmentForSui(sui, jin, nodes) {
 	const segs = computeSegments(jin, nodes);
 	for (const s of segs) {
 		if (sui >= s.start && sui <= s.end) return s;

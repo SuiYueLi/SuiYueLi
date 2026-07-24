@@ -3960,7 +3960,7 @@ function _bijiWriteToFile(sui) {
 	biji.writeNoteToFiles(sui, jin).then(result => {
 		if (!result || result.ok) return;
 		if (result.reason === 'noDir') return; // 未指定文件夹，静默
-		if (result.reason === 'noPerm') { _showToast('本地文件夹授权失效，请在设置中重新授权'); return; }
+		if (result.reason === 'noPerm') { _showToast('本地文件夹授权失效，请在导入导出页重新授权'); return; }
 		_showToast('本地文件写入失败');
 	}).catch(() => { _showToast('本地文件写入失败'); });
 }
