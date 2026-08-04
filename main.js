@@ -5264,8 +5264,11 @@ async function _openAttachViewer(assets, idx, source) {
 	if (!assets || !assets.length || idx < 0 || idx >= assets.length) return;
 	const asset = assets[idx];
 	if (!asset) return;
-	// 9.1：📊 (other) 不触发浏览
-	if (asset.type === 'other') return;
+	// 9.1：「其他」类型不触发浏览，仅提示路径+文件名
+	if (asset.type === 'other') {
+		_showToast((asset.path || '') + (asset.name || '') + '　请用专用软件打开。');
+		return;
+	}
 
 	const c = _currentAttachCase();
 	if (c === 'C') return; // 不应到达，防护
@@ -5328,40 +5331,49 @@ async function _loadAttachViewerContent(asset) {
 	_attachViewerState.isThumbFallback = false;
 	_attachViewerState.textFontScale = 1;  // 文本附件字号缩放重置
 
-	// 获取原文件
-	let file = null;
-	let missingReason = 'notFound';  // 默认原因：原文件未找到
-	if (_attachViewerState.case === 'A') {
-		try {
-			const r = await _resolveFileFromPath(asset);
-			if (r instanceof File) file = r;
-			else missingReason = r;  // 'noDir' | 'noPerm' | 'notFound'
-		} catch(e) { file = null; missingReason = 'notFound'; }
-	} else if (_attachViewerState.case === 'B') {
-		// 情况 B：askAccess 已开启（_openAttachViewer 已校验）
-		// 首次访问触发根目录授权，建立「相对路径→File」映射表
-		if (!_bijiRootFileMap) {
-			DOM.attachViewerHint.textContent = '请授权本次运行的【根目录】访问权限——';
-			DOM.attachViewerHint.style.display = '';
-			const n = await _authorizeAttachRootForBrowse();
-			if (n < 0) {
-				// 用户取消授权：关闭遮罩
-				_closeAttachViewer();
-				return;
-			}
-			DOM.attachViewerHint.style.display = 'none';
-			_showToast('本次运行已授权，映射 ' + n + ' 个文件。');
+	// 「其他」类型：无法预览，显示类型图标（点击提示用专用软件打开），不获取原文件
+	if (asset.type === 'other') {
+		if (DOM.attachViewerFontZoom) {
+			DOM.attachViewerFontZoom.style.display = 'none';
+			if (DOM.attachViewerFontZoomPanel) DOM.attachViewerFontZoomPanel.style.display = 'none';
 		}
-		// 从映射表取 File
-		file = _getFileFromRootMap(asset);
-		if (!file) missingReason = 'notFound';
-	}
-
-	if (file) {
-		_renderAttachViewerMedia(asset, file);
+		_renderAttachViewerOther(asset);
 	} else {
-		// 9.1：附件原文件丢失，显示缩略图/类型图标及提示（区分原因）
-		await _renderAttachViewerMissing(asset, missingReason);
+		// 获取原文件
+		let file = null;
+		let missingReason = 'notFound';  // 默认原因：原文件未找到
+		if (_attachViewerState.case === 'A') {
+			try {
+				const r = await _resolveFileFromPath(asset);
+				if (r instanceof File) file = r;
+				else missingReason = r;  // 'noDir' | 'noPerm' | 'notFound'
+			} catch(e) { file = null; missingReason = 'notFound'; }
+		} else if (_attachViewerState.case === 'B') {
+			// 情况 B：askAccess 已开启（_openAttachViewer 已校验）
+			// 首次访问触发根目录授权，建立「相对路径→File」映射表
+			if (!_bijiRootFileMap) {
+				DOM.attachViewerHint.textContent = '请授权本次运行的【根目录】访问权限——';
+				DOM.attachViewerHint.style.display = '';
+				const n = await _authorizeAttachRootForBrowse();
+				if (n < 0) {
+					// 用户取消授权：关闭遮罩
+					_closeAttachViewer();
+					return;
+				}
+				DOM.attachViewerHint.style.display = 'none';
+				_showToast('本次运行已授权，映射 ' + n + ' 个文件。');
+			}
+			// 从映射表取 File
+			file = _getFileFromRootMap(asset);
+			if (!file) missingReason = 'notFound';
+		}
+
+		if (file) {
+			_renderAttachViewerMedia(asset, file);
+		} else {
+			// 9.1：附件原文件丢失，显示缩略图/类型图标及提示（区分原因）
+			await _renderAttachViewerMissing(asset, missingReason);
+		}
 	}
 
 	// 信息栏：文件名（可选相对路径） + 大小 + 索引
@@ -5406,6 +5418,11 @@ function _renderAttachViewerMedia(asset, file) {
 		video.addEventListener('volumechange', () => {
 			_attachViewerState.volume = video.volume;
 		});
+		video.addEventListener('error', () => {
+			_attachViewerReleaseURLs();
+			DOM.attachViewerStage.innerHTML = '';
+			_renderAttachViewerOther(asset, '浏览器控件不支持该媒体编码格式');
+		});
 		stage.appendChild(video);
 	} else if (asset.type === 'audio') {
 		const wrap = document.createElement('div');
@@ -5420,6 +5437,11 @@ function _renderAttachViewerMedia(asset, file) {
 		audio.volume = _attachViewerState.volume;
 		audio.addEventListener('volumechange', () => {
 			_attachViewerState.volume = audio.volume;
+		});
+		audio.addEventListener('error', () => {
+			_attachViewerReleaseURLs();
+			DOM.attachViewerStage.innerHTML = '';
+			_renderAttachViewerOther(asset, '浏览器控件不支持该媒体编码格式');
 		});
 		wrap.append(icon, audio);
 		stage.appendChild(wrap);
@@ -5482,6 +5504,23 @@ function _attachViewerTextZoom(delta) {
 	if (Math.abs(next - _attachViewerState.textFontScale) < 0.01) return;
 	_attachViewerState.textFontScale = next;
 	_applyAttachViewerTextFontScale();
+}
+
+// 渲染「其他」类型附件：显示类型图标，点击提示用专用软件打开
+// prefixTip：可选附加原因（如媒体解码失败），插入到「请用专用软件打开」前
+function _renderAttachViewerOther(asset, prefixTip) {
+	const stage = DOM.attachViewerStage;
+	const wrap = document.createElement('div');
+	wrap.className = 'attach-viewer-missing';
+	const icon = document.createElement('div');
+	icon.className = 'attach-viewer-missing-icon';
+	icon.textContent = fujian.TYPE_ICON[asset.type] || fujian.TYPE_ICON.other;
+	icon.style.cursor = 'pointer';
+	const tip = (asset.path || '') + (asset.name || '') + '　' + (prefixTip ? prefixTip + '，' : '') + '请用专用软件打开。';
+	icon.title = tip;
+	icon.addEventListener('click', () => _showToast(tip));
+	wrap.appendChild(icon);
+	stage.appendChild(wrap);
 }
 
 // 渲染原文件丢失（9.1：显示缩略图/类型图标及提示，最大显示为自身尺寸的200%）
