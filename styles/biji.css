@@ -480,17 +480,12 @@
 	cursor: grab;
 	-webkit-user-select: none;
 	user-select: none;
-	background: transparent;
 }
 .thumb-item:active {
 	cursor: grabbing;
 }
 .thumb-item.dragging {
 	opacity: 0.4;
-}
-/* :has(img) 才显示灰底，避免图标占位项呈灰色图块（8.4） */
-.thumb-item:has(.thumb-item-media) {
-	background: var(--bg-tertiary);
 }
 .thumb-item-icon {
 	font-size: 1.4rem;
@@ -572,7 +567,6 @@
 	position: sticky;
 	top: 0;
 	z-index: 1;
-	background: var(--bg-primary);
 	scrollbar-width: thin;
 	scrollbar-color: var(--divider-color) transparent;
 	box-sizing: border-box;

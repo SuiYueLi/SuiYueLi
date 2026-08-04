@@ -2590,7 +2590,7 @@ function _renderBijiOverview() {
 						item.classList.add('expanded');
 						_boState.expandedKeys.add(n.key);
 						_boActionsVisible = false;
-						_updateBOExpandMaxHeight(item);
+						_updateExpandMaxHeight(item, DOM.boBody);
 						btnExpand.classList.add('active');
 					}
 				});
@@ -2665,7 +2665,7 @@ function _renderBijiOverview() {
 						item.classList.add('expanded');
 						_boState.expandedKeys.add(n.key);
 						_boActionsVisible = false;
-						_updateBOExpandMaxHeight(item);
+						_updateExpandMaxHeight(item, DOM.boBody);
 						btnExpand.classList.add('active');
 					});
 					list.appendChild(item);
@@ -2673,7 +2673,7 @@ function _renderBijiOverview() {
 				suiBody.appendChild(list);
 			}
 			suiBody.querySelectorAll('.biji-item.expanded').forEach(item => {
-				_updateBOExpandMaxHeight(item);
+				_updateExpandMaxHeight(item, DOM.boBody);
 			});
 		}
 		suiHeader.addEventListener('click', (e) => {
@@ -4366,7 +4366,8 @@ function _bijiToggleExpand(idx) {
 	_updateBar7Height();
 }
 
-function _updateExpandMaxHeight(item) {
+// 展开区高度计算。container 省略时基准为视口（主列表），传入容器时基准为该容器底部（总览页）
+function _updateExpandMaxHeight(item, container) {
 	if (!item) return;
 	const expand = item.querySelector('.biji-item-expand');
 	if (!expand) return;
@@ -4385,36 +4386,17 @@ function _updateExpandMaxHeight(item) {
 	const line2 = 2 * lineHeight;
 	const minPx = Math.max(line2, Math.min(scrollH, baselineH));
 	const baseline = (scrollH > baselineH) ? baselineH : minPx;
-	const rect = item.getBoundingClientRect();
-	const viewH = window.innerHeight;
-	const remaining = viewH - rect.top - 40 - itemExtra;
-	expand.style.minHeight = minPx + 'px';
-	expand.style.maxHeight = Math.max(baseline, remaining) + 'px';
-}
-
-function _updateBOExpandMaxHeight(item) {
-	if (!item) return;
-	const expand = item.querySelector('.biji-item-expand');
-	if (!expand) return;
-	expand.style.maxHeight = '';
-	expand.style.minHeight = '';
-	const itemCS = getComputedStyle(item);
-	const itemExtra = (parseFloat(itemCS.paddingTop) || 0) + (parseFloat(itemCS.paddingBottom) || 0) + (parseFloat(itemCS.borderBottomWidth) || 0);
-	const boBodyCS = getComputedStyle(DOM.boBody);
-	const boBodyPadBot = parseFloat(boBodyCS.paddingBottom) || 0;
-	const lineHeight = parseFloat(getComputedStyle(expand).lineHeight) || 24;
-	const scrollH = expand.scrollHeight;
-	// 基准高度：无缩略图时7行，有缩略图时4行+缩略图栏高
-	const thumbBar = expand.querySelector('.biji-expand-thumb-bar');
-	const thumbBarH = thumbBar ? thumbBar.offsetHeight : 0;
-	const baseLineCount = thumbBar ? 4 : 7;
-	const baselineH = baseLineCount * lineHeight + thumbBarH;
-	const line2 = 2 * lineHeight;
-	const minPx = Math.max(line2, Math.min(scrollH, baselineH));
-	const baseline = (scrollH > baselineH) ? baselineH : minPx;
-	const boBodyRect = DOM.boBody.getBoundingClientRect();
 	const itemRect = item.getBoundingClientRect();
-	const remaining = Math.floor(boBodyRect.bottom - itemRect.top - 44 - itemExtra - boBodyPadBot);
+	let remaining;
+	if (container) {
+		// 总览页：基准为容器底部，扣除容器 paddingBottom 与底部预留 44
+		const containerPadBot = parseFloat(getComputedStyle(container).paddingBottom) || 0;
+		const containerRect = container.getBoundingClientRect();
+		remaining = Math.floor(containerRect.bottom - itemRect.top - 44 - itemExtra - containerPadBot);
+	} else {
+		// 主列表：基准为视口底部，底部预留 40
+		remaining = window.innerHeight - itemRect.top - 40 - itemExtra;
+	}
 	expand.style.minHeight = minPx + 'px';
 	expand.style.maxHeight = Math.max(baseline, remaining) + 'px';
 }
@@ -5021,6 +5003,29 @@ function _renderExpandThumbBar(asset) {
 	// 媒体加载后再次检测（decode 完成后尺寸变化）
 	setTimeout(updateState, 300);
 	return bar;
+}
+
+// 维护后刷新主列表展开态缩略图栏（重建 bar，重新加载 blob）
+function _refreshMainListExpandThumb() {
+	const expandedItem = DOM.bijiList.querySelector('.biji-item.expanded');
+	if (!expandedItem) return;
+	const idx = parseInt(expandedItem.dataset.idx, 10);
+	if (isNaN(idx)) return;
+	const hj = _getCurrentHJ();
+	const notes = biji.getDayNotes(state.currentSui, hj);
+	const n = notes[idx];
+	if (!n) return;
+	const nAssets = Array.isArray(n.assets) ? n.assets : [];
+	const expand = expandedItem.querySelector('.biji-item-expand');
+	if (!expand) return;
+	const oldBar = expand.querySelector('.biji-expand-thumb-bar');
+	if (oldBar) oldBar.remove();
+	if (nAssets.length > 0) {
+		const newBar = _renderExpandThumbBar(nAssets);
+		if (newBar) expand.insertBefore(newBar, expand.firstChild);
+	}
+	_updateExpandMaxHeight(expandedItem);
+	_updateBar7Height();
 }
 
 // 列表重渲染时统一清理旧 URL
@@ -7564,11 +7569,17 @@ async function _runThumbMaintain(opts) {
 		// 同步本地 manifest（assets 信息表）
 		await _syncLocalManifest();
 		// 刷新界面
+		// 维护后列表缩略图 blob 已更新，清除列表 URL 缓存（编辑器为独立缓存，不受影响）
+		_listPurgeThumbURLs();
 		if (typeof _bijiRenderThumbBar === 'function' && DOM.bijiEditor && DOM.bijiEditor.classList.contains('open')) {
 			_bijiRenderThumbBar();
 		}
 		if (DOM.boPage && DOM.boPage.classList.contains('active') && typeof _renderBijiOverview === 'function') {
 			_renderBijiOverview();
+		}
+		// 主列表展开态缩略图栏刷新
+		if (DOM.bijiList && DOM.bijiList.querySelector('.biji-item.expanded') && typeof _refreshMainListExpandThumb === 'function') {
+			_refreshMainListExpandThumb();
 		}
 		if (showUI) {
 			const parts = [];
@@ -7619,6 +7630,11 @@ async function _onThumbTypeChange() {
 	const disabled = [...oldTypes].filter(t => !newTypes.has(t));
 	if (disabled.length === 0) {
 		setEnabledTypes(types);
+		// 新增启用的类型：已有笔记中该类型附件的缩略图需手动维护生成
+		const enabled = [...newTypes].filter(t => !oldTypes.has(t));
+		if (enabled.length > 0) {
+			_showToast('已在笔记中的「' + enabled.join('、') + '」类型附件缩略图需由「增减/重建」模式「维护」生成。', 6000);
+		}
 		return;
 	}
 	// 提示「现有缩略图维护后清除」
