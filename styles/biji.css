@@ -761,8 +761,7 @@
 	filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
 }
 .attach-viewer-audio {
-	max-width: min(80vw, 600px);
-	width: 100%;
+	width: min(80vw, 800px);
 }
 /* 文本附件：最大行宽 800px（9.1） */
 .attach-viewer-text {
