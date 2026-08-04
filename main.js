@@ -4805,7 +4805,7 @@ async function _bijiAddAttach() {
 				if (!ok) return;
 				const n = await _authorizeAttachSubDir();
 				if (n < 0) return;  // 用户取消
-				_showToast('已授权子目录，记录 ' + n + ' 个文件指纹。');
+				_showToast('已授权子目录，记录 ' + n + ' 个文件指纹。如需改选其他目录，可在随后添加附件打开选择器时点取消。', 6000);
 			}
 			// 系统选择器选文件；取消后提供【指定其他子目录】入口
 			let picked = await _pickFilesViaSystemPicker();
@@ -5419,6 +5419,7 @@ function _renderAttachViewerMedia(asset, file) {
 			_attachViewerState.volume = video.volume;
 		});
 		video.addEventListener('error', () => {
+			if (_attachViewerState.asset !== asset) return;  // 已切换到其他附件，忽略过期回调
 			_attachViewerReleaseURLs();
 			DOM.attachViewerStage.innerHTML = '';
 			_renderAttachViewerOther(asset, '浏览器控件不支持该媒体编码格式');
@@ -5439,6 +5440,7 @@ function _renderAttachViewerMedia(asset, file) {
 			_attachViewerState.volume = audio.volume;
 		});
 		audio.addEventListener('error', () => {
+			if (_attachViewerState.asset !== asset) return;  // 已切换到其他附件，忽略过期回调
 			_attachViewerReleaseURLs();
 			DOM.attachViewerStage.innerHTML = '';
 			_renderAttachViewerOther(asset, '浏览器控件不支持该媒体编码格式');
@@ -6298,6 +6300,10 @@ async function _lsSpecifyDir() {
 			if (suppCount > 0) parts.push('附件信息 ' + suppCount + ' 个');
 			if (parts.length > 0) _showToast('已从本地导入：' + parts.join('、'), 3000);
 		} catch(e) {}
+		// 缩略图导入/补全在笔记导入之后，需重新渲染列表以加载已就绪的缩略图
+		renderBar7();
+		renderCalendar();
+		if (DOM.boPage.classList.contains('open')) _renderBijiOverview();
 		const written = await biji.rewriteAllSegmentFiles(state.todaySui);
 		if (written) {
 			_showToast('已指定文件夹并启用本地保存。');
