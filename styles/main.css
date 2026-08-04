@@ -999,6 +999,21 @@ body {
   background: var(--bg-secondary);
   color: var(--text-primary);
 }
+.settings-page .sp-icon-input {
+  width: 3em;
+  text-align: center;
+  font-size: 1rem;
+  padding: 2px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  border-style: inset;
+  background: var(--accent-bg);
+  color: var(--text-primary);
+}
+.settings-page .sp-icon-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
 
 .settings-page .sp-blur-input-wrap {
   display: flex;

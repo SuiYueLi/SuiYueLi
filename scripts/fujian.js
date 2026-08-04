@@ -39,7 +39,7 @@ const THUMB_LOCAL_DIR = '.thumbnails';
 const IMAGE_EXTS = ['jpg','jpeg','png','gif','webp','bmp','svg','avif','ico','tif','tiff'];
 const VIDEO_EXTS = ['mp4','webm','ogv','mov','m4v','mkv','avi','3gp','flv'];
 const AUDIO_EXTS = ['mp3','wav','ogg','oga','m4a','aac','flac','wma','opus','weba'];
-const TEXT_EXTS  = ['txt','md','markdown','log','csv','tsv','json','xml','html','htm','css','js','ts','py','java','c','cpp','h','hpp','sh','yml','yaml','ini','conf','toml'];
+const TEXT_EXTS  = ['txt','md','markdown'];
 
 function _extOf(fileName) {
 	if (!fileName) return '';
@@ -55,7 +55,7 @@ export function detectType(file) {
 	if (mime.startsWith('image/') || IMAGE_EXTS.includes(ext)) return 'image';
 	if (mime.startsWith('video/') || VIDEO_EXTS.includes(ext)) return 'video';
 	if (mime.startsWith('audio/') || AUDIO_EXTS.includes(ext)) return 'audio';
-	if (mime.startsWith('text/') || mime.includes('json') || mime.includes('xml') || mime.includes('javascript') || TEXT_EXTS.includes(ext)) return 'text';
+	if (TEXT_EXTS.includes(ext)) return 'text';
 	return 'other';
 }
 

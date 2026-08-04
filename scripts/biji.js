@@ -7,6 +7,21 @@ const SETTINGS_KEY = 'jieLi_settings';
 const _EXCLUDED_KEYS = new Set([DRAFT_KEY, SETTINGS_KEY]);
 const MAX_LEN = 8000;
 const DEFAULT_ICON = '\u2711';
+const ATTACH_ICON = '\u{1F4CE}';
+
+// 从用户设置读取自定义默认图标（设置项不存在时回退内置常量）
+function _userDefaultIcon() {
+	try {
+		const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+		return s.bijiDefaultIcon || _userDefaultIcon();
+	} catch { return DEFAULT_ICON; }
+}
+function _userAttachIcon() {
+	try {
+		const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+		return s.bijiAttachIcon || ATTACH_ICON;
+	} catch { return ATTACH_ICON; }
+}
 const IDB_NAME = 'jieLi_biji_idb';
 const IDB_STORE = 'handles';
 const IDB_KEY = 'fileHandle';
@@ -104,7 +119,7 @@ export function addNote(sui, hj, biji, icon, created, assets) {
 	const key = String(hj);
 	if (!data[key]) data[key] = [];
 	data[key].push({
-		icon: icon || DEFAULT_ICON,
+		icon: icon || _userDefaultIcon(),
 		biji: biji.slice(0, MAX_LEN),
 		created: created || _nowTs(),
 		updated: _nowTs(),
@@ -121,7 +136,7 @@ export function updateNote(sui, hj, idx, biji, icon, assets) {
 	const arr = data[key];
 	if (!arr || !arr[idx]) return;
 	arr[idx].biji = biji.slice(0, MAX_LEN);
-	arr[idx].icon = icon || DEFAULT_ICON;
+	arr[idx].icon = icon || _userDefaultIcon();
 	arr[idx].updated = _nowTs();
 	if (Array.isArray(assets)) arr[idx].assets = assets;
 	_saveSui(sui, data);
@@ -163,11 +178,11 @@ export function moveNote(sui, hj, fromIdx, toIdx) {
 
 export function getNoteIcon(sui, hj) {
 	const notes = getDayNotes(sui, hj);
-	return notes.length > 0 ? (notes[0].icon || DEFAULT_ICON) : null;
+	return notes.length > 0 ? (notes[0].icon || _userDefaultIcon()) : null;
 }
 
 export function saveDraft(hj, idx, icon, biji, created, assets) {
-	const draft = { hj, idx: idx ?? null, icon: icon || DEFAULT_ICON, biji: biji.slice(0, MAX_LEN) };
+	const draft = { hj, idx: idx ?? null, icon: icon || _userDefaultIcon(), biji: biji.slice(0, MAX_LEN) };
 	if (created !== undefined && created !== null) draft.created = created;
 	if (Array.isArray(assets)) draft.assets = assets;
 	try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch(e) {}
@@ -296,7 +311,7 @@ function _exportSelectedText(selectedKeys, thumbnailsZip) {
 			const us = n.updated ?? '';
 			const ex = excerpt(n.biji, 15);
 			const icons = _attachTypeIcons(n.assets);
-			lines.push('### `' + (n.icon || DEFAULT_ICON) + '` ' + ex + (icons ? ' ' + icons : ''));
+			lines.push('### `' + (n.icon || _userDefaultIcon()) + '` ' + ex + (icons ? ' ' + icons : ''));
 			lines.push('`[' + ts + ' | ' + us + ']`');
 			lines.push('');
 			lines.push(n.biji || '');
@@ -359,7 +374,7 @@ function _exportText(startSui, endSui, thumbnailsZip) {
 				const us = n.updated ?? '';
 				const ex = excerpt(n.biji, 15);
 				const icons = _attachTypeIcons(n.assets);
-				lines.push('### `' + (n.icon || DEFAULT_ICON) + '` ' + ex + (icons ? ' ' + icons : ''));
+				lines.push('### `' + (n.icon || _userDefaultIcon()) + '` ' + ex + (icons ? ' ' + icons : ''));
 				lines.push('`[' + ts + ' | ' + us + ']`');
 				lines.push('');
 				lines.push(n.biji || '');
@@ -386,7 +401,7 @@ function _hjToDateStr(hj, sui) {
 function _normalizeNote(n) {
 	if (!n || typeof n !== 'object') return null;
 	const note = {
-		icon: typeof n.icon === 'string' ? n.icon : DEFAULT_ICON,
+		icon: typeof n.icon === 'string' ? n.icon : _userDefaultIcon(),
 		biji: typeof n.biji === 'string' ? n.biji.slice(0, MAX_LEN) : '',
 		created: typeof n.created === 'number' ? n.created : _nowTs(),
 		updated: typeof n.updated === 'number' ? n.updated : _nowTs(),
@@ -600,7 +615,7 @@ export function parseTextImport(text) {
 			const meta = line.slice(4);
 			// 识别反引号包裹的图标：`icon`，忽略后面的 summary 和附件类型图标
 			const iconMatch = meta.match(/^`([^`]*)`/);
-			const icon = iconMatch ? (iconMatch[1] || DEFAULT_ICON) : DEFAULT_ICON;
+			const icon = iconMatch ? (iconMatch[1] || _userDefaultIcon()) : _userDefaultIcon();
 			currentNote = { icon, biji: '', created: _nowTs(), updated: _nowTs() };
 			continue;
 		}
@@ -1129,5 +1144,6 @@ export async function readAllSegmentFiles() {
 }
 
 export const BIJI_MAX_LEN = MAX_LEN;
-export const BIJI_DEFAULT_ICON = DEFAULT_ICON;
+export function getBijiDefaultIcon() { return _userDefaultIcon(); }
+export function getBijiAttachIcon() { return _userAttachIcon(); }
 export const THUMB_STORE_NAME = THUMB_STORE;

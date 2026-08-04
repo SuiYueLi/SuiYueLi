@@ -21,6 +21,8 @@ const DEFAULT_SETTINGS = {
 	bgBlur: 1,
 	cellShadow: true,
 	zuoRotateHanzi: false,
+	bijiDefaultIcon: '✑',
+	bijiAttachIcon: '📎',
 	customJieSu: null,
 	customFuRi: null,
 	updateCheckInterval: 7,
@@ -322,6 +324,18 @@ export function getZuoRotateHanzi() { return settings.zuoRotateHanzi; }
 
 export function setZuoRotateHanzi(val) {
 	settings.zuoRotateHanzi = val;
+	_saveSettings();
+}
+
+// ========== 笔记默认图标 ==========
+export function getBijiDefaultIcon() { return settings.bijiDefaultIcon || '✑'; }
+export function setBijiDefaultIcon(val) {
+	settings.bijiDefaultIcon = val || '✑';
+	_saveSettings();
+}
+export function getBijiAttachIcon() { return settings.bijiAttachIcon || '📎'; }
+export function setBijiAttachIcon(val) {
+	settings.bijiAttachIcon = val || '📎';
 	_saveSettings();
 }
 

@@ -16,6 +16,7 @@ import {
 	getAllSettings,
 	getCellShadow, setCellShadow,
 	getZuoRotateHanzi, setZuoRotateHanzi,
+	getBijiDefaultIcon, setBijiDefaultIcon, getBijiAttachIcon, setBijiAttachIcon,
 	getJieSu, setJieSu, getFuRi, setFuRi,
 	getUpdateCheckInterval, setUpdateCheckInterval, getLastUpdateCheck, setLastUpdateCheck,
 	getAutoUpdateFailCount, setAutoUpdateFailCount, getAutoUpdateIgnoredVersion, setAutoUpdateIgnoredVersion,
@@ -68,7 +69,7 @@ let _bijiEditState = {
 	sui: 0,
 	hj: 0,
 	idx: null,
-	icon: biji.BIJI_DEFAULT_ICON,
+	icon: biji.getBijiDefaultIcon(),
 	fullscreen: false,
 	undoStack: [],
 	draftTimer: null,
@@ -372,6 +373,8 @@ function cacheDOM() {
 	DOM.bgBlurInput = $('bgBlurInput');
 	DOM.cellShadowToggle = $('cellShadowToggle');
 	DOM.zuoRotateToggle = $('zuoRotateToggle');
+	DOM.bijiDefaultIconInput = $('bijiDefaultIconInput');
+	DOM.bijiAttachIconInput = $('bijiAttachIconInput');
 	DOM.jieSuImportBtn = $('jieSuImportBtn');
 	DOM.jieSuExportBtn = $('jieSuExportBtn');
 	DOM.jieSuResetBtn = $('jieSuResetBtn');
@@ -1461,6 +1464,18 @@ function bindEvents() {
 		setZuoRotateHanzi(val);
 		DOM.zuoRotateToggle.setAttribute('data-value', val ? '1' : '0');
 		renderCalendar();
+	});
+
+	// 笔记默认图标自定义
+	DOM.bijiDefaultIconInput.addEventListener('change', () => {
+		const v = DOM.bijiDefaultIconInput.value.trim() || '✑';
+		setBijiDefaultIcon(v);
+		DOM.bijiDefaultIconInput.value = getBijiDefaultIcon();
+	});
+	DOM.bijiAttachIconInput.addEventListener('change', () => {
+		const v = DOM.bijiAttachIconInput.value.trim() || '📎';
+		setBijiAttachIcon(v);
+		DOM.bijiAttachIconInput.value = getBijiAttachIcon();
 	});
 
 	const _fontPreviewTexts = {
@@ -2571,7 +2586,7 @@ function _renderBijiOverview() {
 			// 注：与 renderBar7 共用同一逻辑，收起态与展开态共用此 overlay 图标
 			const expIcon = document.createElement('span');
 			expIcon.className = 'biji-icon biji-expand-icon';
-			expIcon.textContent = n.icon || biji.BIJI_DEFAULT_ICON;
+			expIcon.textContent = n.icon || biji.getBijiDefaultIcon();
 			item.appendChild(expIcon);
 				expIcon.addEventListener('click', (e) => {
 					e.stopPropagation();
@@ -3106,6 +3121,8 @@ function _syncSettingsUI() {
 
 	DOM.cellShadowToggle.setAttribute('data-value', s.cellShadow ? '1' : '0');
 	DOM.zuoRotateToggle.setAttribute('data-value', s.zuoRotateHanzi ? '1' : '0');
+	DOM.bijiDefaultIconInput.value = getBijiDefaultIcon();
+	DOM.bijiAttachIconInput.value = getBijiAttachIcon();
 
 	// 更新检查
 	DOM.updateCheckInterval.value = String(s.updateCheckInterval);
@@ -4280,7 +4297,7 @@ function renderBar7() {
 		// 注：收起态与展开态共用此 overlay 图标
 		const expIcon = document.createElement('span');
 		expIcon.className = 'biji-icon biji-expand-icon';
-		expIcon.textContent = n.icon || biji.BIJI_DEFAULT_ICON;
+		expIcon.textContent = n.icon || biji.getBijiDefaultIcon();
 		item.appendChild(expIcon);
 		expIcon.addEventListener('click', (e) => {
 			e.stopPropagation();
@@ -4459,12 +4476,12 @@ function _bijiOpenNew() {
 	const hj = _getCurrentHJ();
 	_bijiEditState = {
 		open: true, sui: state.currentSui, hj, idx: null,
-		icon: biji.BIJI_DEFAULT_ICON, created: null, fullscreen: false,
+		icon: biji.getBijiDefaultIcon(), created: null, fullscreen: false,
 		undoStack: [], draftTimer: null, debounceTimer: null,
 		assets: [], thumbBlobURLs: {}, thumbReleaseTimer: null
 	};
 	DOM.bijiTextarea.value = '';
-	DOM.bijiEditIcon.textContent = biji.BIJI_DEFAULT_ICON;
+	DOM.bijiEditIcon.textContent = biji.getBijiDefaultIcon();
 	DOM.bijiEditCount.textContent = '0/' + biji.BIJI_MAX_LEN;
 	DOM.bijiEditDelete.style.display = 'none';
 	DOM.bijiEditor.classList.remove('fullscreen');
@@ -4483,7 +4500,7 @@ function _bijiOpenEditForSui(sui, hj, idx) {
 	const n = notes[idx];
 	_bijiEditState = {
 		open: true, sui, hj, idx,
-		icon: n.icon || biji.BIJI_DEFAULT_ICON, created: n.created, fullscreen: false,
+		icon: n.icon || biji.getBijiDefaultIcon(), created: n.created, fullscreen: false,
 		undoStack: [], draftTimer: null, debounceTimer: null,
 		assets: Array.isArray(n.assets) ? n.assets.slice() : [], thumbBlobURLs: {}, thumbReleaseTimer: null
 	};
@@ -4507,7 +4524,7 @@ function _bijiOpenEdit(idx) {
 	const n = notes[idx];
 	_bijiEditState = {
 		open: true, sui: state.currentSui, hj: _getCurrentHJ(), idx,
-		icon: n.icon || biji.BIJI_DEFAULT_ICON, created: n.created, fullscreen: false,
+		icon: n.icon || biji.getBijiDefaultIcon(), created: n.created, fullscreen: false,
 		undoStack: [], draftTimer: null, debounceTimer: null,
 		assets: Array.isArray(n.assets) ? n.assets.slice() : [], thumbBlobURLs: {}, thumbReleaseTimer: null
 	};
@@ -4603,9 +4620,9 @@ function _bijiToggleFullscreen() {
 
 function _bijiChangeIcon() {
 	const current = _bijiEditState.icon;
-	const result = prompt('输入图标字符（留空恢复默认）：', current === biji.BIJI_DEFAULT_ICON ? '' : current);
+	const result = prompt('输入图标字符（留空恢复默认）：', current === biji.getBijiDefaultIcon() ? '' : current);
 	if (result === null) return;
-	_bijiEditState.icon = result.trim() || biji.BIJI_DEFAULT_ICON;
+	_bijiEditState.icon = result.trim() || biji.getBijiDefaultIcon();
 	DOM.bijiEditIcon.textContent = _bijiEditState.icon;
 }
 
@@ -4842,10 +4859,10 @@ async function _bijiAddAttach() {
 	}
 
 	if (added > 0) {
-		// icon 替换规则（3.1）：第一个附件添加后，icon 为 ✑ 则替换为 📎
-		if (_bijiEditState.assets.length === added && _bijiEditState.icon === biji.BIJI_DEFAULT_ICON) {
-			_bijiEditState.icon = '📎';
-			DOM.bijiEditIcon.textContent = '📎';
+		// icon 替换规则（3.1）：第一个附件添加后，icon 为默认图标则替换为带附件默认图标
+		if (_bijiEditState.assets.length === added && _bijiEditState.icon === biji.getBijiDefaultIcon()) {
+			_bijiEditState.icon = biji.getBijiAttachIcon();
+			DOM.bijiEditIcon.textContent = _bijiEditState.icon;
 		}
 		_bijiRenderThumbBar();
 		_showToast('已添加 ' + added + ' 个附件。');
@@ -5192,10 +5209,10 @@ function _bijiDeleteAttach(idx) {
 	const asset = arr[idx];
 	if (!confirm('删除附件引用「' + (asset.name || '') + '」？\n（缩略图将由「维护」功能统一处理。）')) return;
 	arr.splice(idx, 1);
-	// 若附件清空且 icon 是 📎，恢复 ✑（3.1 反向规则）
-	if (arr.length === 0 && _bijiEditState.icon === '📎') {
-		_bijiEditState.icon = biji.BIJI_DEFAULT_ICON;
-		DOM.bijiEditIcon.textContent = biji.BIJI_DEFAULT_ICON;
+	// 若附件清空且 icon 为带附件默认图标，恢复默认图标（3.1 反向规则）
+	if (arr.length === 0 && _bijiEditState.icon === biji.getBijiAttachIcon()) {
+		_bijiEditState.icon = biji.getBijiDefaultIcon();
+		DOM.bijiEditIcon.textContent = _bijiEditState.icon;
 	}
 	_bijiRenderThumbBar();
 }
@@ -8151,7 +8168,7 @@ function _checkBijiDraft() {
 	if (confirm(msg)) {
 		_bijiEditState = {
 			open: true, sui: state.currentSui, hj: draft.hj,
-			idx: draft.idx, icon: draft.icon || biji.BIJI_DEFAULT_ICON,
+			idx: draft.idx, icon: draft.icon || biji.getBijiDefaultIcon(),
 			created: draft.created || null, fullscreen: false, undoStack: [], draftTimer: null, debounceTimer: null,
 			assets: Array.isArray(draft.assets) ? draft.assets.slice() : [], thumbBlobURLs: {}, thumbReleaseTimer: null
 		};
