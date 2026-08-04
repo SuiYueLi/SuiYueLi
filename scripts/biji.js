@@ -1,5 +1,5 @@
 import * as jl from "./JieLi.js";
-import {readFileAsText} from "./tools.js";
+import {readFileAsText, HJ_Jin} from "./tools.js";
 
 const STORAGE_PREFIX = '';
 const DRAFT_KEY = 'jieLi_biji_draft';
@@ -11,6 +11,8 @@ const IDB_NAME = 'jieLi_biji_idb';
 const IDB_STORE = 'handles';
 const IDB_KEY = 'fileHandle';
 const IDB_KEY_DIR = 'dirHandle';
+const IDB_VERSION = 2;
+const THUMB_STORE = 'thumbnails';
 const BIJI_FILE_CONFIG_KEY = 'jieLi_biji_file_config';
 const FILE_PREFIX = '笔记_';
 // 分段后缀
@@ -41,6 +43,21 @@ function _removeSui(sui) {
 function _nowMs() { return Date.now(); }
 
 function _nowSec() { return Math.floor(Date.now() / 1000); }
+
+// 本日历自有时间戳：HJ积日数 + 小数点 + hhmmss（时分秒合并6位）
+// 例如 1944041.015600 表示 HJ=1944041 当日 01:56:00
+// 与旧通用时间戳（毫秒数，纯整数无小数点）通过有无小数点区分
+function _nowTs() {
+	const hj = HJ_Jin();
+	const d = new Date();
+	const hh = String(d.getHours()).padStart(2, '0');
+	const mm = String(d.getMinutes()).padStart(2, '0');
+	const ss = String(d.getSeconds()).padStart(2, '0');
+	return Number(hj + '.' + hh + mm + ss);
+}
+
+// 当前时间戳（供 main.js 等外部模块使用）
+export function nowTs() { return _nowTs(); }
 
 export function excerpt(text, maxLen) {
 	if (!text) return '';
@@ -75,10 +92,13 @@ export function getDayNotes(sui, hj) {
 	const data = _loadSui(sui);
 	if (!data) return [];
 	const key = String(hj);
-	return data[key] || [];
+	const arr = data[key];
+	if (!arr) return [];
+	// 规范化：旧笔记无 assets 字段时补默认 []
+	return arr.map(n => n && !Array.isArray(n.assets) ? { ...n, assets: [] } : n);
 }
 
-export function addNote(sui, hj, biji, icon, created) {
+export function addNote(sui, hj, biji, icon, created, assets) {
 	let data = _loadSui(sui);
 	if (!data) data = {};
 	const key = String(hj);
@@ -86,14 +106,15 @@ export function addNote(sui, hj, biji, icon, created) {
 	data[key].push({
 		icon: icon || DEFAULT_ICON,
 		biji: biji.slice(0, MAX_LEN),
-		created: created || _nowMs(),
-		updated: _nowSec()
+		created: created || _nowTs(),
+		updated: _nowTs(),
+		assets: Array.isArray(assets) ? assets : []
 	});
 	_saveSui(sui, data);
 	return data[key].length - 1;
 }
 
-export function updateNote(sui, hj, idx, biji, icon) {
+export function updateNote(sui, hj, idx, biji, icon, assets) {
 	let data = _loadSui(sui);
 	if (!data) return;
 	const key = String(hj);
@@ -101,7 +122,20 @@ export function updateNote(sui, hj, idx, biji, icon) {
 	if (!arr || !arr[idx]) return;
 	arr[idx].biji = biji.slice(0, MAX_LEN);
 	arr[idx].icon = icon || DEFAULT_ICON;
-	arr[idx].updated = _nowSec();
+	arr[idx].updated = _nowTs();
+	if (Array.isArray(assets)) arr[idx].assets = assets;
+	_saveSui(sui, data);
+}
+
+// 仅更新附件（增删/换位），不动 biji 文本；刷新 updated
+export function updateNoteAssets(sui, hj, idx, assets) {
+	let data = _loadSui(sui);
+	if (!data) return;
+	const key = String(hj);
+	const arr = data[key];
+	if (!arr || !arr[idx]) return;
+	arr[idx].assets = Array.isArray(assets) ? assets : [];
+	arr[idx].updated = _nowTs();
 	_saveSui(sui, data);
 }
 
@@ -132,16 +166,21 @@ export function getNoteIcon(sui, hj) {
 	return notes.length > 0 ? (notes[0].icon || DEFAULT_ICON) : null;
 }
 
-export function saveDraft(hj, idx, icon, biji, created) {
+export function saveDraft(hj, idx, icon, biji, created, assets) {
 	const draft = { hj, idx: idx ?? null, icon: icon || DEFAULT_ICON, biji: biji.slice(0, MAX_LEN) };
 	if (created !== undefined && created !== null) draft.created = created;
+	if (Array.isArray(assets)) draft.assets = assets;
 	try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch(e) {}
 }
 
 export function loadDraft() {
 	try {
 		const raw = localStorage.getItem(DRAFT_KEY);
-		return raw ? JSON.parse(raw) : null;
+		if (!raw) return null;
+		const d = JSON.parse(raw);
+		// 规范化：旧草稿无 assets 字段时补默认 []
+		if (d && !Array.isArray(d.assets)) d.assets = [];
+		return d;
 	} catch(e) { return null; }
 }
 
@@ -153,18 +192,56 @@ export function hasDraft() {
 	return loadDraft() !== null;
 }
 
-export function exportAll(startSui, endSui, format) {
-	if (format === 'text') return _exportText(startSui, endSui);
-	return _exportJson(startSui, endSui);
+export function exportAll(startSui, endSui, format, options) {
+	const thumbnailsZip = options && options.thumbnailsZip;
+	if (format === 'text') return _exportText(startSui, endSui, thumbnailsZip);
+	return _exportJson(startSui, endSui, thumbnailsZip);
 }
 
-export function exportSelected(selectedKeys, format) {
-	if (format === 'text') return _exportSelectedText(selectedKeys);
-	return _exportSelectedJson(selectedKeys);
+export function exportSelected(selectedKeys, format, options) {
+	const thumbnailsZip = options && options.thumbnailsZip;
+	if (format === 'text') return _exportSelectedText(selectedKeys, thumbnailsZip);
+	return _exportSelectedJson(selectedKeys, thumbnailsZip);
 }
 
-function _exportSelectedJson(selectedKeys) {
+// 附件类型图标（按首次出现顺序去重，不带数量；用于 TXT 导出标题行）
+const _ATTACH_TYPE_ICONS = { image: '🖼️', video: '🎬', audio: '🔉', text: '📝', other: '📊' };
+const _ICON_TO_ATTACH_TYPE = { '🖼️': 'image', '🎬': 'video', '🔉': 'audio', '📝': 'text', '📊': 'other' };
+function _iconToAttachType(icon) {
+	return _ICON_TO_ATTACH_TYPE[icon] || 'other';
+}
+function _attachTypeIcons(assets) {
+	if (!Array.isArray(assets) || assets.length === 0) return '';
+	const seen = new Set();
+	const out = [];
+	for (const a of assets) {
+		if (!a) continue;
+		const t = a.type || 'other';
+		if (!seen.has(t)) { seen.add(t); out.push(_ATTACH_TYPE_ICONS[t] || _ATTACH_TYPE_ICONS.other); }
+	}
+	return out.join('');
+}
+
+// 附件区段文本行（用于 TXT 导出；图片用 ![]() 格式，其他用 []() 格式）
+function _attachSectionLines(assets) {
+	if (!Array.isArray(assets) || assets.length === 0) return [];
+	const lines = ['', '#### 附件'];
+	for (const a of assets) {
+		if (!a) continue;
+		const icon = _ATTACH_TYPE_ICONS[a.type] || _ATTACH_TYPE_ICONS.other;
+		const path = (a.path || '') + (a.name || '');
+		if (a.type === 'image') {
+			lines.push('- ![' + icon + '](' + path + ')');
+		} else {
+			lines.push('- [' + icon + '](' + path + ')');
+		}
+	}
+	return lines;
+}
+
+function _exportSelectedJson(selectedKeys, thumbnailsZip) {
 	const result = {};
+	if (thumbnailsZip) result.thumbnailsZip = thumbnailsZip;
 	for (const key of selectedKeys) {
 		const parts = key.split(':');
 		if (parts.length < 3) continue;
@@ -181,7 +258,7 @@ function _exportSelectedJson(selectedKeys) {
 	return JSON.stringify(result, null, 2);
 }
 
-function _exportSelectedText(selectedKeys) {
+function _exportSelectedText(selectedKeys, thumbnailsZip) {
 	const grouped = new Map();
 	for (const key of selectedKeys) {
 		const parts = key.split(':');
@@ -201,6 +278,10 @@ function _exportSelectedText(selectedKeys) {
 		return sa !== sb ? sa - sb : ha - hb;
 	});
 	const lines = [];
+	if (thumbnailsZip) {
+		lines.push('> 缩略图包: `' + thumbnailsZip + '`');
+		lines.push('');
+	}
 	let lastSui = null;
 	for (const gk of sortedKeys) {
 		const { sui, hj, notes } = grouped.get(gk);
@@ -214,18 +295,21 @@ function _exportSelectedText(selectedKeys) {
 			const ts = n.created ?? '';
 			const us = n.updated ?? '';
 			const ex = excerpt(n.biji, 15);
-			lines.push('### `' + (n.icon || DEFAULT_ICON) + '` ' + ex);
+			const icons = _attachTypeIcons(n.assets);
+			lines.push('### `' + (n.icon || DEFAULT_ICON) + '` ' + ex + (icons ? ' ' + icons : ''));
 			lines.push('`[' + ts + ' | ' + us + ']`');
 			lines.push('');
 			lines.push(n.biji || '');
 			lines.push('');
+			lines.push(..._attachSectionLines(n.assets));
 		}
 	}
 	return lines.join('\n');
 }
 
-function _exportJson(startSui, endSui) {
+function _exportJson(startSui, endSui, thumbnailsZip) {
 	const result = {};
+	if (thumbnailsZip) result.thumbnailsZip = thumbnailsZip;
 	for (let i = 0; i < localStorage.length; i++) {
 		const k = localStorage.key(i);
 		if (!k || !k.startsWith(STORAGE_PREFIX) || _EXCLUDED_KEYS.has(k)) continue;
@@ -234,13 +318,19 @@ function _exportJson(startSui, endSui) {
 		if (isNaN(sui)) continue;
 		if (startSui !== undefined && sui < startSui) continue;
 		if (endSui !== undefined && sui > endSui) continue;
-		try { result[k] = JSON.parse(localStorage.getItem(k)); } catch(e) {}
+		try {
+			result[k] = JSON.parse(localStorage.getItem(k));
+		} catch(e) {}
 	}
 	return JSON.stringify(result, null, 2);
 }
 
-function _exportText(startSui, endSui) {
+function _exportText(startSui, endSui, thumbnailsZip) {
 	const lines = [];
+	if (thumbnailsZip) {
+		lines.push('> 缩略图包: `' + thumbnailsZip + '`');
+		lines.push('');
+	}
 	const suis = [];
 	for (let i = 0; i < localStorage.length; i++) {
 		const k = localStorage.key(i);
@@ -268,11 +358,13 @@ function _exportText(startSui, endSui) {
 				const ts = n.created ?? '';
 				const us = n.updated ?? '';
 				const ex = excerpt(n.biji, 15);
-				lines.push('### `' + (n.icon || DEFAULT_ICON) + '` ' + ex);
+				const icons = _attachTypeIcons(n.assets);
+				lines.push('### `' + (n.icon || DEFAULT_ICON) + '` ' + ex + (icons ? ' ' + icons : ''));
 				lines.push('`[' + ts + ' | ' + us + ']`');
 				lines.push('');
 				lines.push(n.biji || '');
 				lines.push('');
+				lines.push(..._attachSectionLines(n.assets));
 			}
 		}
 		lines.push('');
@@ -289,20 +381,52 @@ function _hjToDateStr(hj, sui) {
 	return sjr.S + '-' + String(sjr.J).padStart(2, '0') + '-' + String(sjr.R).padStart(2, '0');
 }
 
+// 笔记字段规范化：确保 icon/biji/created/updated/assets 齐全
+// created 兼容旧通用时间戳（毫秒数，整数）与新自有时间戳（HJ.hhmmss，带小数点）
+function _normalizeNote(n) {
+	if (!n || typeof n !== 'object') return null;
+	const note = {
+		icon: typeof n.icon === 'string' ? n.icon : DEFAULT_ICON,
+		biji: typeof n.biji === 'string' ? n.biji.slice(0, MAX_LEN) : '',
+		created: typeof n.created === 'number' ? n.created : _nowTs(),
+		updated: typeof n.updated === 'number' ? n.updated : _nowTs(),
+		assets: Array.isArray(n.assets) ? n.assets.filter(a => a && typeof a === 'object') : []
+	};
+	return note;
+}
+
+// 规范化整个 suiData（{ hj: [note,...], ... }）
+function _normalizeSuiData(data) {
+	if (!data || typeof data !== 'object') return {};
+	const out = {};
+	for (const dk of Object.keys(data)) {
+		if (!Array.isArray(data[dk])) continue;
+		const arr = data[dk].map(_normalizeNote).filter(Boolean);
+		if (arr.length > 0) out[dk] = arr;
+	}
+	return out;
+}
+
 export function importAll(jsonStr, mode, dayOrder) {
 	let incoming;
 	try { incoming = JSON.parse(jsonStr); } catch(e) { return false; }
 	const keys = Object.keys(incoming);
 	for (const k of keys) {
 		if (!k.startsWith(STORAGE_PREFIX)) continue;
+		if (_EXCLUDED_KEYS.has(k)) continue;
+		// 仅处理纯数字键（岁数），跳过 thumbnailsZip、设置、文件配置等
+		const sui = parseInt(k.slice(STORAGE_PREFIX.length));
+		if (isNaN(sui)) continue;
 		const existing = localStorage.getItem(k);
 		if (existing) {
 			let existData, inData;
 			try { existData = JSON.parse(existing); } catch(e) { existData = {}; }
-			try { inData = JSON.parse(JSON.stringify(incoming[k])); } catch(e) { continue; }
+			try { inData = _normalizeSuiData(JSON.parse(JSON.stringify(incoming[k]))); } catch(e) { continue; }
 			if (mode === 'replace') {
 				try { localStorage.setItem(k, JSON.stringify(inData)); } catch(e) {}
 			} else {
+				// 合并模式：按 dayKey 合并（concat），不在此处做 created 去重
+				// created 冲突检测由调用方（main.js）走对话框流程让用户选择
 				for (const dk of Object.keys(existData)) {
 					if (!inData[dk]) {
 						inData[dk] = existData[dk];
@@ -315,33 +439,142 @@ export function importAll(jsonStr, mode, dayOrder) {
 				try { localStorage.setItem(k, JSON.stringify(inData)); } catch(e) {}
 			}
 		} else {
-			try { localStorage.setItem(k, JSON.stringify(incoming[k])); } catch(e) {}
+			try {
+				const inData = _normalizeSuiData(JSON.parse(JSON.stringify(incoming[k])));
+				localStorage.setItem(k, JSON.stringify(inData));
+			} catch(e) {}
 		}
 	}
 	return true;
 }
 
+// 检测 incoming data 与 localStorage 现有笔记的 created 冲突
+// data: { "<sui>": { "<hj>": [note,...], ... }, ... }
+// 返回 conflicts 数组：[{ sui, dayKey, existNote, importNote }]
+export function detectConflicts(data) {
+	const conflicts = [];
+	if (!data || typeof data !== 'object') return conflicts;
+	for (const k of Object.keys(data)) {
+		const sui = parseInt(k.slice(STORAGE_PREFIX.length));
+		if (isNaN(sui)) continue;
+		const existing = localStorage.getItem(k);
+		if (!existing) continue;
+		let existData, inData;
+		try { existData = JSON.parse(existing); } catch(e) { continue; }
+		try { inData = data[k]; } catch(e) { continue; }
+		if (!inData) continue;
+		for (const dk of Object.keys(inData)) {
+			if (!Array.isArray(inData[dk])) continue;
+			if (!existData[dk] || !Array.isArray(existData[dk])) continue;
+			const existCreatedSet = new Set(existData[dk].map(n => n.created));
+			for (const inNote of inData[dk]) {
+				if (existCreatedSet.has(inNote.created)) {
+					conflicts.push({
+						sui: sui,
+						dayKey: dk,
+						existNote: existData[dk].find(n => n.created === inNote.created),
+						importNote: inNote
+					});
+				}
+			}
+		}
+	}
+	return conflicts;
+}
+
+// 使用缩略图包 manifest 补全笔记中 assets 的缺失字段（thumbKey/size/mime/type）
+// 典型场景：先导入 TXT 笔记（assets 缺少 thumbKey），再导入缩略图包（含 manifest）
+// manifest: { thumbKey: { type, name, path, size, mime } }
+// 返回 { supplemented: number, scanned: number }
+export function supplementAssetsFromManifest(manifest) {
+	if (!manifest || typeof manifest !== 'object') return { supplemented: 0, scanned: 0 };
+	// 构建 path+name -> thumbKey 索引（主匹配），name -> thumbKey 索引（兜底）
+	const byPathName = new Map();
+	const byName = new Map();
+	for (const thumbKey of Object.keys(manifest)) {
+		const mf = manifest[thumbKey];
+		if (!mf) continue;
+		const p = mf.path || '';
+		const n = mf.name || '';
+		if (p && n) byPathName.set(p + n, thumbKey);
+		if (n && !byName.has(n)) byName.set(n, thumbKey);
+	}
+	if (byPathName.size === 0 && byName.size === 0) return { supplemented: 0, scanned: 0 };
+	let supplemented = 0;
+	let scanned = 0;
+	for (let i = 0; i < localStorage.length; i++) {
+		const k = localStorage.key(i);
+		if (!k) continue;
+		if (_EXCLUDED_KEYS.has(k)) continue;
+		const sui = parseInt(k.slice(STORAGE_PREFIX.length));
+		if (isNaN(sui)) continue;
+		let data;
+		try { data = JSON.parse(localStorage.getItem(k)); } catch(e) { continue; }
+		if (!data) continue;
+		let changed = false;
+		for (const hj of Object.keys(data)) {
+			if (!Array.isArray(data[hj])) continue;
+			for (const n of data[hj]) {
+				if (!n || !Array.isArray(n.assets)) continue;
+				for (const a of n.assets) {
+					if (!a) continue;
+					scanned++;
+					if (a.thumbKey) continue;  // 已有 thumbKey 不覆盖
+					const p = a.path || '';
+					const nm = a.name || '';
+					let matchKey = (p && nm) ? byPathName.get(p + nm) : null;
+					if (!matchKey && nm) matchKey = byName.get(nm);
+					if (matchKey) {
+						const mf = manifest[matchKey];
+						a.thumbKey = matchKey;
+						if (typeof a.size !== 'number' || a.size === 0) a.size = mf.size || 0;
+						if (!a.mime) a.mime = mf.mime || '';
+						if (!a.type) a.type = mf.type || 'other';
+						supplemented++;
+						changed = true;
+					}
+				}
+			}
+		}
+		if (changed) {
+			try { localStorage.setItem(k, JSON.stringify(data)); } catch(e) {}
+		}
+	}
+	return { supplemented, scanned };
+}
+
 export function parseTextImport(text) {
-	const result = { errors: [], data: {}, conflicts: [] };
-	const lines = text.split('\n');
+	const result = { errors: [], data: {}, conflicts: [], thumbnailsZip: null };
+	// 规范化换行符：处理 \r\n（Windows）和 \r（老 Mac），避免行尾 \r 导致正则 $ 锚点失败
+	const lines = text.replace(/\r\n?/g, '\n').split('\n');
 	let currentSui = null;
 	let currentDayKey = null;
 	let currentNote = null;
+	let inAttachSection = false;
 
 	function _flushNote() {
 		if (!currentNote || currentSui === null || currentDayKey === null) return;
 		delete currentNote._tsParsed;
+		// 移除导出时在正文前后添加的额外回车（仅 trim 首尾换行，保留内部空行）
+		if (currentNote.biji) currentNote.biji = currentNote.biji.replace(/^[\r\n]+/, '').replace(/[\r\n]+$/, '');
 		const sk = _suiKey(currentSui);
 		if (!result.data[sk]) result.data[sk] = {};
 		if (!result.data[sk][currentDayKey]) result.data[sk][currentDayKey] = [];
 		result.data[sk][currentDayKey].push(currentNote);
 		currentNote = null;
+		inAttachSection = false;
 	}
 
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
 		const ln = i + 1;
 
+		// 缩略图包名行：> 缩略图包: `xxx.zip`
+		if (line.startsWith('> 缩略图包:')) {
+			const m = line.match(/`([^`]+\.zip)`/);
+			if (m) result.thumbnailsZip = m[1];
+			continue;
+		}
 		if (line.startsWith('# ') && !line.startsWith('## ') && !line.startsWith('### ')) {
 			_flushNote();
 			currentSui = parseInt(line.slice(2).trim());
@@ -365,28 +598,48 @@ export function parseTextImport(text) {
 			_flushNote();
 			if (!currentSui || currentDayKey === null) { result.errors.push({ line: ln, reason: '缺少日期标题行' }); continue; }
 			const meta = line.slice(4);
-			// 新格式：### `icon` excerpt
-			const newMatch = meta.match(/^`(\S)`\s*(.*)/);
-			if (newMatch) {
-				currentNote = { icon: newMatch[1], biji: '', created: _nowMs(), updated: _nowSec() };
-				continue;
-			}
-			// 旧格式：### "excerpt" `icon [created | updated]`
-			const tsMatch = meta.match(/"`\s*(\S)\s*\[\s*(\d+)\s*\|\s*(\d*)\s*\]\s*`/);
-			const icon = tsMatch ? tsMatch[1] : DEFAULT_ICON;
-			const created = tsMatch ? Number(tsMatch[2]) : _nowMs();
-			const updated = tsMatch && tsMatch[3] ? Number(tsMatch[3]) : _nowSec();
-			currentNote = { icon, biji: '', created, updated };
+			// 识别反引号包裹的图标：`icon`，忽略后面的 summary 和附件类型图标
+			const iconMatch = meta.match(/^`([^`]*)`/);
+			const icon = iconMatch ? (iconMatch[1] || DEFAULT_ICON) : DEFAULT_ICON;
+			currentNote = { icon, biji: '', created: _nowTs(), updated: _nowTs() };
 			continue;
 		}
-		// 新格式第二行：`[created | updated]`
-		if (currentNote && !currentNote._tsParsed && line.startsWith('`[') && line.endsWith('`]`')) {
-			const tsMatch = line.match(/^`\[\s*(\d+)\s*\|\s*(\d*)\s*\]`$/);
+		// 时间戳行：`[created | updated]`（单独一行，由反引号包裹）
+		// 兼容旧通用时间戳（纯整数）与新自有时间戳（HJ.hhmmss，带小数点）
+		// created 必须有；updated 可选（旧格式可能为空），两者均可为带小数点的新格式
+		if (currentNote && !currentNote._tsParsed) {
+			const tsMatch = line.match(/^`\[\s*(\d+(?:\.\d+)?)\s*\|\s*(\d+(?:\.\d+)?)?\s*\]`$/);
 			if (tsMatch) {
 				currentNote.created = Number(tsMatch[1]);
-				currentNote.updated = tsMatch[2] ? Number(tsMatch[2]) : _nowSec();
+				currentNote.updated = tsMatch[2] ? Number(tsMatch[2]) : _nowTs();
 				currentNote._tsParsed = true;
 				continue;
+			}
+		}
+		// 附件区段标题：进入附件区段，后续的 - ![]() / - []() 行解析为 assets
+		if (currentNote && line.trim() === '#### 附件') {
+			inAttachSection = true;
+			if (!currentNote.assets) currentNote.assets = [];
+			continue;
+		}
+		// 附件项：- ![图标](路径) 或 - [图标](路径)
+		if (currentNote && inAttachSection) {
+			const imgMatch = line.match(/^\s*-\s*!\[([^\]]*)\]\(([^)]+)\)/);
+			const linkMatch = line.match(/^\s*-\s*\[([^\]]*)\]\(([^)]+)\)/);
+			const m = imgMatch || linkMatch;
+			if (m) {
+				const icon = m[1];
+				const fullPath = m[2];
+				const type = _iconToAttachType(icon);
+				const lastSlash = fullPath.lastIndexOf('/');
+				const path = lastSlash >= 0 ? fullPath.slice(0, lastSlash + 1) : '';
+				const name = lastSlash >= 0 ? fullPath.slice(lastSlash + 1) : fullPath;
+				currentNote.assets.push({ type, name, path, size: 0 });
+				continue;
+			}
+			// 空行或其他非附件项：结束附件区段，回归正文
+			if (line.trim() !== '') {
+				inAttachSection = false;
 			}
 		}
 		if (currentNote && currentSui && currentDayKey !== null) {
@@ -470,24 +723,24 @@ export function applyTextImport(parsed, resolutions) {
 		if (action === 'keepImport') {
 			const existIdx = data[dayKey].findIndex(n => n.created === importNote.created);
 			if (existIdx >= 0) {
-				data[dayKey][existIdx] = { icon: importNote.icon, biji: importNote.biji, created: importNote.created, updated: importNote.updated };
+				data[dayKey][existIdx] = { icon: importNote.icon, biji: importNote.biji, created: importNote.created, updated: importNote.updated, assets: importNote.assets || [] };
 			} else {
-				data[dayKey].push({ icon: importNote.icon, biji: importNote.biji, created: importNote.created, updated: importNote.updated });
+				data[dayKey].push({ icon: importNote.icon, biji: importNote.biji, created: importNote.created, updated: importNote.updated, assets: importNote.assets || [] });
 			}
 		} else if (action === 'keepUpdated') {
 			const existIdx = data[dayKey].findIndex(n => n.created === importNote.created);
 			if (existIdx >= 0) {
 				if ((importNote.updated || 0) > (data[dayKey][existIdx].updated || 0)) {
-					data[dayKey][existIdx] = { icon: importNote.icon, biji: importNote.biji, created: importNote.created, updated: importNote.updated };
+					data[dayKey][existIdx] = { icon: importNote.icon, biji: importNote.biji, created: importNote.created, updated: importNote.updated, assets: importNote.assets || [] };
 				}
 			} else {
-				data[dayKey].push({ icon: importNote.icon, biji: importNote.biji, created: importNote.created, updated: importNote.updated });
+				data[dayKey].push({ icon: importNote.icon, biji: importNote.biji, created: importNote.created, updated: importNote.updated, assets: importNote.assets || [] });
 			}
 		} else if (action === 'reassignId') {
 			const usedIds = new Set(data[dayKey].map(n => n.created));
 			let newId = importNote.created;
 			while (usedIds.has(newId)) newId++;
-			data[dayKey].push({ icon: importNote.icon, biji: importNote.biji, created: newId, updated: importNote.updated });
+			data[dayKey].push({ icon: importNote.icon, biji: importNote.biji, created: newId, updated: importNote.updated, assets: importNote.assets || [] });
 		}
 
 		if (data[dayKey].length === 0) delete data[dayKey];
@@ -497,17 +750,26 @@ export function applyTextImport(parsed, resolutions) {
 
 function _openIDB() {
 	return new Promise((resolve, reject) => {
-		const req = indexedDB.open(IDB_NAME, 1);
-		req.onupgradeneeded = () => {
+		const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+		req.onupgradeneeded = (e) => {
 			const db = req.result;
+			// v1: handles store（文件/目录句柄）
 			if (!db.objectStoreNames.contains(IDB_STORE)) {
 				db.createObjectStore(IDB_STORE);
+			}
+			// v2: thumbnails store（缩略图 blob）
+			// 仅在新库或低版本升级时创建；旧数据无需迁移
+			if (e.oldVersion < 2 && !db.objectStoreNames.contains(THUMB_STORE)) {
+				db.createObjectStore(THUMB_STORE);
 			}
 		};
 		req.onsuccess = () => resolve(req.result);
 		req.onerror = () => reject(req.error);
 	});
 }
+
+// 供 fujian.js 复用：打开 IDB 连接（thumbnails store 与 handles store 同库）
+export function openBijiIDB() { return _openIDB(); }
 
 export async function checkPersistence() {
 	if (navigator.storage && navigator.storage.persisted) {
@@ -516,7 +778,7 @@ export async function checkPersistence() {
 	return false;
 }
 
-// ========== 本地存储文件夹（目录句柄） ==========
+// ========== 本地文件夹（目录句柄） ==========
 export async function saveDirHandle(handle) {
 	const db = await _openIDB();
 	return new Promise((resolve, reject) => {
@@ -560,25 +822,23 @@ export async function verifyDirHandle() {
 	}
 }
 
-// ========== 笔记文件配置（启用标志 + 分割节点） ==========
+// ========== 笔记文件配置（仅分割节点；启用与否由本地目录句柄是否存在决定） ==========
 export function getBijiFileConfig() {
 	try {
 		const raw = localStorage.getItem(BIJI_FILE_CONFIG_KEY);
-		if (!raw) return { enabled: false, splitNodes: [] };
+		if (!raw) return { splitNodes: [] };
 		const cfg = JSON.parse(raw);
 		return {
-			enabled: !!cfg.enabled,
 			splitNodes: Array.isArray(cfg.splitNodes) ? cfg.splitNodes.filter(n => Number.isFinite(n)).map(n => Math.trunc(n)) : []
 		};
 	} catch(e) {
-		return { enabled: false, splitNodes: [] };
+		return { splitNodes: [] };
 	}
 }
 
 export function setBijiFileConfig(cfg) {
 	const cur = getBijiFileConfig();
 	const next = {
-		enabled: (cfg && typeof cfg.enabled === 'boolean') ? cfg.enabled : cur.enabled,
 		splitNodes: (cfg && Array.isArray(cfg.splitNodes))
 			? cfg.splitNodes.filter(n => Number.isFinite(n)).map(n => Math.trunc(n))
 			: cur.splitNodes
@@ -619,8 +879,12 @@ export function computeSegments(jin, nodes) {
 	// _lai 段及之后节点
 	const laiBounds = after;
 	if (laiBounds.length > 0) {
-		// jin+1 到 laiBounds[0]-1 归为 _lai
-		segments.push({ suffix: SUFFIX_LAI, start: jin + 1, end: laiBounds[0] - 1 });
+		// jin+1 到 laiBounds[0]-1 归为 _lai（laiBounds[0]===jin+1 时空区间，不生成段）
+		const laiStart = jin + 1;
+		const laiEnd = laiBounds[0] - 1;
+		if (laiStart <= laiEnd) {
+			segments.push({ suffix: SUFFIX_LAI, start: laiStart, end: laiEnd });
+		}
 		for (let i = 0; i < laiBounds.length; i++) {
 			const start = laiBounds[i];
 			const end = (i + 1 < laiBounds.length) ? laiBounds[i + 1] - 1 : +Infinity;
@@ -650,9 +914,11 @@ function _fmtPoint(v, jin) {
 }
 
 function _segLabel(seg, jin) {
+	// 今岁段例外，单独标注
+	if (seg.start === jin && seg.end === jin) return '今岁(' + jin + ')';
 	const s = _fmtPoint(seg.start, jin);
 	const e = _fmtPoint(seg.end, jin);
-	return s === e ? s : s + '~' + e;
+	return s + '~' + e;
 }
 
 function _bijiFileName(seg, jin) {
@@ -838,12 +1104,6 @@ export function clearAllBijiInStorage() {
 	return keysToRemove.length;
 }
 
-// 强制解除本地保存（不解除文件夹句柄）：
-// 仅清除笔记文件配置，让"本地同步保存笔记"按钮回到未指定状态
-export function unlinkBijiFileSync() {
-	clearBijiFileConfig();
-}
-
 // ========== 多文件导入：从目录读取所有分段文件并合并 ==========
 export async function readAllSegmentFiles() {
 	const dirHandle = await getDirHandle();
@@ -870,3 +1130,4 @@ export async function readAllSegmentFiles() {
 
 export const BIJI_MAX_LEN = MAX_LEN;
 export const BIJI_DEFAULT_ICON = DEFAULT_ICON;
+export const THUMB_STORE_NAME = THUMB_STORE;

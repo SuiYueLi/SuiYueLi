@@ -94,7 +94,7 @@
   --gap-lg: 0.75rem;
   --gap-xl: 1rem;
 
-  --safe-margin: 1rem;
+  --safe-margin: calc(1rem * var(--multi-WX, 1));
 
   /* Border Radius */
   --radius-sm: 0.25rem;
@@ -144,7 +144,7 @@
 /* ========== 明主题基础 ========== */
 [data-theme="light"] {
   --bg-primary: #FAFAF8;
-  --bg-shadow: rgba(250, 250, 248,0.9);
+  --bg-shadow: rgba(250, 250, 248, 0.9);
   --bg-secondary: #F0EEEA;
   --bg-tertiary: #E8E6E1;
   --bg-glass: hsla(var(--accent-h), calc(var(--accent-s) * 0.2), calc(var(--accent-l) * 0.3 + 70%), 0.33);
@@ -153,9 +153,11 @@
   --bar3-bg: rgba(240, 238, 234, 0.25);
   --bar4-bg: hsla(var(--accent-h), calc(var(--accent-s) * 0.25), calc(var(--accent-l) * 0.2 + 70%), 0.3);
   --barbg-accent: hsla(var(--accent-h), calc(var(--accent-s) * 0.4 + 60%), var(--accent-l), 0.15);
-  --text-primary: #2C2C2C;
-  --text-title: #373737;
+  --bg-read: rgba(240, 238, 234, 0.75);
+  --text-primary: #222222;
+  --text-title: #333333;
   --text-secondary: #444444;
+  --text-read: #090707;
   --text-tertiary: hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) - 16%));
   --text-red: #CC3333;
   --border-color: rgba(216, 214, 208, 0.9);
@@ -182,14 +184,16 @@
   --bg-secondary: #222226;
   --bg-tertiary: #2A2A2E;
   --bg-glass: hsla(var(--accent-h), calc(var(--accent-s) * 0.2), calc(var(--accent-l) * 0.33), 0.5);
-  --bar1-bg: rgba(34, 34, 38, 0.5);
-  --bar2-bg: rgba(30, 30, 34, 0.5);
+  --bar1-bg: rgba(38, 34, 34, 0.5);
+  --bar2-bg: rgba(30, 30, 34, 0.45);
   --bar3-bg: rgba(34, 34, 38, 0.33);
   --bar4-bg: hsla(var(--accent-h), calc(var(--accent-s) * 0.3), calc(var(--accent-l) * 0.2), 0.3);
   --barbg-accent: hsla(var(--accent-h), calc(var(--accent-s) * 0.4 + 60%), var(--accent-l), 0.2);
+  --bg-read: rgba(30, 32, 26, 0.67);
   --text-primary: #E8E6E1;
   --text-title: #cccccc;
   --text-secondary: #bfbfbf;
+  --text-read: #bfb7b7;
   --text-tertiary: hsl(var(--accent-h), calc(var(--accent-s) * 0.6), calc(var(--accent-l) *0.6 + 40%));
   --text-red: #E05050;
   --border-color: rgba(58, 58, 62, 0.9);
@@ -353,6 +357,26 @@ body {
   background: var(--accent-primary);
 }
 */
+/* B 附件开关容器：行末居右 */
+.sp-b-attach-toggle {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.sp-b-attach-toggle .week-start-toggle {
+  cursor: pointer;
+}
+/* ls-residual-tip：透明双开关覆盖层容器，文字与开关等宽对齐 */
+.ls-residual-tip {
+  display: inline-block;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.ls-residual-tip .ls-residual-text {
+  display: inline-block;
+}
 .hamburger-btn {
   background: none;
   border: none;
@@ -517,7 +541,7 @@ body {
 /* ========== Bar 6: Date Details ========== */
 .bar-details {
   padding: var(--gap-sm) var(--gap-md);
-  min-height: 60px;
+  min-height: 4.5em;
   margin: var(--gap-xs) calc(-1 * var(--safe-margin));
   background: var(--bg-glass);
   -webkit-backdrop-filter: blur(8px);
@@ -527,21 +551,31 @@ body {
 }
 .bar-details ul {
   list-style: none;
-  margin: 0;
-  padding: 0.2rem;
+  margin: 0 var(--safe-margin);
+  padding: 0.2rem 0;
   font-size: var(--l-size);
   line-height: 1.5;
 }
 .bar-details li {
   font-family: var(--font-XiangQing);
-  font-size: var(--size-XiangQing);
+  font-size: calc(var(--size-XiangQing) * var(--multi-WX, 1));
+  /* 基于字号和应用宽度调整左右边距，搭配上面ul左右侧的0 */
+  padding: 0 calc(2em * var(--multi-WX, 1) - 1.5em);
   color: var(--text-secondary);
   white-space: pre-line;
   overflow: auto;
   text-overflow: ellipsis;
 }
+.bar-details li.detail-center { text-align: center; }
+.bar-details li.detail-flex {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--gap-md);
+}
+.bar-details .detail-spacer { visibility: hidden; }
+.bar-details .detail-ad { font-style: italic; }
 
-/* ========== Bar 7: 录事栏（预留） ========== */
+/* ========== Bar 7: 笔记栏 ========== */
 .bar-events {
   flex: none;
   display: flex;
@@ -932,11 +966,38 @@ body {
   padding: 4px 12px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
+  border-style: outset;
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: var(--small-size);
   cursor: pointer;
   font-family: var(--font-family);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+/* 下拉选项样式：与按钮视觉区别——仅底部边线 + 透明背景 + 右侧下拉箭头 */
+.settings-page .sp-option select {
+	padding: 4px 8px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	border-style: inset;
+	background: var(--accent-bg);
+	color: var(--text-primary);
+	font-size: var(--xs-size);
+	font-family: var(--font-family);
+	font-style: italic;
+	cursor: pointer;
+}
+.settings-page .sp-option select:hover {
+  border-bottom-color: var(--accent-primary);
+  color: var(--text-accent);
+}
+.settings-page .sp-option select:focus {
+  outline: none;
+  border-bottom-color: var(--accent-primary);
+}
+.settings-page .sp-option select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .settings-page .sp-blur-input-wrap {
@@ -949,9 +1010,10 @@ body {
   padding: 0.15em 0.3em;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  background: var(--bg-primary);
+  border-style: inset;
+  background: var(--accent-bg);
   color: var(--text-primary);
-  font-size: var(--small-size);
+  font-size: var(--xs-size);
   font-family: var(--font-family);
   text-align: right;
 }
@@ -1422,6 +1484,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--gap-sm);
   padding: var(--gap-sm) 0;
   font-size: var(--body-size);
   color: var(--text-secondary);
@@ -1430,6 +1493,7 @@ body {
   padding: 4px 12px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
+  border-style: outset;
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: var(--small-size);
@@ -1444,12 +1508,50 @@ body {
   background: var(--text-red);
   color: #fff;
 }
+/* 下拉列表展开后的 option 配色（参照 .thumb-disabled-menu 背景） */
+.ie-page .sp-option select option {
+  background: var(--bg-shadow);
+  color: var(--text-primary);
+}
+/* 导出栏勾选项行（4.4 / 4.5）：两个 checkbox 贴左，按钮贴右 */
+.ie-page .sp-option.biji-export-row {
+  justify-content: flex-start;
+  gap: 1px;
+  flex-wrap: wrap;
+}
+.ie-page .sp-option.biji-export-row > button {
+  margin-left: auto;
+}
+/* 存储与导出页：所有 checkbox 统一向右缩进 1.2em（对齐选项名单字宽度） */
+.ie-page .sp-checkbox {
+  padding-left: 1.2em;
+}
+/* 勾选项 label 样式：文字在左、勾选框在右（row-reverse 反转默认顺序） */
+.sp-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: var(--small-size);
+  color: var(--text-secondary);
+  -webkit-user-select: none;
+  user-select: none;
+  flex-direction: row-reverse;
+}
+.sp-checkbox input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+  width: 1em;
+  height: 1em;
+  accent-color: var(--accent-primary);
+}
 .ie-page .sp-option input[type="number"] {
   width: 4.8em !important;
   padding: 0.15em 0.3em;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  background: var(--bg-primary);
+  border-style: inset;
+  background: var(--accent-bg);
   color: var(--text-primary);
   font-size: var(--small-size);
   font-family: var(--font-family);
@@ -1530,8 +1632,13 @@ body {
 .bo-export-line {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--gap-sm);
+  justify-content: flex-start;
+  gap: var(--gap-md);
+  flex-wrap: wrap;
+}
+.bo-export-line .week-start-toggle,
+.bo-export-line .bo-export-btn {
+  margin-left: auto;
 }
 .bo-export-line-btn {
   justify-content: flex-end;
@@ -2207,7 +2314,7 @@ body {
   position: fixed;
   top: 0; bottom: 0; left: 0; right: 0;
   background: rgba(0,0,0,0.5);
-  z-index: var(--z-overlay);
+  z-index: calc(var(--z-toast) + 5);  /* 模态弹窗：高于笔记编辑页、附件浏览、菜单、VLI 面板、Toast 等所有层 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2222,7 +2329,7 @@ body {
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   padding: var(--gap-md);
-  max-width: 360px;
+  max-width: 640px;
   width: 90%;
   box-shadow: 0 4px 24px rgba(0,0,0,0.3);
 }
@@ -2237,7 +2344,6 @@ body {
   color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: var(--gap-md);
-  text-align: center;
 }
 .merge-dialog-actions {
   display: flex;

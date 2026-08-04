@@ -1,9 +1,13 @@
+# ===== local =====
+/.Doc/
+
 # ===== OS =====
 .DS_Store
 Thumbs.db
 
 # ===== Editor =====
 /.vscode/
+.hintrc
 
 # ===== Dependencies =====
 /node_modules/

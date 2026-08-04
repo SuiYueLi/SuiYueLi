@@ -1,0 +1,148 @@
+<p>本应用在日历之上附加了笔记功能，可用于在日期上标注历史事件，也可用于记录个人笔记。</p>
+<p>记笔记之前请务必先尝试导出节庆民俗列表或每年重复日列表，确保数据在当前浏览器中可正常导出。</p>
+<p>笔记带有可选用的附件功能，只在桌面端 Chromium 系浏览器（Chrome、Edge 等）中完全支持。</p>
+
+<h2>笔记基本用法</h2>
+<p>点击主界面右下角 <big>⊕</big> 按钮，即可在当前选中日期新建笔记。</p>
+<p>当前选中日期的笔记在主界面下部笔记栏内列表显示。点击笔记条目展开笔记，点击其右上角悬浮的 ✎ 按钮进入编辑界面。</p>
+<p>每条笔记可设定一个字符图标，默认为 ✑；有附件的笔记默认为 📎。每日排首位笔记的图标会显示在日历格右上角。</p>
+<p>笔记存储按岁（纪年）、花甲积日两级组织，单条上限 8000 字。</p>
+<p>从汉堡菜单链接进入【笔记总览】页，可浏览指定华夏纪年区间的笔记。该页也提供筛选和批量操作。</p>
+
+<h2>附件功能</h2>
+<p>每条笔记可附加本地文件引用（不复制原件）。添加附件后，笔记展开状态顶部、编辑页底部会显示缩略图栏，点击缩略图可浏览原件。</p>
+<p>支持添加的附件类型：</p>
+<ul>
+  <li><b>图片</b> - 浏览时支持缩放与拖动平移；</li>
+  <li><b>视频</b> - 使用浏览器内置播放器；</li>
+  <li><b>音频</b> - 使用浏览器内置播放器；</li>
+  <li><b>文本</b> - 以只读方式显示内容（最大 16kB）；</li>
+  <li><b>其他</b> - 不可在应用内浏览，只显示类型图标。</li>
+</ul>
+<p>附件原件始终保留在原位置，应用不会对其进行复制、移动或修改。</p>
+<p>附件缩略图维护可在【存储与导出】页设置。</p>
+
+<h2>本地同步与文件夹</h2>
+<p>在桌面端 Chromium 系浏览器（Chrome、Edge 等）中，可指定一个本地文件夹作为本地目录。指定后：</p>
+<ul>
+  <li>笔记自动以 JSON 格式同步保存在该目录下的分段结构中；</li>
+  <li>附件浏览可直接访问原文件，无需每次授权；</li>
+  <li>缩略图在本地目录的 .thumbnails 文件夹内镜像备份。</li>
+</ul>
+<p>本地同步保存属于单向备份。建议不要直接编辑本地文件，编辑后未经导入会被应用的下次存储动作覆盖。</p>
+<p>指定文件夹后，还可通过「本地笔记文件分割」管理分段节点，将笔记按岁段拆分为多个 JSON 文件。</p>
+<h3>原子保存机制</h3>
+<p>浏览器保存本地文件采用原子保存机制：按 <code>createWritable</code> → 写入 → <code>close</code> 三步流程，在 <code>close</code> 完成前不会替换磁盘上的原文件。优点是即便写入过程中遇到断电、浏览器崩溃等异常，已保存的旧版本仍保持完整，不会出现半写入的损坏文件；缺点是每次保存都是新建文件替换旧文件，文件的创建日期总是与修改日期一同更新。</p>
+<p>针对原子保存机制，笔者采取了分割本地笔记文件的策略——将所有笔记按岁段拆分为若干独立分段，每次保存仅重写受影响的分段。这样既可以降低写入失败影响面、提升读写性能，也将每次的文件替换控制在单一分段。</p>
+<p>本地笔记文件默认分割为今岁前、今岁、今岁后三段，今岁段在跨年后会随之后移。</p>
+
+<h2>权限与环境限制</h2>
+<p>附件与本地同步功能依赖浏览器提供的 File System Access API，功能完整度因运行环境而异：</p>
+<table>
+  <tr><th></th><th>桌面 Chromium<br/>(Chrome / Edge 等)</th><th>移动端 Chromium<br/>(Android)</th><th>非 Chromium 浏览器<br/>(Firefox / Safari 等)</th></tr>
+  <tr><td>笔记编辑</td><td>完整</td><td>完整</td><td>完整</td></tr>
+  <tr><td>添加附件</td><td>直接添加</td><td>可添加（单次授权）</td><td>不可用</td></tr>
+  <tr><td>附件浏览</td><td>直接浏览，可切换前后</td><td>单次授权浏览，不可切换</td><td>不可用</td></tr>
+  <tr><td>本地同步目录</td><td>支持，长持句柄</td><td>不支持长持句柄</td><td>不可用</td></tr>
+  <tr><td>本地笔记分割</td><td>可用</td><td>不可用</td><td>不可用</td></tr>
+  <tr><td>缩略图本地镜像</td><td>可用</td><td>不可用</td><td>不可用</td></tr>
+  <tr><td>缩略图维护</td><td>全部模式</td><td>仅清理与增减</td><td>仅清理</td></tr>
+</table>
+<p class="page-note">在不支持完整文件系统访问的环境中，笔记本身的创建、编辑、导入导出功能不受影响。</p>
+
+<h2>笔记导出格式</h2>
+<h3>JSON 格式</h3>
+<p>按岁、花甲积日两级组织笔记。例：</p>
+<pre><code>{
+  "thumbnailsZip": "岁月历_缩略图_47230615_T1430.zip",
+  "4723": {
+    "1943975": [
+      {
+        "icon": "✑",
+        "biji": "昔自在古，歷建正，作於孟春。於時冰泮發蟄，百草奮興，秭鳺先嗥。物乃歲具，生於東次，順四時，卒于冬分時；雞三號，卒明；撫十二節，卒于丑。",
+        "assets": [
+          {
+            "type": "image",
+            "name": "img.jpg",
+            "path": "folder0/folder1/",
+            "size": 102400,
+            "thumbKey": "a1b2c3d4e5f6"
+          }
+        ],
+        "created": 1944041.015600,
+        "updated": 1944041.021500
+      }
+    ]
+  }
+}</code></pre>
+<table>
+  <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+  <tr><td>thumbnailsZip</td><td><code>string</code></td><td>顶层字段，缩略图包文件名<br/><sub>（导出时可选；导入时用于查找同名 zip。）</sub></td></tr>
+  <tr><td colspan="3"><b>笔记对象字段（每条笔记）：</b></td></tr>
+  <tr><td>icon</td><td><code>string</code></td><td>字符图标，缺省 ✑</td></tr>
+  <tr><td>biji</td><td><code>string</code></td><td>笔记内容，单条上限 8000 字</td></tr>
+  <tr><td>assets</td><td><code>array</code></td><td>附件引用列表，缺省为空数组。详见下表</td></tr>
+  <tr><td>created</td><td><code>number</code></td><td>创建时间戳，作为笔记实质ID<br/><sub>格式 <code>HJ积日数.hhmmss</code>（如 <code>1944041.015600</code> 表示当日 01:56:00）；兼容旧格式毫秒时间戳（纯整数）</sub></td></tr>
+  <tr><td>updated</td><td><code>number</code></td><td>最后编辑时间戳，格式同 created</td></tr>
+</table>
+<h4>assets 字段</h4>
+<table>
+  <tr><th>子字段</th><th>类型</th><th>说明</th></tr>
+  <tr><td>type</td><td><code>string</code></td><td>类型：<code>image</code> / <code>video</code> / <code>audio</code> / <code>text</code> / <code>other</code></td></tr>
+  <tr><td>name</td><td><code>string</code></td><td>文件名（含扩展名）</td></tr>
+  <tr><td>path</td><td><code>string</code></td><td>相对根目录的路径（<code>/</code> 分隔、结尾）</td></tr>
+  <tr><td>size</td><td><code>number</code></td><td>原文件字节数</td></tr>
+  <tr><td>thumbKey</td><td><code>string</code></td><td>缩略图哈希键（12 位十六进制，可能含 <code>-N</code> 后缀）</td></tr>
+</table>
+
+<h3>文本格式</h3>
+<p>兼容 Markdown 的标题、插图等少量格式。例：</p>
+<pre><code>> `岁月历_缩略图_47230615_T1430.zip`
+# 4723
+## 4723-04-21
+### `✑` 昔自在古，歷建正，作於孟春。於 🖼️
+`[1944041.015600 | 1944041.021500]`
+昔自在古，歷建正，作於孟春。於時冰泮發蟄，百草奮興，秭鳺先嗥。物乃歲具，生於東次，順四時，卒于冬分時；雞三號，卒明；撫十二節，卒于丑。
+
+#### 附件
+- ![🖼️](folder0/folder1/img.jpg)
+</code></pre>
+<table>
+  <tr><th>行标记</th><th>说明</th></tr>
+  <tr><td><code>&gt; `xxx.zip`</code></td><td>文件头可选行：声明缩略图包文件名（导出时可选）</td></tr>
+  <tr><td><code>#</code></td><td>岁（纪年数）</td></tr>
+  <tr><td><code>##</code></td><td>笔记节历日期（岁-节-日）</td></tr>
+  <tr><td><code>###</code></td><td>笔记元数据行：反引号内为字符图标，其后为笔记开头片段，末尾可附加附件类型图标（如 <code>🖼️📊</code>）</td></tr>
+  <tr><td><code>`[… | …]`</code></td><td>时间戳行：反引号内方括号为创建时间戳与编辑时间戳，格式同为 <code>HJ积日数.hhmmss</code>（兼容旧格式毫秒时间戳，纯整数）</td></tr>
+  <tr><td><code>#### 附件</code></td><td>附件区段标题（仅有附件的笔记才出现）</td></tr>
+  <tr><td><code>- ![图标](路径)</code></td><td>图片附件项（Markdown 图片语法）</td></tr>
+  <tr><td><code>- [图标](路径)</code></td><td>非图片附件项（Markdown 链接语法）</td></tr>
+  <tr><td><code>其他行</code></td><td>笔记正文内容</td></tr>
+</table>
+<h4>三级标题与时间戳格式</h4>
+<pre><code>### `图标` 片段 [类型图标...]
+`[created | updated]`</code></pre>
+<ul>
+  <li><code>`图标`</code> - 反引号包围的单字符图标，缺省 ✑。</li>
+  <li><code>片段</code> - 笔记内容开头片段，截至15字符或第2个回车。</li>
+  <li><code>类型图标</code> - 附件类型图标按首次出现顺序去重，不带数量（如 <code>🖼️📊</code>）。</li>
+  <li><code>`[created | updated]`</code> - 反引号包围，方括号内为时间戳，格式 <code>HJ积日数.hhmmss</code>（兼容旧格式毫秒时间戳，纯整数）。</li>
+  <li>导入时识别时间戳（通过有无小数点区分新旧格式），识别失败将被跳过（完成后列出失败行号）。</li>
+  <li>导入兼容旧格式 <code>### "片段" `图标 [created | updated]`</code>。</li>
+  <li>附件区段会被解析并写入 <code>assets</code> 字段，但 TXT 格式不携带 <code>thumbKey</code> 与 <code>size</code>，这两个字段在导入后为空（<code>size</code> 为 0）。若同时导入缩略图包，应用会通过其中的 <code>manifest.json</code> 自动补全这些字段；否则需通过缩略图维护重新生成。</li>
+</ul>
+
+<h3>缩略图包</h3>
+<p>导出笔记时勾选「导出所含缩略图」会生成独立的 zip 文件（命名 <code>岁月历_缩略图_&lt;时间戳&gt;.zip</code>），不论导出的笔记格式为 JSON 或 TXT，缩略图包均包含：</p>
+<ul>
+  <li><code>&lt;thumbKey&gt;.webp</code>（或 <code>.png</code>）- 缩略图文件；</li>
+  <li><code>manifest.json</code> - assets 信息表，记录每个 <code>thumbKey</code> 对应的附件元数据（<code>type</code>、<code>name</code>、<code>path</code>、<code>size</code>、<code>mime</code>）。</li>
+</ul>
+<p>导入时连同笔记文件一起选择即可自动写入 IndexedDB；同时应用会使用 <code>manifest.json</code> 补全笔记 <code>assets</code> 中缺失的 <code>thumbKey</code>、<code>size</code>、<code>mime</code>、<code>type</code> 字段（已有 <code>thumbKey</code> 的 asset 不覆盖）。</p>
+
+<h2>笔记导入校验</h2>
+<ul>
+  <li>合并导入时将检测同日笔记中创建时间戳相同的项，冲突时弹出列表供处理（单文件与多文件批量导入流程一致）。</li>
+  <li>JSON 文件须符合其格式规范，导入时会对字段进行规范化（缺失字段以默认值补全）。</li>
+  <li>每条记录中，未标注"可选"的字段不可省略。</li>
+</ul>

@@ -29,6 +29,17 @@ const DEFAULT_SETTINGS = {
 	autoUpdateIgnoredVersion: null,
 	lastAutoUpdateFailTime: 0,
 	customFonts: {},
+	// 附件功能相关
+	attachRootPath: '',                // 情况 B：附件限定根目录字符串
+	attachRootTree: null,              // 情况 B：附件根目录文件夹树（纯目录结构，嵌套 {name, dirs:[]}]
+	attachAskAccess: false,            // 情况 B：每次运行授权访问（默认不勾）
+	attachShowPath: false,             // 附件浏览界面显示相对路径（默认不勾）
+	thumbManualMode: 'increment',     // 手动维护模式：rebuild | increment | cleanup（默认增减）
+	thumbAutoMode: 'increment',       // 自动维护模式：rebuild | increment | cleanup（默认增减；B/C 权限下强制 cleanup）
+	thumbAutoInterval: 1,             // 自动维护间隔日数：0=仅手动，>0=每N日（默认1日）
+	disabledRanges: [],                // 停用区间：[{start, end}, ...]
+	enabledTypes: ['image'],           // 启用的缩略图类型（默认仅图片）
+	lastThumbMaintainHJ: 0,           // 上次自动维护的HJ积日（0=未维护过）
 };
 
 let settings = {...DEFAULT_SETTINGS};
@@ -617,4 +628,92 @@ function _applyFontState(state) {
 			document.body.style.removeProperty(sizeVar);
 		}
 	}
+}
+
+// ========== 附件功能设置 ==========
+const VALID_MAINTAIN_MODES = ['rebuild', 'increment', 'cleanup'];
+const VALID_THUMB_TYPES = ['image', 'video', 'audio'];
+
+function _normalizeDisabledRanges(arr) {
+	if (!Array.isArray(arr)) return [];
+	const out = [];
+	for (const r of arr) {
+		if (!r || typeof r !== 'object') continue;
+		const s = Math.trunc(Number(r.start));
+		const e = Math.trunc(Number(r.end));
+		if (!Number.isFinite(s) || !Number.isFinite(e) || s > e) continue;
+		out.push({ start: s, end: e });
+	}
+	return out;
+}
+
+function _normalizeEnabledTypes(arr) {
+	if (!Array.isArray(arr)) return [...VALID_THUMB_TYPES];
+	const out = [];
+	for (const t of arr) {
+		if (VALID_THUMB_TYPES.includes(t) && !out.includes(t)) out.push(t);
+	}
+	return out;
+}
+
+export function getAttachRootPath() { return settings.attachRootPath || ''; }
+export function setAttachRootPath(v) {
+	settings.attachRootPath = typeof v === 'string' ? v : '';
+	_saveSettings();
+}
+
+export function getAttachRootTree() { return settings.attachRootTree || null; }
+export function setAttachRootTree(v) {
+	// 树结构为对象 {name, dirs:[]}，非数组；接受对象或 null
+	settings.attachRootTree = (v && typeof v === 'object' && !Array.isArray(v)) ? v : null;
+	_saveSettings();
+}
+
+export function getAttachAskAccess() { return !!settings.attachAskAccess; }
+export function setAttachAskAccess(v) {
+	settings.attachAskAccess = !!v;
+	_saveSettings();
+}
+
+export function getAttachShowPath() { return !!settings.attachShowPath; }
+export function setAttachShowPath(v) {
+	settings.attachShowPath = !!v;
+	_saveSettings();
+}
+
+export function getThumbManualMode() { return settings.thumbManualMode || 'increment'; }
+export function setThumbManualMode(v) {
+	if (VALID_MAINTAIN_MODES.includes(v)) settings.thumbManualMode = v;
+	_saveSettings();
+}
+
+export function getThumbAutoMode() { return settings.thumbAutoMode || 'increment'; }
+export function setThumbAutoMode(v) {
+	if (VALID_MAINTAIN_MODES.includes(v)) settings.thumbAutoMode = v;
+	_saveSettings();
+}
+
+export function getThumbAutoInterval() { return settings.thumbAutoInterval ?? 1; }
+export function setThumbAutoInterval(v) {
+	const n = Math.trunc(Number(v));
+	if (Number.isFinite(n) && n >= 0) settings.thumbAutoInterval = n;
+	_saveSettings();
+}
+
+export function getDisabledRanges() { return _normalizeDisabledRanges(settings.disabledRanges); }
+export function setDisabledRanges(arr) {
+	settings.disabledRanges = _normalizeDisabledRanges(arr);
+	_saveSettings();
+}
+
+export function getEnabledTypes() { return _normalizeEnabledTypes(settings.enabledTypes); }
+export function setEnabledTypes(arr) {
+	settings.enabledTypes = _normalizeEnabledTypes(arr);
+	_saveSettings();
+}
+
+export function getLastThumbMaintainHJ() { return settings.lastThumbMaintainHJ || 0; }
+export function setLastThumbMaintainHJ(v) {
+	settings.lastThumbMaintainHJ = Math.trunc(Number(v)) || 0;
+	_saveSettings();
 }

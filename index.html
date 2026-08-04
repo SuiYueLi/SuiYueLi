@@ -106,15 +106,77 @@
   <div class="biji-editor-body">
     <textarea id="bijiTextarea" placeholder="输入笔记内容…"></textarea>
   </div>
-  <div class="biji-editor-hint" id="bijiEditorHint">笔记存储在浏览器缓存，请及时<a id="bijiHintExport">导出</a></div>
+  <div class="biji-editor-hint" id="bijiEditorHint">笔记存储在浏览器缓存，请及时、经常<a id="bijiHintExport">导出</a></div>
+  <div class="biji-editor-thumb-bar" id="bijiEditorThumbBar">
+    <div class="thumb-scroll-btn thumb-scroll-prev" id="bijiThumbScrollPrev" title="向左滚动" style="visibility:hidden">‹</div>
+    <div class="thumb-scroll-track" id="bijiThumbScrollTrack"></div>
+    <div class="thumb-scroll-btn thumb-scroll-next" id="bijiThumbScrollNext" title="向右滚动" style="visibility:hidden">›</div>
+  </div>
   <div class="biji-editor-footer">
     <div class="biji-editor-icon" id="bijiEditIcon" title="修改图标">✑</div>
+    <button type="button" class="biji-editor-add-attach" id="bijiAddAttachBtn" title="添加附件" style="display:none">+</button>
     <span class="biji-editor-count" id="bijiEditCount">0/8000</span>
     <div class="biji-editor-btns">
       <button type="button" class="danger" id="bijiEditDelete" style="display:none">删除</button>
       <button type="button" id="bijiEditCancel">取消</button>
       <button type="button" class="primary" id="bijiEditSave">保存</button>
     </div>
+  </div>
+</div>
+
+<!-- 附件查看器（9.1 / 9.2） -->
+<div class="attach-viewer" id="attachViewer" style="display:none">
+  <div class="attach-viewer-hint" id="attachViewerHint" style="display:none"></div>
+  <div class="attach-viewer-close" id="attachViewerClose" title="关闭 (ESC)">×</div>
+  <div class="attach-viewer-prev" id="attachViewerPrev" title="上一个 (←)" style="visibility:hidden">‹</div>
+  <div class="attach-viewer-next" id="attachViewerNext" title="下一个 (→)" style="visibility:hidden">›</div>
+  <div class="attach-viewer-stage" id="attachViewerStage"></div>
+  <div class="attach-viewer-info" id="attachViewerInfo"></div>
+  <div class="attach-viewer-font-zoom" id="attachViewerFontZoom" style="display:none">
+    <button type="button" class="attach-viewer-font-zoom-btn" id="attachViewerFontZoomBtn" title="字号缩放">字号缩放</button>
+    <div class="attach-viewer-font-zoom-panel" id="attachViewerFontZoomPanel" style="display:none">
+      <div class="attach-viewer-font-zoom-input-row">
+        <input type="number" id="attachViewerFontZoomInput" min="50" max="400" step="10" />
+        <span class="attach-viewer-font-zoom-unit">%</span>
+      </div>
+      <button type="button" id="attachViewerFontZoomOK">确定</button>
+      <button type="button" id="attachViewerFontZoomReset">还原</button>
+    </div>
+  </div>
+</div>
+
+<!-- 死引用清理遮罩（7.6） -->
+<div class="clean-refs-overlay" id="cleanRefsOverlay" style="display:none">
+  <div class="clean-refs-card">
+    <div class="clean-refs-header">
+      <span class="clean-refs-title">清理缺失引用</span>
+      <button type="button" class="clean-refs-close" id="cleanRefsClose" title="关闭 (ESC)">✕</button>
+    </div>
+    <div class="clean-refs-body">
+      <div class="clean-refs-tip" id="cleanRefsTip"></div>
+      <div class="clean-refs-list" id="cleanRefsList"></div>
+    </div>
+    <div class="clean-refs-footer">
+      <label class="clean-refs-select-all">
+        <input type="checkbox" id="cleanRefsSelectAll" checked>
+        <span>全选</span>
+      </label>
+      <div class="clean-refs-actions">
+        <button type="button" id="cleanRefsCancel">取消</button>
+        <button type="button" class="danger" id="cleanRefsConfirm" disabled>清理引用</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 缩略图维护进度遮罩（7.1 / 7.2） -->
+<div class="thumb-maintain-overlay" id="thumbMaintainOverlay" style="display:none">
+  <div class="thumb-maintain-card">
+    <div class="thumb-maintain-title" id="thumbMaintainTitle">缩略图维护中…</div>
+    <div class="thumb-maintain-progress">
+      <div class="thumb-maintain-bar" id="thumbMaintainBar" style="width:0%"></div>
+    </div>
+    <div class="thumb-maintain-stats" id="thumbMaintainStats"></div>
   </div>
 </div>
 
@@ -144,11 +206,11 @@
   <div class="menu-panel">
     <ul>
       <li id="menuSettings">设置</li>
-      <li id="menuBijiOverview">笔记总览</li>
       <li id="menuImportExport">存储与导出</li>
       <li id="menuConvert">换算工具</li>
       <li id="menuShuJu">历法与数据</li>
       <li id="menuAbout">关于应用</li>
+      <li id="menuBijiOverview" style="padding: var(--gap-md) 1.25em;">笔记总览</li>
       <li id="menuInstallGuide">安装说明</li>
       <li id="menuInstallApp" style="display:none">安装到本地</li>
     </ul>
@@ -301,23 +363,23 @@
       <h3>在线更新</h3>
       <div class="sp-option">
         <span>当前版本</span>
-        <span id="currentVersionText" style="color:var(--text-tertiary)"></span>
+        <span id="currentVersionText" class="text-tertiary"></span>
       </div>
       <div class="sp-option">
         <span>自动检查并执行</span>
-        <select id="updateCheckInterval" title="更新检查频率" style="padding:2px 8px;border:1px solid var(--border-color);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);font-size:var(--small-size);font-family:var(--font-family)">
+        <select id="updateCheckInterval" class="sp-select" title="更新检查频率">
           <option value="7">每 7 天</option>
           <option value="30">每 30 天</option>
           <option value="0">仅手动</option>
         </select>
       </div>
       <div class="sp-option">
-        <span>手动检查并询问</span>
-        <button type="button" id="updateCheckBtn">检查</button>
+        <span>&thinsp;</span>
+        <button type="button" id="updateCheckBtn">立即检查</button>
       </div>
       <div class="sp-option">
         <span></span>
-        <span id="updateStatusText" style="color:var(--text-tertiary)">　</span>
+        <span id="updateStatusText" class="text-tertiary">　</span>
       </div>
     </div>
   </div>
@@ -514,70 +576,16 @@
   <div class="ie-header">
     <button title="返回" type="button" class="back-btn" id="ieBack">➥</button>
     <span class="ie-title">存储与导出</span>
-    <a href="javascript:void(0)" id="ieGeShiBtn" class="sp-link">格式说明</a>
+    <a href="javascript:void(0)" id="ieGeShiBtn" class="sp-link">年节格式</a>
+    <spam style="padding: 0 0.25em; color: rgba(127,127,127,0.7);">|</spam>
+    <a href="javascript:void(0)" id="ieBiJiBtn" class="sp-link">笔记说明</a>
   </div>
   <div class="ie-body">
-    <div class="sp-section">
-      <h3>笔记与本地存储</h3>
-      <div class="sp-option" id="lsDirRow" style="display:none">
-        <span>指定本地存储文件夹</span>
-        <span id="lsDirName" style="color:var(--text-tertiary); font-size:var(--small-size); font-style:italic; display:none; margin-left:auto; margin-right:0.5em;"></span>
-        <button type="button" id="lsDirBtn">指定文件夹</button>
-      </div>
-      <div class="sp-option" id="lsSplitWrap" style="display:none;flex-direction:column;align-items:stretch;gap:6px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="color:var(--text-secondary);">本地笔记文件分割</span>
-          <button type="button" id="lsSplitToggle" title="无笔记的分段不生成本地文件" style="padding:4px 12px;border:1px solid var(--border-color);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);font-size:var(--small-size);cursor:pointer;font-family:var(--font-family);">当前共0段</button>
-        </div>
-        <div id="lsSplitDropdown" style="display:none;">
-          <div class="vli-list" id="lsSplitList" style="max-height:200px;"></div>
-          <div style="display:flex;gap:4px;align-items:center;margin-top:4px;">
-            <input type="number" id="lsSplitAddInput" placeholder="输入分割起点纪年数" step="1" style="flex:1;padding:2px 6px;border:1px solid var(--border-color);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);font-size:var(--small-size);font-family:var(--font-family)" />
-            <button type="button" id="lsSplitAddBtn">添加</button>
-          </div>
-        </div>
-      </div>
-      <div class="sp-option">
-        <span>导出起止岁 (留空为全部)</span>
-        <div>
-          <input type="number" id="bijiExportStart" aria-label="起始岁" step="1" style="width:3.3em;text-align:right">～
-          <input type="number" id="bijiExportEnd" aria-label="终止岁" step="1" style="width:3.3em;text-align:right">
-        </div>
-      </div>
-      <div class="sp-option">
-        <span>导出格式</span>
-        <div class="week-start-toggle" id="bijiExportFormat" data-value="1">
-          <span>JSON</span>
-          <div class="toggle-track"><div class="toggle-thumb"></div></div>
-          <span>文本</span>
-        </div>
-      </div>
-      <div class="sp-option">
-        <span>导出笔记</span>
-        <button type="button" id="bijiExportBtn">导出</button>
-      </div>
-      <div class="sp-option">
-        <span>导入模式</span>
-        <div class="week-start-toggle" id="bijiImportModeToggle" data-value="0">
-          <span>合并</span>
-          <div class="toggle-track"><div class="toggle-thumb"></div></div>
-          <span>替换</span>
-        </div>
-      </div>
-      <div class="sp-option">
-        <span>导入笔记</span>
-        <button type="button" id="bijiImportBtn">选择文件</button>
-      </div>
-      <div class="sp-option">
-        <span>清空应用内笔记</span>
-        <button type="button" id="lsClearBtn" class="bo-delete-btn">清空</button>
-      </div>
-    </div>
     <div class="sp-section">
       <h3>节庆民俗列表</h3>
       <div class="sp-option">
         <span>导出格式</span>
-        <div class="week-start-toggle" id="jieSuExportFormat" data-value="0">
+        <div class="week-start-toggle" id="jieSuExportFormat" data-value="1">
           <span>JSON</span>
           <div class="toggle-track"><div class="toggle-thumb"></div></div>
           <span>CSV</span>
@@ -608,7 +616,7 @@
       <h3>每年重复日列表</h3>
       <div class="sp-option">
         <span>导出格式</span>
-        <div class="week-start-toggle" id="fuRiExportFormat" data-value="0">
+        <div class="week-start-toggle" id="fuRiExportFormat" data-value="1">
           <span>JSON</span>
           <div class="toggle-track"><div class="toggle-thumb"></div></div>
           <span>CSV</span>
@@ -635,6 +643,123 @@
         <button type="button" id="fuRiResetBtn">恢复</button>
       </div>
     </div>
+    <div class="sp-section">
+      <h3 id="lsSectionTitle">笔记与本地文件夹</h3>
+      <div class="sp-option" id="lsDirRow" style="display:none">
+        <span id="lsDirRowLabel">本地同步及附件目录</span>
+        <span id="lsDirName" class="sp-dir-name" style="display:none"></span>
+        <button type="button" id="lsDirBtn">指定文件夹</button>
+      </div>
+      <div class="sp-option" id="attachRootPathRow" style="display:none">
+        <span>附件限定根目录</span>
+        <span id="attachRootPathName" class="sp-dir-name" style="display:none"></span>
+        <button type="button" id="attachRootRefreshBtn" style="display:none">授权刷新</button>
+        <button type="button" id="attachRootPathBtn">指定文件夹</button>
+      </div>
+      <div class="sp-option sp-option--checkbox-group" id="attachAskAccessRow" style="display:none">
+        <label class="sp-checkbox" id="attachAskAccessLabel"><input type="checkbox" id="attachAskAccess"> 每次运行授权访问</label>
+        <label class="sp-checkbox" id="attachShowPathLabel"><input type="checkbox" id="attachShowPath"> <span id="attachShowPathText">访问时显示路径</span></label>
+        <div class="sp-b-attach-toggle" id="bAttachToggleWrap" style="display:none">
+          <div class="week-start-toggle" id="bAttachToggle" data-value="0">
+            <span>权用之</span>
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+            <span>关闭</span>
+          </div>
+        </div>
+      </div>
+      <div class="sp-option" id="lsSplitWrap" style="display:none">
+        <span>本地笔记文件分割</span>
+        <div class="ls-split-dropdown">
+          <button type="button" id="lsSplitToggle">当前共0段</button>
+          <div class="ls-split-menu" id="lsSplitDropdown" style="display:none"></div>
+        </div>
+      </div>
+      <div class="sp-option">
+        <span>导出起止岁&nbsp;<sub>(留空为全部)</sub></span>
+        <div class="thumb-range-input">
+          <input type="number" id="bijiExportStart" class="sp-num-input--right--narrow" aria-label="起岁" step="1" placeholder="起岁">
+          <span>～</span>
+          <input type="number" id="bijiExportEnd" class="sp-num-input--right--narrow" aria-label="止岁" step="1" placeholder="止岁">
+        </div>
+      </div>
+      <div class="sp-option">
+        <span>导出格式</span>
+        <div class="week-start-toggle" id="bijiExportFormat" data-value="1">
+          <span>JSON</span>
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          <span>文本</span>
+        </div>
+      </div>
+      <div class="sp-option biji-export-row">
+        <label class="sp-checkbox" id="bijiExportThumbsRow"><input type="checkbox" id="bijiExportThumbs">导出所含缩略图</label>
+        <label class="sp-checkbox"><input type="checkbox" id="bijiExportClear"><span id="bijiExportClearLabel">导出后删除笔记</span></label>
+        <button type="button" id="bijiExportBtn">导出</button>
+      </div>
+      <div class="sp-option">
+        <span>导入模式</span>
+        <div class="week-start-toggle" id="bijiImportModeToggle" data-value="0">
+          <span>合并</span>
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          <span>替换</span>
+        </div>
+      </div>
+      <div class="sp-option">
+        <span>导入笔记与缩略图</span>
+        <button type="button" id="bijiImportBtn">选择文件</button>
+      </div>
+      <div class="sp-option">
+        <span>清空应用内笔记</span>
+        <button type="button" id="lsClearBtn" class="bo-delete-btn">清空</button>
+      </div>
+    </div>
+    <div class="sp-section" id="thumbMaintainWrap">
+      <h3>附件缩略图维护</h3>
+      <div class="sp-option">
+        <span>停用区间</span>
+        <div class="thumb-range-input">
+          <input type="number" id="thumbDisabledStart" class="sp-num-input--right" aria-label="起岁" step="1" placeholder="起岁">
+          <span>～</span>
+          <input type="number" id="thumbDisabledEnd" class="sp-num-input--right" aria-label="止岁" step="1" placeholder="止岁">
+        </div>
+      </div>
+      <div class="sp-option thumb-disabled-second-row">
+        <label class="sp-checkbox"><input type="checkbox" id="thumbDisabledExport">导出所含缩略图</label>
+        <button type="button" id="thumbDisabledAddBtn">添加</button>
+      </div>
+      <div class="sp-option" id="thumbDisabledListRow" style="display:none">
+        <span>已停用</span>
+        <div class="thumb-disabled-dropdown">
+          <button type="button" id="thumbDisabledToggle">共0区间</button>
+          <div class="thumb-disabled-menu" id="thumbDisabledMenu" style="display:none"></div>
+        </div>
+      </div>
+      <div class="sp-option">
+        <span>启用类型</span>
+        <div class="thumb-type-toggles">
+          <label class="sp-checkbox"><input type="checkbox" id="thumbTypeImage" checked>图片</label>
+          <label class="sp-checkbox"><input type="checkbox" id="thumbTypeVideo">视频</label>
+          <label class="sp-checkbox"><input type="checkbox" id="thumbTypeAudio">音频</label>
+        </div>
+      </div>
+      <div class="sp-option thumb-auto-row">
+        <span>自动维护</span>
+        <div class="thumb-auto-controls">
+          <select id="thumbAutoMode" title="自动维护周期"></select>
+          <label class="thumb-interval-wrap" title="设为 0 即「仅手动」模式">每<input type="number" id="thumbAutoInterval" min="0" max="365" step="1">日</label>
+        </div>
+      </div>
+      <div class="sp-option">
+        <span>手动维护</span>
+        <div class="thumb-auto-controls">
+          <select id="thumbManualMode" title="手动维护模式"></select>
+          <button type="button" id="thumbMaintainBtn">立即维护</button>
+        </div>
+      </div>
+      <div class="sp-option" id="cleanMissingRefsRow">
+        <span>原文件缺失的附件</span>
+        <button type="button" id="cleanMissingRefsBtn" class="bo-delete-btn">清理引用</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -647,9 +772,9 @@
   <div class="bo-toolbar" id="boToolbar">
     <div class="bo-toolbar-row">
       <span class="bo-sui-range">
-        <input type="number" id="boStartSui" step="1" title="首岁（含），留空为全部" placeholder="首岁" style="width:4.5em;text-align:center" />
+        <input type="number" id="boStartSui" class="sp-num-input--center" step="1" title="首岁（含），留空为全部" placeholder="首岁" />
         <span>～</span>
-        <input type="number" id="boEndSui" step="1" title="末岁（含，≥首岁），留空为全部" placeholder="末岁" style="width:4.5em;text-align:center" />
+        <input type="number" id="boEndSui" class="sp-num-input--center" step="1" title="末岁（含，≥首岁），留空为全部" placeholder="末岁" />
       </span>
       <button type="button" class="bo-tool-btn-sm" id="boSuiConfirm" title="确认岁范围">✓</button>
       <span></span>
@@ -666,17 +791,20 @@
     </div>
     <div class="bo-toolbar-row bo-icon-filter-row" id="boIconFilterRow" style="display:none">
       <div class="bo-icon-list" id="boIconList"></div>
-      <button type="button" class="bo-tool-btn-sm" id="boIconInvert">反选</button>
+      <button type="button" class="bo-tool-btn-sm" id="boIconInvert" title="反转图标筛选">反筛</button>
     </div>
     <div class="bo-toolbar-row bo-export-row" id="boExportRow">
       <div class="bo-export-content">
         <div class="bo-export-line">
+          <label class="sp-checkbox" id="boExportThumbsRow"><input type="checkbox" id="boExportThumbs">导出所含缩略图</label>
+          <label class="sp-checkbox" id="boExportClearRow"><input type="checkbox" id="boExportClear"><span>导出后删除笔记</span></label>
           <div class="week-start-toggle" id="boExportFormat" data-value="1">
-          <span style="color:var(--accent-secondary)">导出格式：</span>
             <span>JSON</span>
             <div class="toggle-track"><div class="toggle-thumb"></div></div>
             <span>文本</span>
           </div>
+        </div>
+        <div class="bo-export-line">
           <button type="button" class="bo-export-btn" id="boExportConfirm">导出</button>
         </div>
       </div>

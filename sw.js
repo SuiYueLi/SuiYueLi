@@ -1,4 +1,4 @@
-const APP_VERSION = '1.47230619.1';
+const APP_VERSION = '2.47230629.0';
 const CACHE_NAME = 'SuiYueLi_v' + APP_VERSION;
 
 const CACHE_FILES = [
@@ -26,6 +26,7 @@ const CACHE_FILES = [
 	'/assets/IMG/历_192.png',
 	'/assets/IMG/历_512.png',
 	'/pages/AnZhuang.html',
+	'/pages/BiJi.html',
 	'/pages/GeShi.html',
 	'/pages/GuanYu.html',
 	'/pages/LiFa_Jian.html',
@@ -34,6 +35,7 @@ const CACHE_FILES = [
 	'/pages/IMG/PWA_addrBar.png',
 	'/pages/IMG/Zan.jpg',
 	'/scripts/biji.js',
+	'/scripts/fujian.js',
 	'/scripts/JieLi.js',
 	'/scripts/ming.js',
 	'/scripts/qu_QI.js',
@@ -41,6 +43,7 @@ const CACHE_FILES = [
 	'/scripts/tools.js',
 	'/scripts/westCal.js',
 	'/scripts/XiaLi.js',
+	'/scripts/zip.js',
 	'/styles/biji.css',
 	'/styles/Li_Ge.css',
 	'/styles/main.css',

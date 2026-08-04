@@ -21,16 +21,21 @@
   text-overflow: ellipsis;
   max-height: 1.6em;
   line-height: 1.6em;
+  padding: 0.1em 0 0 2.15em;
 }
 .biji-icon {
   position: relative;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 0.5em 0 0.2em;
-  font-size: 0.85em;
+  justify-content: space-between;
+  min-width: 2em;
+  max-width: 3em;
+  height: 1.6em;
+  padding: 0 0.25em;
+  margin-top: 0.3em;
+  font-size: 0.8em;
   z-index: 0;
-  opacity: 0.8;
+  opacity: 0.75;
 }
 .biji-icon::before {
   content: '';
@@ -150,8 +155,8 @@
 
 .fab-add {
   position: absolute;
-  bottom: 2rem;
-  right: calc(var(--safe-margin) + 0.5rem);
+  bottom: 1.25rem;
+  right: calc(var(--safe-margin) + 1rem);
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
@@ -167,9 +172,11 @@
   justify-content: center;
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
   transition: transform 0.15s, background 0.15s;
+  opacity: 0.85;
 }
 .fab-add:hover {
   transform: scale(1.1);
+  opacity: 0.95;
 }
 .fab-add:active {
   transform: scale(0.95);
@@ -372,4 +379,1245 @@
   text-underline-offset: 2px;
   color: var(--text-accent);
   cursor: pointer;
+}
+
+/* ========== 附件功能：添加附件按钮 ========== */
+.biji-editor-add-attach {
+	width: 32px;
+	height: 32px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	font-size: 1.2rem;
+	line-height: 1;
+	cursor: pointer;
+	flex-shrink: 0;
+	padding: 0;
+	font-family: var(--font-family);
+}
+.biji-editor-add-attach:hover {
+	opacity: 0.85;
+	border-color: var(--accent-primary);
+	color: var(--accent-primary);
+}
+
+/* ========== 附件功能：编辑器缩略图栏（8.3 / 8.4 / 8.5） ========== */
+/* 缩略图栏高度 5rem，缩略图项高度 4.5rem（8.3） */
+.biji-editor-thumb-bar {
+	display: none;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 4px;
+	height: 5rem;
+	padding: 0 var(--safe-margin);
+	border-top: 1px solid var(--divider-color);
+	background: var(--bg-secondary);
+	box-sizing: border-box;
+}
+.thumb-scroll-btn {
+	flex-shrink: 0;
+	width: 1em;
+	height: 4.5rem;
+	border: none;
+	background: transparent;
+	color: var(--text-secondary);
+	font-size: 1.4rem;
+	line-height: 4.5rem;
+	text-align: center;
+	cursor: pointer;
+	padding: 0;
+	opacity: 0.25;
+	transition: opacity 0.15s;
+}
+/* 溢出时高亮（.active 由 JS 根据溢出检测切换） */
+.thumb-scroll-btn.active {
+	opacity: 1;
+}
+.thumb-scroll-btn:hover {
+	color: var(--accent-primary);
+}
+.thumb-scroll-track {
+	display: flex;
+	gap: 6px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scroll-behavior: smooth;
+	flex: 1;
+	height: 100%;
+	align-items: center;
+}
+.thumb-scroll-track::-webkit-scrollbar {
+	height: 4px;
+}
+.thumb-scroll-track::-webkit-scrollbar-track {
+	background: transparent;
+}
+.thumb-scroll-track::-webkit-scrollbar-thumb {
+	background: var(--divider-color);
+	border-radius: 2px;
+}
+.thumb-scroll-track::-webkit-scrollbar-thumb:hover {
+	background: var(--text-tertiary);
+}
+/* Firefox */
+.thumb-scroll-track {
+	scrollbar-width: thin;
+	scrollbar-color: var(--divider-color) transparent;
+}
+/* 缩略图项：高度 4.5rem，宽度 auto 等比撑开（8.4） */
+.thumb-item {
+	position: relative;
+	flex-shrink: 0;
+	width: auto;
+	min-width: 2rem;
+	height: 4.5rem;
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: grab;
+	-webkit-user-select: none;
+	user-select: none;
+	background: transparent;
+}
+.thumb-item:active {
+	cursor: grabbing;
+}
+.thumb-item.dragging {
+	opacity: 0.4;
+}
+/* :has(img) 才显示灰底，避免图标占位项呈灰色图块（8.4） */
+.thumb-item:has(.thumb-item-media) {
+	background: var(--bg-tertiary);
+}
+.thumb-item-icon {
+	font-size: 1.4rem;
+	color: var(--text-secondary);
+	pointer-events: none;
+	width: 2.4rem;
+	text-align: center;
+	line-height: 1;
+	opacity: 0.6;
+}
+.thumb-item-media {
+	height: 100%;
+	width: auto;
+	max-width: none;
+	object-fit: contain;
+	pointer-events: none;
+	display: block;
+}
+.thumb-item-del {
+	position: absolute;
+	top: 1px;
+	right: 1px;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	font-size: 12px;
+	line-height: 16px;
+	text-align: center;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.15s;
+	z-index: 2;
+}
+.thumb-item:hover .thumb-item-del,
+.thumb-item.show-del .thumb-item-del {
+	opacity: 1;
+}
+@media (hover: none) {
+	.thumb-item:hover .thumb-item-del {
+		opacity: 0;
+	}
+	.thumb-item.show-del .thumb-item-del {
+		opacity: 1;
+	}
+}
+
+/* ========== 附件功能：列表呈现（8.1 / 8.2 / 8.3） ========== */
+.biji-item-attach-badge {
+	position: absolute;
+	right: var(--gap-sm, 6px);
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 0.7em;
+	color: var(--text-tertiary);
+	background: var(--bg-tertiary);
+	padding: 0 4px;
+	border-radius: var(--radius-sm);
+	line-height: 1.4;
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0.85;
+}
+/* 展开态时角标隐藏（避免与缩略图栏重复） */
+.biji-item.expanded .biji-item-attach-badge {
+	display: none;
+}
+/* 展开态缩略图栏（列表用，只读，高度 5rem，8.3）
+   margin-left 负值复用笔记图标下方空间（8.1：左侧滚动键复用笔记图标下方空位）
+   sticky 固定在展开栏顶部，文字滚入下层 */
+.biji-expand-thumb-bar {
+	display: flex;
+	gap: 0.4em;
+	overflow-x: auto;
+	overflow-y: hidden;
+	height: 5.4rem;
+	padding: var(--gap-xs) 0 var(--gap-xs) 0.25em;
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background: var(--bg-primary);
+	scrollbar-width: thin;
+	scrollbar-color: var(--divider-color) transparent;
+	box-sizing: border-box;
+}
+.biji-expand-thumb-bar::-webkit-scrollbar {
+	height: 4px;
+}
+.biji-expand-thumb-bar::-webkit-scrollbar-track {
+	background: transparent;
+}
+.biji-expand-thumb-bar::-webkit-scrollbar-thumb {
+	background: var(--divider-color);
+	border-radius: 2px;
+}
+.biji-expand-thumb-bar::-webkit-scrollbar-thumb:hover {
+	background: var(--text-tertiary);
+}
+.biji-expand-thumb-bar .thumb-item {
+	cursor: default;  /* 只读，不可拖拽 */
+}
+/* has-attach：展开态去掉顶部 padding（由 sticky 缩略图栏的 padding-top 补位，避免滚动缝隙） */
+.biji-item.expanded.has-attach .biji-item-expand {
+	padding-top: 0;
+}
+/* 展开态：expand 区域 relative */
+.biji-item.expanded .biji-item-expand {
+	position: relative;
+}
+/* 笔记图标 overlay：收起态与展开态共用，独立于 summary/expand 之外，
+   叠加在内容上层，点击切换展开/收起 */
+.biji-item > .biji-expand-icon {
+	display: inline-flex;
+	position: absolute;
+	left: var(--gap-md);
+	top: var(--gap-sm);
+	z-index: 2;
+	margin-right: 0;
+	cursor: pointer;
+}
+/* 笔记总览选择模式下，图标右移避开 checkbox */
+.bo-body .biji-item.has-check > .biji-expand-icon {
+	left: calc(var(--gap-md) + 1.4em);
+}
+
+/* ========== 附件浏览遮罩（9.1 / 9.2 / 9.3）========== */
+/* z-index 高于 .biji-editor（8.8） */
+.attach-viewer {
+	position: fixed;
+	top: 0; left: 0; right: 0; bottom: 0;
+	background: rgba(0, 0, 0, 0.92);
+	z-index: calc(var(--z-content-view) + 2);
+	display: none;
+	opacity: 0;
+	transition: opacity 0.25s ease;
+	-webkit-user-select: none;
+	user-select: none;
+	overflow: hidden;
+	-webkit-tap-highlight-color: transparent;
+	/* 默认禁用默认手势，由 JS 处理触屏交互；文本附件单独覆盖 */
+	touch-action: none;
+}
+.attach-viewer.open {
+	display: block;
+	opacity: 1;
+}
+/* 顶部提示（单次授权模式，9.2） */
+.attach-viewer-hint {
+	position: absolute;
+	top: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+	color: #fff;
+	background: rgba(255, 255, 255, 0.14);
+	-webkit-backdrop-filter: blur(8px);
+	backdrop-filter: blur(8px);
+	padding: 6px 14px;
+	border-radius: var(--radius-sm);
+	font-size: 0.78rem;
+	letter-spacing: 0.04em;
+	pointer-events: none;
+	z-index: 3;
+	max-width: 80vw;
+	text-align: center;
+}
+/* 关闭按钮：右上角（9.1） */
+.attach-viewer-close {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	width: 38px;
+	height: 38px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.14);
+	-webkit-backdrop-filter: blur(8px);
+	backdrop-filter: blur(8px);
+	color: #fff;
+	font-size: 1.5rem;
+	line-height: 38px;
+	text-align: center;
+	cursor: pointer;
+	z-index: 3;
+	transition: background 0.15s, transform 0.15s;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.attach-viewer-close:hover {
+	background: rgba(255, 255, 255, 0.28);
+	transform: scale(1.06);
+}
+.attach-viewer-close:active {
+	transform: scale(0.94);
+}
+/* 左右切换按钮（9.1） */
+.attach-viewer-prev,
+.attach-viewer-next {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 42px;
+	height: 68px;
+	background: rgba(255, 255, 255, 0.12);
+	-webkit-backdrop-filter: blur(8px);
+	backdrop-filter: blur(8px);
+	color: #fff;
+	font-size: 2.1rem;
+	line-height: 68px;
+	text-align: center;
+	cursor: pointer;
+	z-index: 3;
+	border-radius: var(--radius-sm);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	transition: background 0.15s, transform 0.15s;
+}
+.attach-viewer-prev { left: 12px; }
+.attach-viewer-next { right: 12px; }
+.attach-viewer-prev:hover,
+.attach-viewer-next:hover {
+	background: rgba(255, 255, 255, 0.24);
+}
+.attach-viewer-prev:active,
+.attach-viewer-next:active {
+	transform: translateY(-50%) scale(0.94);
+}
+/* stage：绝对定位填充，居中显示媒体 */
+.attach-viewer-stage {
+	position: absolute;
+	top: 60px;
+	left: 60px;
+	right: 60px;
+	bottom: 44px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+}
+.attach-viewer-media {
+	/* 默认显示：长边超过视口时适配视口，不足时按原尺寸（9.1） */
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+	/* 缩放过渡：键盘 / 滚轮 / 二指开合（9.1） */
+	transition: transform 0.12s ease-out;
+	transform-origin: center center;
+	will-change: transform;
+}
+/* 图片放大后可拖动：光标变为 grab */
+.attach-viewer-img {
+	cursor: zoom-in;
+}
+.attach-viewer-img.draggable {
+	cursor: grab;
+}
+.attach-viewer-img.dragging {
+	cursor: grabbing;
+	transition: none;  /* 拖动时关闭过渡，跟随鼠标更跟手 */
+}
+.attach-viewer-video {
+	max-width: 100%;
+	max-height: 100%;
+	background: #000;
+	border-radius: var(--radius-sm);
+}
+.attach-viewer-audio-wrap {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 20px;
+	padding: 24px;
+}
+.attach-viewer-audio-icon {
+	font-size: 6rem;
+	opacity: 0.85;
+	filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+}
+.attach-viewer-audio {
+	max-width: min(80vw, 600px);
+	width: 100%;
+}
+/* 文本附件：最大行宽 800px（9.1） */
+.attach-viewer-text {
+	color: var(--text-read);
+	background: var(--bg-read);
+	border-radius: var(--radius-sm);
+	font-family: var(--font-BiJi);
+	font-size: var(--size-BiJi);
+	line-height: 1.65;
+	white-space: pre-wrap;
+	word-break: break-all;
+	max-width: 800px;
+	max-height: 100%;
+	width: 100%;
+	overflow: auto;
+	padding: 1em 1.5em;
+	margin: 0;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	/* 允许文本附件触摸滚动（覆盖 .attach-viewer 的 touch-action: none） */
+	touch-action: pan-y;
+	-webkit-user-select: text;
+	user-select: text;
+	/* 暗色滚动条 */
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+.attach-viewer-text::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+.attach-viewer-text::-webkit-scrollbar-track {
+	background: transparent;
+}
+.attach-viewer-text::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.2);
+	border-radius: 3px;
+}
+.attach-viewer-text::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.35);
+}
+.attach-viewer-text-tip {
+	display: block;
+	margin-top: 12px;
+	padding: 5px 14px;
+	color: #ffd27a;
+	font-size: 0.82rem;
+	font-family: var(--font-family);
+	white-space: normal;
+	text-align: center;
+	background: rgba(0, 0, 0, 0.6);
+	border-radius: var(--radius-sm);
+	-webkit-backdrop-filter: blur(4px);
+	backdrop-filter: blur(4px);
+}
+/* 原文件丢失（9.1） */
+.attach-viewer-missing {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 18px;
+	color: #fff;
+	flex: 1;
+	align-self: stretch;
+	max-width: 100%;
+	max-height: 100%;
+}
+.attach-viewer-missing-icon {
+	font-size: 6rem;
+	opacity: 0.55;
+	filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+}
+.attach-viewer-thumb-fallback {
+	/* 缩略图降级：JS 设置 width/height 为自身尺寸 × 2，仍受 max-width/max-height: 100% 限制不超过视口 */
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+	border-radius: var(--radius-sm);
+}
+.attach-viewer-missing-tip {
+	color: #ffd27a;
+	font-size: 0.9rem;
+	background: rgba(0, 0, 0, 0.4);
+	padding: 6px 14px;
+	border-radius: var(--radius-sm);
+}
+/* 底部信息栏 */
+.attach-viewer-info {
+	position: absolute;
+	bottom: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+	color: var(--text-tertiary);
+	font-size: 0.8rem;
+	letter-spacing: 0.04em;
+	pointer-events: none;
+	white-space: nowrap;
+	max-width: 90vw;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	padding: 0 8px;
+}
+
+/* 字号缩放浮动控件：仅文本附件显示，右侧偏下悬浮（9.4） */
+.attach-viewer-font-zoom {
+	position: absolute;
+	right: 12px;
+	bottom: 40px;
+	z-index: 5;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 6px;
+}
+.attach-viewer-font-zoom-btn {
+	padding: 8px 5px;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: var(--radius-sm);
+	background: rgba(0, 0, 0, 0.5);
+	color: #eee;
+	font-size: var(--xs-size);
+	font-family: var(--font-family);
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+	-webkit-user-select: none;
+	user-select: none;
+	writing-mode: vertical-rl;
+	text-orientation: upright;
+	letter-spacing: 0.1em;
+	line-height: 1.1;
+	opacity: 0.33;
+}
+.attach-viewer-font-zoom-btn:hover {
+	background: rgba(0, 0, 0, 0.7);
+	border-color: rgba(255, 255, 255, 0.6);
+	opacity: 0.8;
+}
+.attach-viewer-font-zoom-btn:active {
+	transform: scale(0.96);
+}
+.attach-viewer-font-zoom-panel {
+	position: absolute;
+	bottom: calc(100% + 6px);
+	right: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+	padding: 8px 10px;
+	background: rgba(0, 0, 0, 0.72);
+	border: 1px solid rgba(255, 255, 255, 0.25);
+	border-radius: var(--radius-sm);
+	color: #fff;
+	font-size: var(--small-size);
+	font-family: var(--font-family);
+	-webkit-backdrop-filter: blur(6px);
+	backdrop-filter: blur(6px);
+}
+.attach-viewer-font-zoom-input-row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.attach-viewer-font-zoom-panel input[type="number"] {
+	flex: 1;
+	min-width: 0;
+	padding: 3px 6px;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: var(--radius-sm);
+	background: rgba(255, 255, 255, 0.1);
+	color: var(--accent-secondary);
+	font-size: var(--xs-size);
+	font-family: var(--font-family);
+	text-align: center;
+	-webkit-appearance: textfield;
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+.attach-viewer-font-zoom-panel input[type="number"]::-webkit-outer-spin-button,
+.attach-viewer-font-zoom-panel input[type="number"]::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+.attach-viewer-font-zoom-panel input[type="number"]:focus {
+	outline: none;
+}
+.attach-viewer-font-zoom-unit {
+	color: rgba(255, 255, 255, 0.8);
+}
+.attach-viewer-font-zoom-panel button {
+	padding: 3px 10px;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: var(--radius-sm);
+	background: rgba(255, 255, 255, 0.12);
+	color: #eee;
+	font-size: var(--xs-size);
+	font-family: var(--font-family);
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+}
+.attach-viewer-font-zoom-panel button:hover {
+	background: rgba(255, 255, 255, 0.22);
+	border-color: rgba(255, 255, 255, 0.6);
+}
+.attach-viewer-font-zoom-panel button:active {
+	transform: scale(0.96);
+}
+
+/* ========== 响应式适配 ========== */
+@media (max-width: 600px) {
+	/* 移动端：缩小按钮尺寸、减小 stage 边距 */
+	.attach-viewer-close {
+		width: 34px;
+		height: 34px;
+		font-size: 1.35rem;
+		line-height: 34px;
+	}
+	.attach-viewer-prev,
+	.attach-viewer-next {
+		width: 36px;
+		height: 56px;
+		font-size: 1.8rem;
+		line-height: 56px;
+	}
+	.attach-viewer-stage {
+		top: 52px;
+		left: 52px;
+		right: 52px;
+		bottom: 38px;
+	}
+	.attach-viewer-hint {
+		font-size: 0.72rem;
+		padding: 5px 10px;
+	}
+	.attach-viewer-info {
+		font-size: 0.75rem;
+	}
+	.attach-viewer-audio-icon {
+		font-size: 5rem;
+	}
+}
+
+/* ========== 设置页：本地文件夹与分割行（行内样式提取） ========== */
+/* 淡色文本工具类（版本号、更新状态等） */
+.text-tertiary {
+	color: var(--text-tertiary);
+}
+/* 目录名提示（lsDirName / attachRootPathName 共用） */
+.sp-dir-name {
+	color: var(--text-tertiary);
+	font-size: var(--small-size);
+	font-style: italic;
+	margin-left: auto;
+	margin-right: 0.5em;
+}
+/* number input：右对齐窄输入框（启止岁等） */
+.sp-num-input--right {
+	width: 4em;
+	text-align: right;
+}
+.sp-num-input--right--narrow {
+	width: 3.9em;
+	text-align: right;
+}
+/* number input：居中对齐（笔记概览起止岁） */
+.sp-num-input--center {
+	width: 4.5em;
+	text-align: center;
+}
+/* 通用设置页按钮（与 .biji-editor-btns button 风格一致） */
+.sp-btn {
+	padding: 4px 12px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	font-size: var(--small-size);
+	font-family: var(--font-family);
+	cursor: pointer;
+}
+/* 通用设置页输入框 */
+.sp-input {
+	padding: 2px 6px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	font-size: var(--small-size);
+	font-family: var(--font-family);
+}
+/* 通用设置页 select（与第6项修正保持一致风格） */
+.sp-select {
+	padding: 2px 8px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	border-style: inset;
+	background: var(--accent-bg);
+	color: var(--text-primary);
+	font-size: var(--xs-size);
+	font-family: var(--font-family);
+	font-style: italic;
+}
+/* 复选框组行（多 checkbox 横向并排） */
+.ie-page .sp-option.sp-option--checkbox-group {
+	justify-content: flex-start;
+	gap: 1px;
+	flex-wrap: wrap;
+}
+/* 本地笔记文件分割下拉菜单（参照 .thumb-disabled-* 样式） */
+.ls-split-dropdown {
+	position: relative;
+	display: inline-block;
+}
+#lsSplitToggle {
+	padding: 4px 12px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	border-style: inset;
+	background: var(--accent-bg);
+	color: var(--text-primary);
+	font-family: var(--font-family);
+	font-size: var(--xs-size);
+	font-style: italic;
+	cursor: pointer;
+}
+#lsSplitToggle:hover {
+	border-color: var(--accent-primary);
+	color: var(--text-accent);
+}
+#lsSplitToggle.active {
+	border-color: var(--accent-primary);
+	color: var(--text-accent);
+}
+.ls-split-menu {
+	position: absolute;
+	top: calc(100% + 4px);
+	right: 0;
+	min-width: 180px;
+	max-width: 280px;
+	background: var(--bg-shadow);
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+	z-index: calc(var(--z-content-view) + 1);
+	padding: 0.1em 0;
+	max-height: 240px;
+	overflow-y: auto;
+}
+.ls-split-add-row {
+	display: flex;
+	gap: 4px;
+	align-items: center;
+	padding: 0.3em 0.5em;
+	border-bottom: 1px solid var(--divider-color);
+	margin-bottom: 0.1em;
+}
+.ls-split-add-row input[type="number"] {
+	flex: 1;
+	padding: 2px 6px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	font-size: var(--small-size);
+	font-family: var(--font-family);
+	min-width: 0;
+}
+.ls-split-add-row input[type="number"]:focus {
+	outline: none;
+	border-color: var(--accent-primary);
+}
+.ls-split-add-row button {
+	padding: 2px 10px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	font-size: var(--small-size);
+	font-family: var(--font-family);
+	cursor: pointer;
+}
+.ls-split-add-row button:hover {
+	border-color: var(--accent-primary);
+	color: var(--text-accent);
+}
+.ls-split-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+	padding: 0.15em 0.5em;
+	cursor: default;
+}
+.ls-split-item:hover {
+	background: var(--bg-secondary);
+}
+.ls-split-item-name {
+	font-size: 0.8em;
+	color: var(--accent-secondary);
+	font-style: italic;
+	min-width: 4em;
+	text-align: right;
+	flex-shrink: 0;
+}
+.ls-split-item-range {
+	font-size: 0.8em;
+	color: var(--accent-secondary);
+	font-style: italic;
+	white-space: nowrap;
+	min-width: 6em;
+	flex: 1;
+}
+.ls-split-item-del {
+	background: none;
+	border: none;
+	color: var(--text-tertiary);
+	cursor: pointer;
+	font-size: 1rem;
+	padding: 0 4px;
+	line-height: 1;
+	font-family: var(--font-family);
+	border-radius: var(--radius-sm);
+}
+.ls-split-item-del:hover {
+	color: var(--text-red);
+	background: var(--bg-tertiary);
+}
+
+/* ========== 触屏设备适配 ========== */
+@media (hover: none) {
+	/* 触屏：隐藏 hover 反馈，按钮稍大更易点击 */
+	.attach-viewer-close:hover,
+	.attach-viewer-prev:hover,
+	.attach-viewer-next:hover {
+		background: rgba(255, 255, 255, 0.14);
+		transform: none;
+	}
+	.attach-viewer-close:active,
+	.attach-viewer-prev:active,
+	.attach-viewer-next:active {
+		background: rgba(255, 255, 255, 0.28);
+	}
+	/* 触屏图片不显示 zoom-in 光标 */
+	.attach-viewer-img,
+	.attach-viewer-img.draggable {
+		cursor: default;
+	}
+}
+
+/* ========== 停用区间管理（7.5）========== */
+/* 「停用区间」第二行：导出所含缩略图 居左，添加 居右 */
+.thumb-disabled-second-row {
+	justify-content: space-between;
+}
+.thumb-range-input {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+.thumb-range-input input[type="number"] {
+	padding: 0.15em 0.3em;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	background: var(--bg-primary);
+	color: var(--text-primary);
+	font-size: var(--small-size);
+	font-family: var(--font-family);
+}
+.thumb-range-input input[type="number"]:focus {
+	outline: none;
+	border-color: var(--accent-primary);
+}
+.thumb-range-input .sp-checkbox {
+	margin: 0 4px;
+}
+
+.thumb-disabled-dropdown {
+	position: relative;
+	display: inline-block;
+}
+#thumbDisabledToggle {
+	padding: 4px 12px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	border-style: inset;
+	background: var(--accent-bg);
+	color: var(--text-primary);
+	font-family: var(--font-family);
+	font-size: var(--xs-size);
+	font-style: italic;
+	cursor: pointer;
+}
+#thumbDisabledToggle:hover {
+	border-color: var(--accent-primary);
+	color: var(--text-accent);
+}
+#thumbDisabledToggle.active {
+	border-color: var(--accent-primary);
+	color: var(--text-accent);
+}
+.thumb-disabled-menu {
+	position: absolute;
+	top: calc(100% + 4px);
+	right: 0;
+	min-width: 180px;
+	max-width: 280px;
+	background: var(--bg-shadow);
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+	z-index: calc(var(--z-content-view) + 1);
+	padding: 0.1em 0;
+	max-height: 240px;
+	overflow-y: auto;
+}
+.thumb-disabled-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5em;
+	padding: 0.15em 0.5em;
+	cursor: default;
+}
+.thumb-disabled-item:hover {
+	background: var(--bg-secondary);
+}
+.thumb-disabled-item-text {
+	font-size: 0.8em;
+	color: var(--accent-secondary);
+	font-style: italic;
+}
+.thumb-disabled-item-del {
+	background: none;
+	border: none;
+	color: var(--text-tertiary);
+	cursor: pointer;
+	font-size: 1rem;
+	padding: 0 4px;
+	line-height: 1;
+	font-family: var(--font-family);
+	border-radius: var(--radius-sm);
+}
+.thumb-disabled-item-del:hover {
+	color: var(--text-red);
+	background: var(--bg-tertiary);
+}
+
+/* 触屏适配 */
+@media (hover: none) {
+	#thumbDisabledToggle:hover,
+	.thumb-disabled-item:hover,
+	.thumb-disabled-item-del:hover {
+		background: var(--bg-secondary);
+		color: var(--text-primary);
+	}
+	.thumb-disabled-item-del:hover {
+		color: var(--text-red);
+		background: var(--bg-tertiary);
+	}
+}
+
+/* ========== 启用类型 / 维护模式 / 自动维护（7.1）========== */
+.thumb-type-toggles {
+	display: flex;
+	align-items: center;
+	gap: 1px;
+	flex-wrap: wrap;
+}
+.thumb-type-toggles .sp-checkbox {
+	margin: 0;
+}
+#thumbManualMode,
+#thumbAutoMode,
+#thumbAutoInterval {
+	padding: 4px 8px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	border-style: inset;
+	background: var(--accent-bg);
+	color: var(--text-primary);
+	font-size: var(--xs-size);
+	font-family: var(--font-family);
+	font-style: italic;
+	cursor: pointer;
+}
+#thumbManualMode:focus,
+#thumbAutoMode:focus,
+#thumbAutoInterval:focus {
+	outline: none;
+	border-color: var(--accent-primary);
+}
+#thumbAutoInterval {
+	width: 3.5em;
+	text-align: center;
+	font-style: normal;
+}
+.thumb-interval-wrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: var(--xs-size);
+	color: var(--text-secondary);
+}
+.thumb-auto-controls {
+	display: flex;
+	align-items: center;
+	gap: var(--gap-sm);
+	flex-wrap: wrap;
+	min-width: 12em;
+	justify-content: space-between;
+}
+
+/* ========== 维护进度遮罩（7.2）========== */
+.thumb-maintain-overlay {
+	position: fixed;
+	top: 0; left: 0; right: 0; bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: calc(var(--z-content-view) + 3);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 16px;
+}
+.thumb-maintain-card {
+	background: var(--bg-primary);
+	color: var(--text-primary);
+	border-radius: var(--radius-lg);
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+	width: 100%;
+	max-width: 360px;
+	padding: 16px 20px;
+}
+.thumb-maintain-title {
+	font-size: 1rem;
+	font-weight: 600;
+	color: var(--text-title);
+	margin-bottom: 12px;
+	text-align: center;
+}
+.thumb-maintain-progress {
+	width: 100%;
+	height: 6px;
+	background: var(--bg-tertiary);
+	border-radius: 3px;
+	overflow: hidden;
+	margin-bottom: 10px;
+}
+.thumb-maintain-bar {
+	height: 100%;
+	background: var(--accent-primary);
+	transition: width 0.2s ease;
+}
+.thumb-maintain-stats {
+	font-size: var(--small-size);
+	color: var(--text-secondary);
+	text-align: center;
+	min-height: 1.4em;
+}
+
+
+.clean-refs-overlay {
+	position: fixed;
+	top: 0; left: 0; right: 0; bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: calc(var(--z-content-view) + 2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 16px;
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-tap-highlight-color: transparent;
+}
+.clean-refs-card {
+	background: var(--bg-primary);
+	color: var(--text-primary);
+	border-radius: var(--radius-lg);
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+	width: 100%;
+	max-width: 480px;
+	max-height: 80vh;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+.clean-refs-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--border-color);
+}
+.clean-refs-title {
+	font-size: 1rem;
+	font-weight: 600;
+	color: var(--text-title);
+}
+.clean-refs-close {
+	background: none;
+	border: none;
+	font-size: 1.1rem;
+	color: var(--text-tertiary);
+	cursor: pointer;
+	padding: 4px 8px;
+	border-radius: var(--radius-sm);
+	line-height: 1;
+	font-family: var(--font-family);
+}
+.clean-refs-close:hover {
+	background: var(--bg-tertiary);
+	color: var(--text-primary);
+}
+.clean-refs-body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 12px 16px;
+	min-height: 60px;
+}
+.clean-refs-tip {
+	font-size: var(--small-size);
+	color: var(--text-secondary);
+	margin-bottom: 8px;
+}
+.clean-refs-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.clean-refs-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+}
+.clean-refs-item:hover {
+	background: var(--bg-secondary);
+}
+.clean-refs-item input[type="checkbox"] {
+	flex-shrink: 0;
+	margin: 0;
+	cursor: pointer;
+}
+.clean-refs-item-icon {
+	flex-shrink: 0;
+	font-size: 1.1rem;
+	width: 1.6rem;
+	text-align: center;
+}
+.clean-refs-item-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+	flex: 1;
+}
+.clean-refs-item-path {
+	font-size: var(--small-size);
+	color: var(--text-primary);
+	word-break: break-all;
+}
+.clean-refs-item-excerpt {
+	font-size: var(--small-size);
+	color: var(--text-tertiary);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.clean-refs-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 16px;
+	border-top: 1px solid var(--border-color);
+	gap: 8px;
+}
+.clean-refs-select-all {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--small-size);
+	color: var(--text-secondary);
+	cursor: pointer;
+}
+.clean-refs-select-all input[type="checkbox"] {
+	margin: 0;
+	cursor: pointer;
+}
+.clean-refs-select-all:has(input:disabled) {
+	opacity: 0.5;
+	cursor: default;
+}
+.clean-refs-actions {
+	display: flex;
+	gap: 8px;
+}
+.clean-refs-actions button {
+	padding: 6px 14px;
+	border-radius: var(--radius-sm);
+	font-size: var(--small-size);
+	cursor: pointer;
+	font-family: var(--font-family);
+}
+#cleanRefsCancel {
+	background: none;
+	border: 1px solid var(--border-color);
+	color: var(--text-secondary);
+}
+#cleanRefsCancel:hover {
+	background: var(--bg-secondary);
+}
+#cleanRefsConfirm {
+	background: none;
+	border: 1px solid var(--text-red);
+	color: var(--text-red);
+}
+#cleanRefsConfirm:hover:not(:disabled) {
+	background: var(--text-red);
+	color: #fff;
+}
+#cleanRefsConfirm:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* 触屏设备适配 */
+@media (hover: none) {
+	.clean-refs-close:hover,
+	.clean-refs-item:hover,
+	#cleanRefsCancel:hover,
+	#cleanRefsConfirm:hover:not(:disabled) {
+		background: var(--bg-secondary);
+		color: var(--text-primary);
+	}
+	#cleanRefsConfirm:hover:not(:disabled) {
+		background: var(--text-red);
+		color: #fff;
+	}
+}
+
+/* ========== 可访问性 ========== */
+@media (prefers-reduced-motion: reduce) {
+	.attach-viewer,
+	.attach-viewer-media,
+	.attach-viewer-close,
+	.attach-viewer-prev,
+	.attach-viewer-next {
+		transition: none !important;
+	}
 }
