@@ -1138,7 +1138,7 @@ function bindEvents() {
 			return;
 		}
 		// 点击遮罩空白处关闭（9.1）；点击媒体/文本/按钮等不关闭
-		if (e.target.closest('.attach-viewer-media, .attach-viewer-text, .attach-viewer-text-tip, .attach-viewer-close, .attach-viewer-prev, .attach-viewer-next, .attach-viewer-hint, .attach-viewer-info')) return;
+		if (e.target.closest('.attach-viewer-media, .attach-viewer-text, .attach-viewer-text-tip, .attach-viewer-close, .attach-viewer-prev, .attach-viewer-next, .attach-viewer-hint, .attach-viewer-info, .attach-viewer-missing-icon, .attach-viewer-missing-tip')) return;
 		_closeAttachViewer();
 	});
 	// 键盘 / 滚轮 / 触屏 / 鼠标拖动交互（9.1）
