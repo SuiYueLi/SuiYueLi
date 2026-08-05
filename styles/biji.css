@@ -743,9 +743,9 @@
 	transition: none;  /* 拖动时关闭过渡，跟随鼠标更跟手 */
 }
 .attach-viewer-video {
-	max-width: 100%;
-	max-height: 100%;
-	background: #000;
+	min-width: min(100%, 800px);
+	/* 主要应对视频只解码出音频流的播放条宽度 */
+	/* 不像下面-audio那样用width，是为了正常视频最大化 */
 	border-radius: var(--radius-sm);
 }
 .attach-viewer-audio-wrap {

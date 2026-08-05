@@ -5270,6 +5270,11 @@ async function _openAttachViewer(assets, idx, source) {
 		return;
 	}
 
+	// 启动时 _updateAttachCaseUI 为异步且未 await，首次点击可能尚未就绪；
+	// 此处按需补全，避免误判为 C 导致浏览遮罩无法唤起
+	if (_attachCase === null) {
+		try { await _refreshAttachCase(); } catch(e) {}
+	}
 	const c = _currentAttachCase();
 	if (c === 'C') return; // 不应到达，防护
 
@@ -5452,14 +5457,68 @@ function _renderAttachViewerMedia(asset, file) {
 		const limit = fujian.TEXT_PREVIEW_MAX;
 		const overflow = file.size > limit;
 		file.slice(0, limit).arrayBuffer().then(buf => {
-			// UTF-8 解码（不强制 fatal，避免乱码直接抛错）
-			const decoder = new TextDecoder('utf-8', { fatal: false });
-			const text = decoder.decode(new Uint8Array(buf));
+			// 自动检测编码（BOM → UTF-8 → UTF-16 无 BOM → GB18030 → 回退）
+			const { text } = _decodeTextWithDetection(buf);
 			_renderAttachViewerText(text, overflow);
 		}).catch(() => {
 			_renderAttachViewerText('（无法读取文件内容）', false);
 		});
 	}
+}
+
+// 文本编码自动检测与解码
+// 检测优先级：BOM → UTF-8 (fatal) → GB18030 → Big5 → UTF-16 无 BOM (null 字节分布) → UTF-8 回退
+// 返回 { text, encoding }
+function _decodeTextWithDetection(buf) {
+	const bytes = new Uint8Array(buf);
+	// 1. BOM 检测
+	if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+		return { text: new TextDecoder('utf-8').decode(bytes.subarray(3)), encoding: 'UTF-8' };
+	}
+	if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+		return { text: new TextDecoder('utf-16le').decode(bytes.subarray(2)), encoding: 'UTF-16LE' };
+	}
+	if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+		return { text: new TextDecoder('utf-16be').decode(bytes.subarray(2)), encoding: 'UTF-16BE' };
+	}
+	// 2. 尝试 UTF-8（fatal 模式，合法则确认）
+	try {
+		const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+		return { text, encoding: 'UTF-8' };
+	} catch(e) { /* 非 UTF-8，继续 */ }
+	// 3. 尝试 GB18030（中文编码，含 GBK/GB2312 超集）
+	try {
+		const text = new TextDecoder('gb18030', { fatal: true }).decode(bytes);
+		return { text, encoding: 'GB18030' };
+	} catch(e) { /* 非法字节，继续 */ }
+	// 4. 尝试 Big5（繁体中文编码）
+	try {
+		const text = new TextDecoder('big5', { fatal: true }).decode(bytes);
+		return { text, encoding: 'Big5' };
+	} catch(e) { /* 非法字节，继续 */ }
+	// 5. UTF-16 无 BOM 检测：统计偶数位/奇数位 null 字节分布
+	if (bytes.length >= 2) {
+		const checkLen = Math.min(bytes.length, 1024);
+		let evenNull = 0, oddNull = 0;
+		for (let i = 0; i < checkLen; i++) {
+			if (bytes[i] === 0) {
+				if (i % 2 === 0) evenNull++; else oddNull++;
+			}
+		}
+		// UTF-16LE：奇数位 null 多；UTF-16BE：偶数位 null 多
+		if (oddNull > checkLen * 0.1 && oddNull > evenNull * 3) {
+			try {
+				return { text: new TextDecoder('utf-16le', { fatal: true }).decode(bytes), encoding: 'UTF-16LE' };
+			} catch(e) {}
+		}
+		if (evenNull > checkLen * 0.1 && evenNull > oddNull * 3) {
+			try {
+				return { text: new TextDecoder('utf-16be', { fatal: true }).decode(bytes), encoding: 'UTF-16BE' };
+			} catch(e) {}
+		}
+	}
+	// 6. 回退：UTF-8（fatal: false，替换非法字节）
+	return { text: new TextDecoder('utf-8', { fatal: false }).decode(bytes), encoding: 'UTF-8' };
 }
 
 // 渲染文本附件
@@ -7262,7 +7321,7 @@ function _collectAllThumbKeys(withAsset) {
 // dirHandle: 情况 A 下的笔记根目录句柄，用于生成缩略图后同步本地镜像
 // 返回 { supplemented, failed, scanned, missingRefs }
 async function _supplementMissingThumbKeys(fileResolver, enabledTypes, disabledRanges, dirHandle, onProgress) {
-	const result = { supplemented: 0, failed: 0, scanned: 0, missingRefs: [] };
+	const result = { supplemented: 0, failed: 0, scanned: 0, missingRefs: [], failures: [] };
 	if (!fileResolver) return result;
 	// 收集所有缺少 thumbKey 的 asset（带位置信息）
 	const missing = []; // [{ sui, hj, noteIdx, assetIdx }]
@@ -7324,7 +7383,7 @@ async function _supplementMissingThumbKeys(fileResolver, enabledTypes, disabledR
 					continue;
 				}
 				const hash = await fujian.computeSampleHash(file);
-				const { key: thumbKey } = await fujian._resolveThumbKey(hash);
+				const { key: thumbKey } = await fujian._resolveThumbKey(hash, file.size);
 				// 补全缺失字段
 				if (typeof a.size !== 'number' || a.size === 0) a.size = file.size;
 				if (!a.mime) a.mime = file.type || '';
@@ -7358,6 +7417,7 @@ async function _supplementMissingThumbKeys(fileResolver, enabledTypes, disabledR
 				changed = true;
 			} catch(e) {
 				result.failed++;
+				result.failures.push({ name: (a && a.name) || '', error: e.message });
 			}
 			if (onProgress) onProgress({ phase: 'supplement', total, done, supplemented: result.supplemented, failed: result.failed });
 		}
@@ -7373,7 +7433,7 @@ async function _supplementMissingThumbKeys(fileResolver, enabledTypes, disabledR
 // 取不到文件的 asset 收集到 missingRefs 供后续询问
 // 返回 { corrected, failed, scanned, missingRefs }
 async function _correctThumbKeysInNotes(fileResolver, disabledRanges, onProgress) {
-	const result = { corrected: 0, failed: 0, scanned: 0, missingRefs: [] };
+	const result = { corrected: 0, failed: 0, scanned: 0, missingRefs: [], failures: [] };
 	if (!fileResolver) return result;
 	// 收集所有有 thumbKey 的 asset（带位置信息）
 	const items = [];
@@ -7406,6 +7466,9 @@ async function _correctThumbKeysInNotes(fileResolver, disabledRanges, onProgress
 		if (!bySui.has(item.sui)) bySui.set(item.sui, []);
 		bySui.get(item.sui).push(item);
 	}
+	// 去重映射：跨 sui 持续累积，同一文件（hash+size）的所有 asset 统一为同一 thumbKey
+	const seenFiles = new Map();   // "hash:size" → canonical thumbKey
+	const hashCounters = new Map(); // hash → 已分配的不同文件数（用于后缀编号）
 	const total = items.length;
 	let done = 0;
 	for (const [sui, suiItems] of bySui) {
@@ -7432,20 +7495,35 @@ async function _correctThumbKeysInNotes(fileResolver, disabledRanges, onProgress
 					continue;
 				}
 				const hash = await fujian.computeSampleHash(file);
-				// 判断原 thumbKey 是否已匹配该 hash（hash 本身或 hash-N 形式均视为一致）
-				// _resolveThumbKey 是"寻找可用 key"的函数，不适用于此处判断正确性
-				const isHashMatch = a.thumbKey === hash || a.thumbKey.startsWith(hash + '-');
-				if (!isHashMatch) {
-					// 真正需要纠正：原 thumbKey 与重算的 hash 不一致
-					// 直接用 hash 作为新 key（rebuild 流程随后会清空 IDB 并重生成，无冲突风险）
-					a.thumbKey = hash;
-					if (typeof a.size !== 'number' || a.size === 0) a.size = file.size;
-					if (!a.mime) a.mime = file.type || '';
-					result.corrected++;
-					changed = true;
+				const fSize = file.size;
+				const dedupeKey = hash + ':' + fSize;
+				if (seenFiles.has(dedupeKey)) {
+					// 同一文件已出现过：复用首个 thumbKey，消除旧代码遗留的重复后缀
+					const canonicalKey = seenFiles.get(dedupeKey);
+					if (a.thumbKey !== canonicalKey) {
+						a.thumbKey = canonicalKey;
+						if (typeof a.size !== 'number' || a.size === 0) a.size = fSize;
+						if (!a.mime) a.mime = file.type || '';
+						result.corrected++;
+						changed = true;
+					}
+				} else {
+					// 首次出现：分配 thumbKey（base hash 或后缀，取决于是否已有同 hash 不同文件）
+					const counter = hashCounters.get(hash) || 0;
+					const canonicalKey = counter === 0 ? hash : hash + '-' + counter;
+					hashCounters.set(hash, counter + 1);
+					seenFiles.set(dedupeKey, canonicalKey);
+					if (a.thumbKey !== canonicalKey) {
+						a.thumbKey = canonicalKey;
+						if (typeof a.size !== 'number' || a.size === 0) a.size = fSize;
+						if (!a.mime) a.mime = file.type || '';
+						result.corrected++;
+						changed = true;
+					}
 				}
 			} catch(e) {
 				result.failed++;
+				result.failures.push({ name: (a && a.name) || '', error: e.message });
 			}
 			if (onProgress) onProgress({ phase: 'correct', total, done, corrected: result.corrected, failed: result.failed });
 		}
@@ -7577,6 +7655,7 @@ async function _runThumbMaintain(opts) {
 
 	// rebuild 模式下先纠正错误的 thumbKey（重新计算哈希）
 	const allMissingRefs = [];
+	const allFailures = [];  // 收集所有阶段的失败详情
 	let result_corrected = 0, result_correctFailed = 0;
 	const enabledTypes = new Set(getEnabledTypes());
 	const disabledRanges = getDisabledRanges();
@@ -7589,6 +7668,7 @@ async function _runThumbMaintain(opts) {
 			result_corrected = corr.corrected;
 			result_correctFailed = corr.failed;
 			allMissingRefs.push(...corr.missingRefs);
+			if (corr.failures) allFailures.push(...corr.failures);
 		}
 
 		// 收集全部 thumbKey 和 asset 映射（纠正后重新收集）
@@ -7613,6 +7693,7 @@ async function _runThumbMaintain(opts) {
 		// 记录纠正阶段的结果
 		result.corrected = result_corrected;
 		result.correctFailed = result_correctFailed;
+		if (result.failures) allFailures.push(...result.failures);
 		// 补全笔记中缺失 thumbKey 的 asset（仅 rebuild/increment 且有 fileResolver）
 		if ((actualMode === 'rebuild' || actualMode === 'increment') && fileResolver) {
 			if (showUI) _showThumbMaintainProgress('补全附件缩略图标识…');
@@ -7620,6 +7701,7 @@ async function _runThumbMaintain(opts) {
 			result.supplemented = supp.supplemented;
 			result.supplementFailed = supp.failed;
 			allMissingRefs.push(...supp.missingRefs);
+			if (supp.failures) allFailures.push(...supp.failures);
 		}
 		// 上次维护HJ积日由调用方记录（自动维护成功后记录，手动维护不记录）
 		// 原文件缺失的附件引用：仅手动维护时询问用户
@@ -7654,6 +7736,12 @@ async function _runThumbMaintain(opts) {
 			if (result.failed) parts.push('失败 ' + result.failed);
 			if (result.supplementFailed) parts.push('补全失败 ' + result.supplementFailed);
 			_showToast('维护完成' + (parts.length ? '：' + parts.join('、') : ''), 3000);
+			// 有失败项时弹出详情（仅手动维护 showUI 时）
+			if (allFailures.length > 0) {
+				const list = allFailures.slice(0, 15).map(f => '  ' + (f.name || '(未知)') + '：' + f.error).join('\n');
+				const more = allFailures.length > 15 ? '\n...共 ' + allFailures.length + ' 个' : '';
+				alert('维护过程中 ' + allFailures.length + ' 项失败：\n' + list + more);
+			}
 		}
 		return result;
 	} catch(e) {
@@ -8244,6 +8332,9 @@ function _initInstallPrompt() {
 			_hasFileSystemAccess = true;
 			_updateLsUI();
 			_updateBijiHint();
+			// _hasFileSystemAccess 变更后附件权限情况可能从 B 升级为 A，需刷新缓存
+			// 否则 _attachCase 停留在旧值 'B'，启动期点击缩略图会被误判为 C 而无法唤起浏览
+			_updateAttachCaseUI();
 		}
 	});
 

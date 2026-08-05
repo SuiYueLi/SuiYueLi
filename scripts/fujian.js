@@ -125,14 +125,44 @@ function _fnv1aHash(bytes, fileSize) {
 
 // ========== 哈希冲突处理（6.3）==========
 // 返回 { key, suffix }；suffix 默认 0，冲突时追加 -1、-2…
-export async function _resolveThumbKey(hash) {
-	const exists = await getThumbnail(hash);
-	if (!exists) return { key: hash, suffix: 0 };
-	for (let i = 1; i <= HASH_SUFFIX_MAX; i++) {
-		const key = hash + '-' + i;
-		if (!(await getThumbnail(key))) return { key, suffix: i };
+// size: 可选，传入文件大小用于区分"同一文件多次引用"与"不同文件哈希碰撞"
+//   - hash 相同且 originalSize 一致 → 视为同一文件，复用既有 key（不追加后缀）
+//   - hash 相同但 originalSize 不一致 → 视为哈希碰撞，追加后缀寻找空位
+//   - base key 不存在时扫描后缀 key，避免遗留重复记录导致再次生成
+export async function _resolveThumbKey(hash, size) {
+	const baseExists = await getThumbnail(hash);
+	if (baseExists) {
+		// 同一文件多次引用：hash 相同且文件大小一致时复用既有 thumbKey
+		if (typeof size === 'number' && baseExists.originalSize === size) {
+			return { key: hash, suffix: 0 };
+		}
+		// 哈希冲突（不同文件）：扫描后缀寻找同大小记录或空位
+		for (let i = 1; i <= HASH_SUFFIX_MAX; i++) {
+			const key = hash + '-' + i;
+			const existing = await getThumbnail(key);
+			if (existing) {
+				if (typeof size === 'number' && existing.originalSize === size) {
+					return { key, suffix: i };
+				}
+				continue;
+			}
+			return { key, suffix: i };
+		}
+		throw new Error('缩略图哈希冲突超过上限');
 	}
-	throw new Error('缩略图哈希冲突超过上限');
+	// base 不存在：扫描后缀 key，检查是否有同大小记录（历史重复引用遗留）
+	if (typeof size === 'number') {
+		for (let i = 1; i <= HASH_SUFFIX_MAX; i++) {
+			const key = hash + '-' + i;
+			const existing = await getThumbnail(key);
+			if (existing) {
+				if (existing.originalSize === size) return { key, suffix: i };
+				continue;  // 不同文件，继续检查
+			}
+			break;  // 空位，无更多遗留记录
+		}
+	}
+	return { key: hash, suffix: 0 };
 }
 
 // ========== 缩略图生成（6.4 / 6.5）==========
@@ -412,6 +442,21 @@ export async function clearLocalThumbnails(dirHandle) {
 	return cleared;
 }
 
+// 删除单个本地镜像缩略图（3.3，仅情况 A）
+// thumbKey: 缩略图键；dirHandle: 笔记根目录句柄
+// 返回 true 表示已删除，false 表示文件不存在或删除失败
+export async function _deleteLocalThumb(thumbKey, dirHandle) {
+	if (!dirHandle) return false;
+	let thumbDir;
+	try {
+		thumbDir = await dirHandle.getDirectoryHandle(THUMB_LOCAL_DIR, { create: false });
+	} catch(e) { return false; }  // 目录不存在
+	try {
+		await thumbDir.removeEntry(thumbKey + THUMB_LOCAL_SUFFIX);
+		return true;
+	} catch(e) { return false; }
+}
+
 // 获取缩略图 blob URL（同时更新 lastUsed）
 export async function getThumbnailBlobURL(key) {
 	const value = await getThumbnail(key);
@@ -438,7 +483,7 @@ export async function addAttachmentFlow(file, options) {
 	const size = file.size;
 	const mime = file.type || '';
 	const hash = await computeSampleHash(file);
-	const { key: thumbKey, suffix: hashSuffix } = await _resolveThumbKey(hash);
+	const { key: thumbKey, suffix: hashSuffix } = await _resolveThumbKey(hash, size);
 	// 仅当类型启用时生成缩略图；停用时仍记录 thumbKey 作为唯一标识（6.7）
 	if (enabledTypes && enabledTypes.has(type)) {
 		const thumbResult = await generateThumbnail(file, type);
@@ -571,11 +616,12 @@ export async function importLocalThumbnails(dirHandle) {
 
 // ========== 维护（第七章，阶段 4 填充）==========
 // runMaintenance({ mode, usedThumbKeys, assetsMap, fileResolver, enabledTypes, disabledRanges, dirHandle, onProgress })
-//   dirHandle: 情况 A 下的笔记根目录句柄，用于 rebuild 时清除本地镜像、生成时同步本地镜像
-// 返回 { cleared, generated, failed, localCleared }
+//   dirHandle: 情况 A 下的笔记根目录句柄，用于清除本地镜像、生成时同步本地镜像
+// 返回 { cleared, generated, failed, localCleared, failures }
+//   failures: [{ name, error }] 失败详情列表
 export async function runMaintenance(opts) {
 	const { mode, usedThumbKeys, assetsMap, fileResolver, enabledTypes, disabledRanges, dirHandle, onProgress } = opts;
-	const result = { cleared: 0, generated: 0, failed: 0, localCleared: 0 };
+	const result = { cleared: 0, generated: 0, failed: 0, localCleared: 0, failures: [] };
 
 	if (mode === 'rebuild') {
 		await clearAllThumbnails();
@@ -584,12 +630,16 @@ export async function runMaintenance(opts) {
 			result.localCleared = await clearLocalThumbnails(dirHandle);
 		}
 	} else if (mode === 'increment' || mode === 'cleanup') {
-		// 清除未使用：删除 IDB 中 key 不在 usedThumbKeys 内的条目
+		// 清除未使用：删除 IDB 中 key 不在 usedThumbKeys 内的条目，同步删除本地镜像
 		const all = await getAllThumbnailsWithKeys();
 		for (const { key } of all) {
 			if (!usedThumbKeys.has(key)) {
 				await deleteThumbnail(key);
 				result.cleared++;
+				// 情况 A：同步删除本地镜像缩略图
+				if (dirHandle) {
+					if (await _deleteLocalThumb(key, dirHandle)) result.localCleared++;
+				}
 				if (onProgress) onProgress({ phase: 'cleanup', cleared: result.cleared });
 			}
 		}
@@ -605,7 +655,7 @@ export async function runMaintenance(opts) {
 		for (const thumbKey of usedThumbKeys) {
 			done++;
 			const asset = assetsMap ? assetsMap.get(thumbKey) : null;
-			if (!asset) { result.failed++; continue; }
+			if (!asset) { result.failed++; result.failures.push({ name: thumbKey, error: '无 asset 映射' }); continue; }
 			// 类型未启用：跳过（不视为 failed）
 			if (enabledTypes && !enabledTypes.has(asset.type)) continue;
 			// 停用区间：跳过（不视为 failed）
@@ -620,7 +670,7 @@ export async function runMaintenance(opts) {
 			}
 			try {
 				const file = await fileResolver(asset);
-				if (!file) { result.failed++; continue; }
+				if (!file) { result.failed++; result.failures.push({ name: asset.name || thumbKey, error: '无法获取原文件' }); continue; }
 				const thumbResult = await generateThumbnail(file, asset.type);
 				if (thumbResult) {
 					const value = {
@@ -641,9 +691,11 @@ export async function runMaintenance(opts) {
 					result.generated++;
 				} else {
 					result.failed++;
+					result.failures.push({ name: asset.name || thumbKey, error: '缩略图生成失败' });
 				}
 			} catch(e) {
 				result.failed++;
+				result.failures.push({ name: asset.name || thumbKey, error: e.message });
 			}
 			if (onProgress) onProgress({ phase: 'generate', total, done, generated: result.generated, failed: result.failed });
 		}
