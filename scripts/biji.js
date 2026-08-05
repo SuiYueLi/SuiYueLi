@@ -13,7 +13,7 @@ const ATTACH_ICON = '\u{1F4CE}';
 function _userDefaultIcon() {
 	try {
 		const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-		return s.bijiDefaultIcon || _userDefaultIcon();
+		return s.bijiDefaultIcon || DEFAULT_ICON;
 	} catch { return DEFAULT_ICON; }
 }
 function _userAttachIcon() {
