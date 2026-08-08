@@ -1,4 +1,4 @@
-const APP_VERSION = '2.47230702.2';
+const APP_VERSION = '2.47230703.0';
 const CACHE_NAME = 'SuiYueLi_v' + APP_VERSION;
 
 const CACHE_FILES = [

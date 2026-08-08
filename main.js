@@ -949,7 +949,7 @@ function renderDetails() {
 		const js2 = _getJSDetailByCat(cell.JS, 2);
 		if (js2) parts.push(js2);
 		if (cell.FR && cell.FR.JL && cell.FR.JL.length > 0) parts.push(cell.FR.JL.join(FS));
-		if (parts.length > 0) items.push('<li>' + parts.join(FS) + '</li>');
+		if (parts.length > 0) items.push('<li><span class="detail-spacer">' + suiPrefix + '</span>' + parts.join(FS) + '</li>');
 	}
 
 	// 4. 夏历月日 ┆ HJ积日
@@ -3394,38 +3394,23 @@ async function _rebuildAfterDataChange() {
 async function _importJieSu() {
 	try {
 		const mode = DOM.jieSuImportModeToggle.getAttribute('data-value') === '1' ? 'replace' : 'merge';
-		const acceptTypes = { 'application/json': ['.json'], 'text/csv': ['.csv'] };
-		if (_hasFileSystemAccess) {
-			const [handle] = await window.showOpenFilePicker({
-				types: [{ description: 'JSON 或 CSV', accept: acceptTypes }],
-				multiple: false,
-			});
-			const file = await handle.getFile();
-			const text = await readFileAsText(file);
-			const data = _parseJieSuText(text, file.name);
-			const result = mode === 'replace' ? data : await _mergeWithData(getJieSu(), data, 'jieSu');
-			if (!result) { _showToast('导入已取消。'); return; }
-			setJieSu(result);
-			_rebuildAfterDataChange();
-			_showToast(mode === 'replace' ? '节庆民俗列表已替换。' : '节庆民俗列表已合并。', 3000);
-		} else {
-			const input = document.createElement('input');
-			input.type = 'file'; input.accept = '.json,.csv';
-			input.onchange = async () => {
-				const file = input.files[0];
-				if (!file) return;
-				try {
-					const text = await readFileAsText(file);
-					const data = _parseJieSuText(text, file.name);
-					const result = mode === 'replace' ? data : await _mergeWithData(getJieSu(), data, 'jieSu');
-					if (!result) { _showToast('导入已取消。'); return; }
-					setJieSu(result);
-					_rebuildAfterDataChange();
-					_showToast(mode === 'replace' ? '节庆民俗列表已替换。' : '节庆民俗列表已合并。', 3000);
-				} catch(e) { _showToast('😿导入失败：' + e.message); }
-			};
-			input.click();
-		}
+		// 统一用 input file：安卓 showOpenFilePicker 的 types 过滤会隐藏 CSV，且其 File.text() 返回空
+		const input = document.createElement('input');
+		input.type = 'file'; input.accept = '.json,.csv,application/json,text/csv';
+		input.onchange = async () => {
+			const file = input.files[0];
+			if (!file) return;
+			try {
+				const text = await readFileAsText(file);
+				const data = _parseJieSuText(text, file.name);
+				const result = mode === 'replace' ? data : await _mergeWithData(getJieSu(), data, 'jieSu');
+				if (!result) { _showToast('导入已取消。'); return; }
+				setJieSu(result);
+				_rebuildAfterDataChange();
+				_showToast(mode === 'replace' ? '节庆民俗列表已替换。' : '节庆民俗列表已合并。', 3000);
+			} catch(e) { _showToast('😿导入失败：' + e.message); }
+		};
+		input.click();
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('😿导入失败：' + e.message);
 	}
@@ -3597,38 +3582,23 @@ async function _exportJieSu() {
 async function _importFuRi() {
 	try {
 		const mode = DOM.fuRiImportModeToggle.getAttribute('data-value') === '1' ? 'replace' : 'merge';
-		const acceptTypes = { 'application/json': ['.json'], 'text/csv': ['.csv'] };
-		if (_hasFileSystemAccess) {
-			const [handle] = await window.showOpenFilePicker({
-				types: [{ description: 'JSON 或 CSV', accept: acceptTypes }],
-				multiple: false,
-			});
-			const file = await handle.getFile();
-			const text = await readFileAsText(file);
-			const data = _parseFuRiText(text, file.name);
-			const result = mode === 'replace' ? data : await _mergeWithData(getFuRi(), data, 'fuRi');
-			if (!result) { _showToast('导入已取消。'); return; }
-			setFuRi(result);
-			_rebuildAfterDataChange();
-			_showToast(mode === 'replace' ? '每年重复日列表已替换。' : '每年重复日列表已合并。', 3000);
-		} else {
-			const input = document.createElement('input');
-			input.type = 'file'; input.accept = '.json,.csv';
-			input.onchange = async () => {
-				const file = input.files[0];
-				if (!file) return;
-				try {
-					const text = await readFileAsText(file);
-					const data = _parseFuRiText(text, file.name);
-					const result = mode === 'replace' ? data : await _mergeWithData(getFuRi(), data, 'fuRi');
-					if (!result) { _showToast('导入已取消。'); return; }
-					setFuRi(result);
-					_rebuildAfterDataChange();
-					_showToast(mode === 'replace' ? '每年重复日列表已替换。' : '每年重复日列表已合并。', 3000);
-				} catch(e) { _showToast('😿导入失败：' + e.message); }
-			};
-			input.click();
-		}
+		// 统一用 input file：安卓 showOpenFilePicker 的 types 过滤会隐藏 CSV，且其 File.text() 返回空
+		const input = document.createElement('input');
+		input.type = 'file'; input.accept = '.json,.csv,application/json,text/csv';
+		input.onchange = async () => {
+			const file = input.files[0];
+			if (!file) return;
+			try {
+				const text = await readFileAsText(file);
+				const data = _parseFuRiText(text, file.name);
+				const result = mode === 'replace' ? data : await _mergeWithData(getFuRi(), data, 'fuRi');
+				if (!result) { _showToast('导入已取消。'); return; }
+				setFuRi(result);
+				_rebuildAfterDataChange();
+				_showToast(mode === 'replace' ? '每年重复日列表已替换。' : '每年重复日列表已合并。', 3000);
+			} catch(e) { _showToast('😿导入失败：' + e.message); }
+		};
+		input.click();
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('😿导入失败：' + e.message);
 	}

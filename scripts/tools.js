@@ -26,7 +26,7 @@ function findLast(arr, fn) {
 }
 function last(arr) { return arr[arr.length - 1]; }
 function readFileAsText(file) {
-	if (file.text) return file.text();
+	// 始终用 FileReader：安卓 file.text() 在某些实现下返回空，导致 JSON 解析失败
 	return new Promise((resolve, reject) => {
 		const r = new FileReader();
 		r.onload = () => resolve(r.result);

@@ -10,7 +10,7 @@
 <p>从汉堡菜单链接进入【笔记总览】页，可浏览指定华夏纪年区间的笔记。该页也提供筛选和批量操作。</p>
 
 <h2>附件功能</h2>
-<p>每条笔记可附加本地文件引用（不复制原件）。添加附件后，笔记展开状态顶部、编辑页底部会显示缩略图栏，点击缩略图可浏览原件。</p>
+<p>每条笔记可附加指定本地目录内的文件引用（记录相对路径，不复制原件）。添加附件后，笔记展开状态顶部、编辑页底部会显示缩略图栏，点击缩略图可浏览原件。</p>
 <p>支持添加的附件类型：</p>
 <ul>
   <li><b>图片</b> - 浏览时支持缩放与拖动平移；</li>
@@ -78,7 +78,7 @@
 }</code></pre>
 <table>
   <tr><th>字段</th><th>类型</th><th>说明</th></tr>
-  <tr><td>thumbnailsZip</td><td><code>string</code></td><td>顶层字段，缩略图包文件名<br/><sub>（导出时可选；导入时用于查找同名 zip。）</sub></td></tr>
+  <tr><td>thumbnailsZip</td><td><code>string</code></td><td>顶层字段，缩略图包文件名<br/><sub>（导出时可选）</sub></td></tr>
   <tr><td colspan="3"><b>笔记对象字段（每条笔记）：</b></td></tr>
   <tr><td>icon</td><td><code>string</code></td><td>字符图标，缺省 ✑</td></tr>
   <tr><td>biji</td><td><code>string</code></td><td>笔记内容，单条上限 8000 字</td></tr>
