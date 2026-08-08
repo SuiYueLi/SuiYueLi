@@ -24,8 +24,7 @@ import {
 	getCustomFonts, loadFontFile, removeFontFile, initCustomFonts,
 	previewFontChange, commitFontPreview, cancelFontPreview,
 	resetAllCustomFonts,
-	getAttachRootPath, setAttachRootPath, getAttachRootTree, setAttachRootTree,
-	getAttachAskAccess, setAttachAskAccess, getAttachShowPath, setAttachShowPath,
+	getAttachBijiLocalSync, setAttachBijiLocalSync, getAttachThumbLocalSync, setAttachThumbLocalSync, getAttachShowPath, setAttachShowPath,
 	getThumbManualMode, setThumbManualMode, getThumbAutoMode, setThumbAutoMode,
 	getThumbAutoInterval, setThumbAutoInterval,
 	getDisabledRanges, setDisabledRanges, getEnabledTypes, setEnabledTypes,
@@ -266,13 +265,9 @@ function cacheDOM() {
 	DOM.lsDirRow = $('lsDirRow');
 	DOM.lsDirRowLabel = $('lsDirRowLabel');
 	DOM.lsSectionTitle = $('lsSectionTitle');
-	DOM.attachRootPathRow = $('attachRootPathRow');
-	DOM.attachRootPathBtn = $('attachRootPathBtn');
-	DOM.attachRootRefreshBtn = $('attachRootRefreshBtn');
-	DOM.attachRootPathName = $('attachRootPathName');
 	DOM.attachAskAccessRow = $('attachAskAccessRow');
-	DOM.attachAskAccess = $('attachAskAccess');
-	DOM.attachAskAccessLabel = $('attachAskAccessLabel');
+	DOM.attachBijiLocalSync = $('attachBijiLocalSync');
+	DOM.attachThumbLocalSync = $('attachThumbLocalSync');
 	DOM.attachShowPath = $('attachShowPath');
 	DOM.attachShowPathLabel = $('attachShowPathLabel');
 	DOM.attachShowPathText = $('attachShowPathText');
@@ -1222,113 +1217,12 @@ function bindEvents() {
 		if (wrap && !wrap.contains(e.target)) _closeLsSplitDropdown();
 	});
 	DOM.lsClearBtn.addEventListener('click', _lsClearBiji);
-	// 附件设置项（4.1 / 4.2，仅情况 B）
-	// 「指定文件夹」按钮：用 <input type="file" webkitdirectory> 唤起目录选择器
-	// 情况 B 不支持 showDirectoryPicker，但 webkitRelativePath 普遍支持
-	// 注：浏览器会显示「上传该目录中的文件」提示，先弹应用预提示解释
-	// 指定后遍历目录结构建立文件夹树（纯目录）持久化保存
-	const _attachBrowserUploadTip = '　　接下来对文件夹的选择将唤起「上传」文件选择器，浏览器会询问是否“<b>上传文件夹中的所有文件到网站</b>”——这是浏览器调用 <a href="https://developer.mozilla.org/zh-CN/docs/Web/API/File/webkitRelativePath" target="_blank" rel="noopener noreferrer"><small>webkitRelativePath</small></a> 的固有安全提示，<b>本应用不上传任何数据</b>。若有疑虑，可选择断网操作或取消。';
-
-	// 从 webkitdirectory 返回的 FileList 建立纯目录树
-	// relPaths: webkitRelativePath 数组（如 ['root/sub/a.jpg', 'root/sub2/b.jpg']）
-	// rootName: 根目录名（relPath 第一段）
-	function _buildDirTreeFromRelPaths(relPaths, rootName) {
-		const root = { name: rootName, dirs: [] };
-		for (const rel of relPaths) {
-			const parts = rel.split(/[\\/]/).filter(Boolean);
-			// 第一段是根目录名，跳过；最后一段是文件名，跳过
-			if (parts.length < 3) continue;
-			let node = root;
-			for (let i = 1; i < parts.length - 1; i++) {
-				const seg = parts[i];
-				let child = node.dirs.find(d => d.name === seg);
-				if (!child) { child = { name: seg, dirs: [] }; node.dirs.push(child); }
-				node = child;
-			}
-		}
-		return root;
-	}
-
-	// 用 webkitdirectory 唤起目录选择器，返回 { rootName, tree } 或 null（取消）
-	function _pickDirAndBuildTree() {
-		return new Promise(resolve => {
-			const inp = document.createElement('input');
-			inp.type = 'file';
-			inp.webkitdirectory = true;
-			inp.style.display = 'none';
-			inp.addEventListener('change', () => {
-				const files = inp.files;
-				inp.remove();
-				if (!files || files.length === 0) return resolve(null);
-				const rel = files[0].webkitRelativePath || '';
-				const rootName = rel.split(/[\\/]/)[0] || '';
-				if (!rootName) return resolve(null);
-				const relPaths = [];
-				for (const f of files) relPaths.push(f.webkitRelativePath || f.name);
-				const tree = _buildDirTreeFromRelPaths(relPaths, rootName);
-				resolve({ rootName, tree });
-			});
-			inp.addEventListener('cancel', () => { inp.remove(); resolve(null); });
-			document.body.appendChild(inp);
-			inp.click();
-		});
-	}
-
-	if (DOM.attachRootPathBtn) DOM.attachRootPathBtn.addEventListener('click', async () => {
-		// 已指定文件夹：弹确认解除
-		if (getAttachRootPath()) {
-			const ok = await _showAppConfirm('解除指定', '解除附件限定根目录不会丢失应用中现有笔记，也不会删除原文件。是否继续？');
-			if (ok) {
-				setAttachRootPath('');
-				setAttachRootTree(null);
-				_bijiSubDirFingerprints = null;  // 清空子目录指纹缓存
-				_bijiRootFileMap = null;          // 清空根目录映射表
-				_syncAttachSettingsUI();
-				_refreshAttachButtonVisibility();
-			}
-			return;
-		}
-		// 未指定：唤起目录选择器
-		const ok = await _showAppConfirm('关于浏览器的「上传」提示', _attachBrowserUploadTip);
-		if (!ok) return;
-		const result = await _pickDirAndBuildTree();
-		if (!result) return;
-		setAttachRootPath(result.rootName);
-		setAttachRootTree(result.tree);
-		_syncAttachSettingsUI();
-		_refreshAttachButtonVisibility();
-		_showToast('已记录根目录及其文件夹树。');
+	// 附件设置项
+	if (DOM.attachBijiLocalSync) DOM.attachBijiLocalSync.addEventListener('change', () => {
+		setAttachBijiLocalSync(DOM.attachBijiLocalSync.checked);
 	});
-	// 「授权刷新」按钮：重新 webkitdirectory 授权，刷新文件夹树记录
-	if (DOM.attachRootRefreshBtn) DOM.attachRootRefreshBtn.addEventListener('click', async () => {
-		if (!getAttachRootPath()) return;
-		const ok = await _showAppConfirm('授权刷新', '重新指定【根目录】授权以刷新文件夹树记录，是否继续？');
-		if (!ok) return;
-		const result = await _pickDirAndBuildTree();
-		if (!result) return;
-		const oldRoot = getAttachRootPath();
-		const mismatched = result.rootName !== oldRoot;
-		if (mismatched) setAttachRootPath(result.rootName);
-		setAttachRootTree(result.tree);
-		_bijiSubDirFingerprints = null;  // 目录结构变化，指纹缓存失效
-		_bijiRootFileMap = null;          // 映射表也失效
-		_syncAttachSettingsUI();
-		if (mismatched) {
-			_showToast('⚠所选目录名与原根目录不一致❕ 根目录已更新，请注意已有笔记附件的相对路径是否仍有效❕', 9000);
-		} else {
-			_showToast('已刷新根目录文件夹树。');
-		}
-	});
-	if (DOM.attachAskAccess) DOM.attachAskAccess.addEventListener('change', async () => {
-		const checked = DOM.attachAskAccess.checked;
-		if (checked) {
-			// 勾选时给出详细提示
-			const tipBody = '　　勾选后，每次运行应用首次浏览附件时，需授权访问附件根目录（浏览器会唤起「上传」文件选择器，与指定根目录时相同）。授权后的运行期间可直接浏览笔记内引用的根目录内附件。重启应用后需重新授权。';
-			const ok = await _showAppConfirm('关于「每次运行授权访问」', tipBody);
-			if (!ok) { DOM.attachAskAccess.checked = false; return; }
-		}
-		setAttachAskAccess(checked);
-		_bijiRootFileMap = null;  // 切换开关时清空映射表
+	if (DOM.attachThumbLocalSync) DOM.attachThumbLocalSync.addEventListener('change', () => {
+		setAttachThumbLocalSync(DOM.attachThumbLocalSync.checked);
 	});
 	if (DOM.attachShowPath) DOM.attachShowPath.addEventListener('change', () => {
 		setAttachShowPath(DOM.attachShowPath.checked);
@@ -1337,17 +1231,12 @@ function bindEvents() {
 	if (DOM.bAttachToggle) DOM.bAttachToggle.addEventListener('click', async () => {
 		if (!_bAttachEnabled) return;  // 开启只能通过双隐形开关触发，此处只处理关闭
 		const ok = await _showAppConfirm('关闭残缺的附件功能',
-			'　　关闭后将清除「附件限定根目录」指定、子目录指纹缓存等残缺状态相关数据，并切换回不支持形态。是否继续？',
+			'　　关闭后将清除指纹缓存等残缺状态相关数据，并切换回不支持形态。是否继续？',
 			'关闭');
 		if (!ok) return;
 		_bAttachEnabled = false;
-		// 清除 B 权限相关设置数据
-		setAttachRootPath('');
-		setAttachRootTree(null);
-		setAttachAskAccess(false);
-		setAttachShowPath(false);
+		// 清除 B 权限相关运行时数据（dirHandle 保留，重新启用时仍可用）
 		_bijiSubDirFingerprints = null;
-		_bijiRootFileMap = null;
 		// 同步 UI
 		_updateLsUI();
 		_updateAttachCaseUI();
@@ -4634,77 +4523,10 @@ function _attachFingerprint(file) {
 	return file.name + '|' + file.size + '|' + (file.lastModified || 0);
 }
 
-// 在根目录文件夹树中递归查找是否存在同名目录节点
-function _findDirInTree(tree, dirName) {
-	if (!tree || !dirName) return false;
-	if (tree.name === dirName) return true;
-	if (Array.isArray(tree.dirs)) {
-		for (const child of tree.dirs) {
-			if (_findDirInTree(child, dirName)) return true;
-		}
-	}
-	return false;
-}
-
-// 情况 B：用 webkitdirectory 授权子目录，遍历文件建立指纹缓存
-// 返回授权的文件数；返回 -1 表示用户取消
-async function _authorizeAttachSubDir() {
-	const rootPath = getAttachRootPath();
-	const rootTree = getAttachRootTree();
-	// 唤起子目录选择
-	const files = await new Promise(resolve => {
-		const inp = document.createElement('input');
-		inp.type = 'file';
-		inp.webkitdirectory = true;
-		inp.style.display = 'none';
-		inp.addEventListener('change', () => {
-			const f = inp.files;
-			inp.remove();
-			resolve(f && f.length ? f : null);
-		});
-		inp.addEventListener('cancel', () => { inp.remove(); resolve(null); });
-		document.body.appendChild(inp);
-		inp.click();
-	});
-	if (!files) return -1;  // 用户取消
-	// webkitdirectory 机制：所选子目录名作为 webkitRelativePath 第一段
-	// 用根目录文件夹树做软校验：子目录名应在树中存在
-	const firstRel = files[0].webkitRelativePath || '';
-	const subDirName = firstRel.split(/[\\/]/)[0] || '';
-	if (rootPath && rootTree && !_findDirInTree(rootTree, subDirName)) {
-		// 不在记录的根目录树内：提示并引导前往设置页「授权刷新」
-		const tipBody = '⊘附件需约束在根目录内，所选子目录「' + subDirName + '」未在附件根目录「' + rootPath + '」的文件夹树记录中找到。<br/>若确定该子目录在根目录内，建议前往「存储与导出」页「授权刷新」。';
-		const ok = await _showAppConfirm('知道了', tipBody, '去刷新');
-		if (!ok) return -1;
-		// 跳转到设置页「授权刷新」按钮所在位置，由用户手动触发刷新
-		await _openSettingsPage();
-		const target = DOM.attachRootPathRow || DOM.attachRootRefreshBtn;
-		if (target) {
-			target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		}
-		return -1;  // 终止本次子目录授权流程；用户在设置页刷新后重新触发添加附件
-	}
-	// 校验通过，建立指纹库
-	// webkitRelativePath 第一段是所选子目录名，需保留完整相对路径（含子目录名）
-	// 这样指纹比对命中后，asset.path 记录的是「子目录名/内部路径」
-	const map = new Map();
-	for (const f of files) {
-		const rel = f.webkitRelativePath || f.name;
-		// 相对根目录的路径 = 完整 webkitRelativePath（已含子目录段）
-		// 例：选 photos 子目录，文件 webkitRelativePath = "photos/2024/a.jpg"
-		//     相对根目录路径 = "photos/2024/a.jpg"
-		const parts = rel.split(/[\\/]/).filter(Boolean);
-		const relPath = parts.join('/');
-		map.set(_attachFingerprint(f), relPath);
-	}
-	_bijiSubDirFingerprints = map;
-	return map.size;
-}
-
-// 情况 A（安卓）：用 webkitdirectory 授权 dirHandle 对应的根目录，建立指纹缓存
-// 安卓 A 权限下 dirHandle.resolve(fh) 有缺陷（子目录被判为根目录外），
+// 情况 B（安卓）：用 webkitdirectory 授权 dirHandle 对应的根目录，建立指纹缓存
+// 安卓 B 权限下 dirHandle.resolve(fh) 有缺陷（子目录被判为根目录外），
 // 改用 webkitdirectory 建立整目录指纹库，再由系统选择器选文件、指纹比对记录 path
-// 复用 _bijiSubDirFingerprints（安卓 A 下其语义为"根目录指纹"，非子目录）
+// 复用 _bijiSubDirFingerprints（B 下其语义为"根目录指纹"）
 // 返回授权的文件数；返回 -1 表示用户取消
 async function _authorizeAttachRootForAddOnAndroid(dirHandle) {
 	const rootName = dirHandle ? dirHandle.name : '';
@@ -4788,102 +4610,75 @@ async function _bijiAddAttach() {
 	const c = _currentAttachCase();
 	if (c === 'C') { _showToast('当前环境不支持添加附件。'); return; }
 	const enabledTypes = new Set(getEnabledTypes());
-	const dirHandle = c === 'A' ? await biji.getDirHandle() : null;
-	if (c === 'A' && !dirHandle) { _showToast('请先指定笔记本地目录。'); return; }
-	if (c === 'A' && !(await biji.verifyDirHandle())) { _showToast('本地目录权限失效，请重新授权。'); return; }
-	if (c === 'B' && !getAttachRootPath()) { _showToast('请先在设置中指定附件限定根目录。'); return; }
+	const dirHandle = (c === 'A' || c === 'B') ? await biji.getDirHandle() : null;
+	if ((c === 'A' || c === 'B') && !dirHandle) { _showToast('请先指定笔记本地目录。'); return; }
+	if ((c === 'A' || c === 'B') && !(await biji.verifyDirHandle())) { _showToast('本地目录权限失效，请重新授权。'); return; }
 
 	// 选择文件
 	let filesToAdd = [];  // [{ file, fileHandle, path, name }]
 	try {
 		if (c === 'A') {
-			if (/android/i.test(navigator.userAgent)) {
-				// 安卓 A：dirHandle.resolve(fh) 有缺陷（子目录被判为根目录外），
-				// 改用 webkitdirectory 授权根目录 + 指纹比对记录 path
-				if (!_bijiSubDirFingerprints) {
-					const ok = await _showAppConfirm('授权根目录访问',
-						'请选择此前指定的本地目录「' + (dirHandle.name || '') + '」以建立文件指纹，此过程仍将唤起「上传」文件选择器。');
-					if (!ok) return;
-					const n = await _authorizeAttachRootForAddOnAndroid(dirHandle);
-					if (n < 0) return;
-					_showToast('已授权根目录，记录 ' + n + ' 个文件指纹。', 6000);
-				}
-				let picked = await _pickFilesViaSystemPicker();
-				if (!picked) {
-					const retry = await _showAppConfirm('重新授权',
-						'是否重新选择根目录并建立文件指纹？');
-					if (!retry) return;
-					const n = await _authorizeAttachRootForAddOnAndroid(dirHandle);
-					if (n < 0) return;
-					_showToast('已重新授权，记录 ' + n + ' 个文件指纹。');
-					picked = await _pickFilesViaSystemPicker();
-					if (!picked) return;
-				}
-				filesToAdd = picked;
-			} else {
-				// 健壮性：优先用记忆的上次访问子目录，其次用根目录，失败时回退到不带 startIn
-				const startIn = _lastAttachStartInHandle || dirHandle;
-				let handles;
+			// 情况 A（桌面）：showOpenFilePicker + dirHandle.resolve
+			// 健壮性：优先用记忆的上次访问子目录，其次用根目录，失败时回退到不带 startIn
+			const startIn = _lastAttachStartInHandle || dirHandle;
+			let handles;
+			try {
+				handles = await window.showOpenFilePicker({ multiple: true, startIn });
+			} catch(e1) {
+				if (e1 && (e1.name === 'AbortError' || e1.name === 'CancelError')) return; // 用户取消
+				// startIn 可能失效（如记忆的子目录已删除），清空记忆并回退到根目录
+				_lastAttachStartInHandle = null;
 				try {
-					handles = await window.showOpenFilePicker({ multiple: true, startIn });
-				} catch(e1) {
-					if (e1 && (e1.name === 'AbortError' || e1.name === 'CancelError')) return; // 用户取消
-					// startIn 可能失效（如记忆的子目录已删除），清空记忆并回退到根目录
-					_lastAttachStartInHandle = null;
-					try {
-						handles = await window.showOpenFilePicker({ multiple: true, startIn: dirHandle });
-					} catch(e2) {
-						if (e2 && (e2.name === 'AbortError' || e2.name === 'CancelError')) return;
-						handles = await window.showOpenFilePicker({ multiple: true });
-					}
+					handles = await window.showOpenFilePicker({ multiple: true, startIn: dirHandle });
+				} catch(e2) {
+					if (e2 && (e2.name === 'AbortError' || e2.name === 'CancelError')) return;
+					handles = await window.showOpenFilePicker({ multiple: true });
 				}
-				if (!handles || !handles.length) return; // 用户取消
-				for (const fh of handles) {
-					if (!(await _isWithinRoot(fh))) { _showToast('⊘仅可添加指定本地目录内的文件！'); return; }
-					const file = await fh.getFile();
-					const rel = await dirHandle.resolve(fh);
-					if (!rel || !rel.length) continue;
-					const name = rel[rel.length - 1];
-					const path = rel.length > 1 ? rel.slice(0, -1).join('/') + '/' : '';
-					filesToAdd.push({ file, fileHandle: fh, path, name });
-				}
-				// 记忆本次访问的子目录：取第一个文件父目录 handle，验证在根目录内
-				try {
-					const rel0 = await dirHandle.resolve(handles[0]);
-					if (rel0 && rel0.length > 0 && !rel0[0].startsWith('..')) {
-						let parentHandle = dirHandle;
-						for (let i = 0; i < rel0.length - 1; i++) {
-							parentHandle = await parentHandle.getDirectoryHandle(rel0[i]);
-						}
-						_lastAttachStartInHandle = parentHandle;
-					} else {
-						_lastAttachStartInHandle = null;
+			}
+			if (!handles || !handles.length) return; // 用户取消
+			for (const fh of handles) {
+				if (!(await _isWithinRoot(fh))) { _showToast('⊘仅可添加指定本地目录内的文件！'); return; }
+				const file = await fh.getFile();
+				const rel = await dirHandle.resolve(fh);
+				if (!rel || !rel.length) continue;
+				const name = rel[rel.length - 1];
+				const path = rel.length > 1 ? rel.slice(0, -1).join('/') + '/' : '';
+				filesToAdd.push({ file, fileHandle: fh, path, name });
+			}
+			// 记忆本次访问的子目录：取第一个文件父目录 handle，验证在根目录内
+			try {
+				const rel0 = await dirHandle.resolve(handles[0]);
+				if (rel0 && rel0.length > 0 && !rel0[0].startsWith('..')) {
+					let parentHandle = dirHandle;
+					for (let i = 0; i < rel0.length - 1; i++) {
+						parentHandle = await parentHandle.getDirectoryHandle(rel0[i]);
 					}
-				} catch(e) {
+					_lastAttachStartInHandle = parentHandle;
+				} else {
 					_lastAttachStartInHandle = null;
 				}
+			} catch(e) {
+				_lastAttachStartInHandle = null;
 			}
 		} else if (c === 'B') {
-			// 情况 B：子目录授权（首次）+ 系统选择器选文件 + 指纹比对记录 path
-			// 首次添加附件（运行时）：触发子目录授权建立指纹库
+			// 情况 B（安卓）：dirHandle.resolve 有缺陷（子目录被判为根目录外），
+			// 改用 webkitdirectory 授权 dirHandle 根目录 + 指纹比对记录 path
 			if (!_bijiSubDirFingerprints) {
-				const ok = await _showAppConfirm('授权子目录访问',
-					'请指定附件所在【子目录】，即附件保存的具体文件夹；此过程与指定根目录相同，仍将唤起「上传」文件选择器。');
+				const ok = await _showAppConfirm('授权根目录访问',
+					'请选择此前指定的本地目录「' + (dirHandle.name || '') + '」以建立文件指纹，此过程仍将唤起「上传」文件选择器。');
 				if (!ok) return;
-				const n = await _authorizeAttachSubDir();
-				if (n < 0) return;  // 用户取消
-				_showToast('已授权子目录，记录 ' + n + ' 个文件指纹。如需改选其他目录，可在随后添加附件打开选择器时点取消。', 6000);
+				const n = await _authorizeAttachRootForAddOnAndroid(dirHandle);
+				if (n < 0) return;
+				_showToast('已授权根目录，记录 ' + n + ' 个文件指纹。如需改选其他目录，可在随后添加附件打开选择器时点取消。', 6000);
 			}
-			// 系统选择器选文件；取消后提供【指定其他子目录】入口
 			let picked = await _pickFilesViaSystemPicker();
 			if (!picked) {
-				// 用户取消系统选择器：询问是否指定其他子目录
-				const retry = await _showAppConfirm('指定其他子目录',
-					'是否重新选择附件所在的子目录？选择后将重新授权并再次唤起「上传」文件选择器。');
+				const retry = await _showAppConfirm('重新授权',
+					'是否重新选择根目录并建立文件指纹？');
 				if (!retry) return;
-				const n = await _authorizeAttachSubDir();
+				const n = await _authorizeAttachRootForAddOnAndroid(dirHandle);
 				if (n < 0) return;
-				_showToast('已重新指定子目录，记录 ' + n + ' 个文件指纹。');
+				_showToast('已重新授权，记录 ' + n + ' 个文件指纹。');
 				picked = await _pickFilesViaSystemPicker();
 				if (!picked) return;
 			}
@@ -4910,12 +4705,12 @@ async function _bijiAddAttach() {
 				path: item.path, name: item.name,
 				fileHandle: item.fileHandle, enabledTypes
 			});
-			// 情况 A：同步缩略图到本地镜像（3.3）
-			if (c === 'A' && dirHandle) {
+			// 同步缩略图到本地镜像（A/B + 开关开启，3.3）
+			if ((c === 'A' || c === 'B') && dirHandle && getAttachThumbLocalSync()) {
 				const thumbVal = await fujian.getThumbnail(asset.thumbKey);
 				if (thumbVal && thumbVal.blob) {
 					try { await fujian._syncThumbToLocal(asset.thumbKey, thumbVal.blob, dirHandle); }
-					catch(e) { /* 本地镜像失败不影响添加，仅 toast */ _showToast('😿缩略图本地镜像失败：' + (e.message || e)); }
+					catch(e) { /* 本地镜像失败不影响添加，仅 toast */ _showToast('😿缩略图本地同步失败：' + (e.message || e)); }
 				}
 			}
 			_bijiEditState.assets.push(asset);
@@ -5305,14 +5100,13 @@ function _bijiClearThumbBar() {
 }
 
 // ========== 附件浏览遮罩（9.1 / 9.2 / 9.3）==========
-// 状态：当前附件集合、索引、来源、权限情况、单次授权标志、Blob URL、音量、缩放
+// 状态：当前附件集合、索引、来源、权限情况、Blob URL、音量、缩放
 let _attachViewerState = {
 	assets: null,
 	index: 0,
 	asset: null,         // 当前附件对象（缓存，便于键盘交互判断类型）
 	source: 'editor',    // 'editor' | 'list'
 	case: 'A',           // 'A' | 'B' | 'C'
-	singleAuth: false,   // 已废弃（原情况 B 单次授权模式），保留字段防御性兼容
 	blobURL: null,       // 当前原文件 Blob URL（关闭时释放）
 	thumbBlobURL: null,  // 当前缩略图 Blob URL（原文件丢失降级用）
 	isThumbFallback: false, // 当前是否为缩略图降级显示
@@ -5345,18 +5139,11 @@ async function _openAttachViewer(assets, idx, source) {
 	const c = _currentAttachCase();
 	if (c === 'C') return; // 不应到达，防护
 
-	// 情况 B：检查 askAccess 开关（9.2）
-	if (c === 'B' && !getAttachAskAccess()) {
-		_showToast('原文件浏览未启用。可在「存储与导出」中开启「每次运行授权访问」。');
-		return;
-	}
-
 	// 初始化状态
 	_attachViewerState.assets = assets;
 	_attachViewerState.index = idx;
 	_attachViewerState.source = source || 'editor';
 	_attachViewerState.case = c;
-	_attachViewerState.singleAuth = false;  // 放弃原单次授权模式
 	_attachViewerState.scale = 1;
 	_attachViewerState.tx = 0;
 	_attachViewerState.ty = 0;
@@ -5367,14 +5154,9 @@ async function _openAttachViewer(assets, idx, source) {
 	void DOM.attachViewer.offsetWidth;
 	DOM.attachViewer.classList.add('open');
 
-	// UI：情况 A/B 均显示左右切换；情况 B 首次需授权根目录
+	// UI：情况 A/B 均显示左右切换
 	_updateAttachViewerNav();
-	if (c === 'B' && !_bijiRootFileMap) {
-		DOM.attachViewerHint.textContent = '等待根目录授权——';
-		DOM.attachViewerHint.style.display = '';
-	} else {
-		DOM.attachViewerHint.style.display = 'none';
-	}
+	DOM.attachViewerHint.style.display = 'none';
 
 	// 加载内容
 	await _loadAttachViewerContent(asset);
@@ -5421,23 +5203,12 @@ async function _loadAttachViewerContent(asset) {
 				else missingReason = r;  // 'noDir' | 'noPerm' | 'notFound'
 			} catch(e) { file = null; missingReason = 'notFound'; }
 		} else if (_attachViewerState.case === 'B') {
-			// 情况 B：askAccess 已开启（_openAttachViewer 已校验）
-			// 首次访问触发根目录授权，建立「相对路径→File」映射表
-			if (!_bijiRootFileMap) {
-				DOM.attachViewerHint.textContent = '请授权本次运行的【根目录】访问权限——';
-				DOM.attachViewerHint.style.display = '';
-				const n = await _authorizeAttachRootForBrowse();
-				if (n < 0) {
-					// 用户取消授权：关闭遮罩
-					_closeAttachViewer();
-					return;
-				}
-				DOM.attachViewerHint.style.display = 'none';
-				_showToast('本次运行已授权，映射 ' + n + ' 个文件。');
-			}
-			// 从映射表取 File
-			file = _getFileFromRootMap(asset);
-			if (!file) missingReason = 'notFound';
+			// 情况 B（安卓）：正向解析（与 A 一致，通过 dirHandle 逐级解析 path+name）
+			try {
+				const r = await _resolveFileFromPath(asset);
+				if (r instanceof File) file = r;
+				else missingReason = r;  // 'noDir' | 'noPerm' | 'notFound'
+			} catch(e) { file = null; missingReason = 'notFound'; }
 		}
 
 		if (file) {
@@ -5452,7 +5223,7 @@ async function _loadAttachViewerContent(asset) {
 	const total = _attachViewerState.assets.length;
 	const cur = _attachViewerState.index + 1;
 	const sizeText = (typeof asset.size === 'number') ? _formatFileSize(asset.size) : '';
-	const idxText = (total > 1 && !_attachViewerState.singleAuth) ? '  ' + cur + '/' + total : '';
+	const idxText = (total > 1) ? '  ' + cur + '/' + total : '';
 	// attachShowPath 关闭时仅显示文件名，开启时显示相对路径 + 文件名
 	const namePart = asset.name || '';
 	const relPath = getAttachShowPath() ? ((asset.path || '') + namePart) : namePart;
@@ -5691,77 +5462,26 @@ async function _renderAttachViewerMissing(asset, reason) {
 
 	const tip = document.createElement('div');
 	tip.className = 'attach-viewer-missing-tip';
-	// 根据原因显示对应提示（情况 A 区分；情况 B 默认 notFound）
+	// 根据原因显示对应提示
 	let tipText = '附件原文件未找到。';
 	if (reason === 'noDir') tipText = '尚未指定文件夹，请在「存储与导出」中指定后再浏览。';
 	else if (reason === 'noPerm') tipText = '文件夹权限已失效，请前往「存储与导出」重新授权。';
-	else if (_attachViewerState.case === 'B') tipText = '附件原文件未在授权目录中找到，可能已被移动或重命名。';
 	tip.textContent = tipText;
 	wrap.appendChild(tip);
 
 	stage.appendChild(wrap);
 }
 
-// 情况 B：askAccess 开启时，用 webkitdirectory 授权根目录，建立「相对路径→File」映射表
-// 返回映射表大小；返回 -1 表示用户取消
-async function _authorizeAttachRootForBrowse() {
-	const rootPath = getAttachRootPath();
-	return new Promise(resolve => {
-		const inp = document.createElement('input');
-		inp.type = 'file';
-		inp.webkitdirectory = true;
-		inp.style.display = 'none';
-		inp.addEventListener('change', () => {
-			const files = inp.files;
-			inp.remove();
-			if (!files || files.length === 0) return resolve(-1);
-			// 校验所选目录是根目录（webkitRelativePath 第一段应等于 rootPath）
-			const firstRel = files[0].webkitRelativePath || '';
-			const rootSeg = firstRel.split(/[\\/]/)[0] || '';
-			if (rootPath && rootSeg !== rootPath) {
-				_showToast('⊘所选目录与指定的附件根目录「' + rootPath + '」不一致！');
-				return resolve(-1);
-			}
-			const map = new Map();
-			for (const f of files) {
-				const rel = f.webkitRelativePath || f.name;
-				// 去掉根目录段，得到相对根目录的路径
-				const parts = rel.split(/[\\/]/).filter(Boolean);
-				const relPath = parts.length > 1 ? parts.slice(1).join('/') : parts[0];
-				map.set(relPath, f);
-			}
-			_bijiRootFileMap = map;
-			resolve(map.size);
-		});
-		inp.addEventListener('cancel', () => { inp.remove(); resolve(-1); });
-		document.body.appendChild(inp);
-		inp.click();
-	});
-}
-
-// 情况 B：从根目录映射表中按 asset.path+name 取 File
-function _getFileFromRootMap(asset) {
-	if (!_bijiRootFileMap) return null;
-	const relPath = (asset.path || '') + (asset.name || '');
-	return _bijiRootFileMap.get(relPath) || null;
-}
-
-// 更新左右切换按钮显隐（情况 A，9.1）
+// 更新左右切换按钮显隐（A/B，9.1）
 function _updateAttachViewerNav() {
-	if (_attachViewerState.singleAuth) {
-		DOM.attachViewerPrev.style.visibility = 'hidden';
-		DOM.attachViewerNext.style.visibility = 'hidden';
-		return;
-	}
 	const total = _attachViewerState.assets ? _attachViewerState.assets.length : 0;
 	const i = _attachViewerState.index;
 	DOM.attachViewerPrev.style.visibility = (i > 0) ? '' : 'hidden';
 	DOM.attachViewerNext.style.visibility = (i < total - 1) ? '' : 'hidden';
 }
 
-// 切换到上一个/下一个附件（情况 A/B，9.1）
+// 切换到上一个/下一个附件（A/B，9.1）
 async function _attachViewerNavigate(delta) {
-	if (_attachViewerState.singleAuth) return;
 	const total = _attachViewerState.assets ? _attachViewerState.assets.length : 0;
 	if (total <= 1) return;
 	let next = _attachViewerState.index + delta;
@@ -5805,7 +5525,6 @@ function _closeAttachViewer() {
 	_attachViewerReleaseURLs();
 	_attachViewerState.assets = null;
 	_attachViewerState.index = 0;
-	_attachViewerState.singleAuth = false;
 	_attachViewerState.scale = 1;
 	_attachViewerState.scaleMin = 0.1;
 	_attachViewerState.scaleMax = 5;
@@ -5841,8 +5560,6 @@ function _onAttachViewerKeydown(e) {
 	// ESC 已在全局 keydown 中处理
 
 	if (e.key === 'ArrowLeft') {
-		// 单次授权模式禁用左右切换（9.2）
-		if (st.singleAuth) { e.preventDefault(); return; }
 		if (e.ctrlKey && isMedia) {
 			// Ctrl+←：跳转 -15 秒
 			_attachViewerSeek(-15);
@@ -5851,7 +5568,6 @@ function _onAttachViewerKeydown(e) {
 		}
 		e.preventDefault();
 	} else if (e.key === 'ArrowRight') {
-		if (st.singleAuth) { e.preventDefault(); return; }
 		if (e.ctrlKey && isMedia) {
 			// Ctrl+→：跳转 +15 秒
 			_attachViewerSeek(15);
@@ -6190,8 +5906,7 @@ function _onAttachViewerTouchEnd(e) {
 		const dy = last.clientY - ts.startY;
 		const adx = Math.abs(dx);
 		const ady = Math.abs(dy);
-		// 单次授权模式禁用左右切换（9.2）
-		if (!st.singleAuth && adx > 40 && adx > ady) {
+		if (adx > 40 && adx > ady) {
 			// 左右滑动：切换附件
 			_attachViewerNavigate(dx < 0 ? 1 : -1);
 			return;
@@ -6334,13 +6049,15 @@ async function _updateBijiHint() {
 	}
 	DOM.bijiEditorHint.style.display = '';
 	// 不支持本地文件夹时只显示"导出"，支持时显示"导出或启用本地同步保存"
-	const hasFS = _hasFileSystemAccess && typeof window.showDirectoryPicker === 'function';
+	const hasFS = _currentAttachCase() !== 'C';
 	DOM.bijiEditorHint.querySelector('#bijiHintExport').textContent = hasFS ? '导出或启用本地同步保存' : '导出';
 }
 
 // 笔记保存到本地文件（按岁区间原子写入，自动处理今岁一致性）
-// 启用与否由本地目录句柄是否存在决定；句柄不存在时 writeNoteToFiles 返回 noDir 静默
+// 由 attachBijiLocalSync 开关控制；B 未启用（对外 C）时禁用；句柄不存在时 writeNoteToFiles 返回 noDir 静默
 function _bijiWriteToFile(sui) {
+	// 笔记本地同步由 attachBijiLocalSync 开关控制；B 未启用（对外 C）时也禁用
+	if (!getAttachBijiLocalSync() || _currentAttachCase() === 'C') return;
 	const jin = state.todaySui;
 	biji.writeNoteToFiles(sui, jin).then(result => {
 		if (!result || result.ok) return;
@@ -6390,7 +6107,7 @@ function _parseSplitNodesFromFilenames(filenames, jin) {
 }
 
 async function _lsSpecifyDir() {
-	if (!(_hasFileSystemAccess && window.showDirectoryPicker)) { _showToast('当前浏览器不支持选择文件夹。'); return; }
+	if (_currentAttachCase() === 'C') { _showToast('当前浏览器不支持选择文件夹。'); return; }
 	try {
 		const handle = await window.showDirectoryPicker({ id: 'bijiRoot', mode: 'readwrite' });
 		await biji.saveDirHandle(handle);
@@ -6621,75 +6338,74 @@ async function _updateLsUI() {
 	// 同步先行显示 lsDirRow，避免进入设置页时空白
 	if (DOM.lsDirRow) DOM.lsDirRow.style.display = '';
 	try {
-		// 不支持长持句柄时：文件夹行显示提示文本，分割节点行隐藏
-		if (!(_hasFileSystemAccess && window.showDirectoryPicker)) {
+		await _refreshAttachCase();
+		const realCase = _attachCase || 'C';  // 真实权限 A/B/C（B 未启用仍为 B）
+		// 真实 C：不支持
+		if (realCase === 'C') {
 			DOM.lsDirName.style.display = 'none';
-			// 区分情况 B（支持 webkitRelativePath）与情况 C（完全不支持）
-			const isCaseB = _isReliableWebkitDirectory();
-			// 情况 B 已启用：隐藏 lsDirRow（attachRootPathRow 会显示，避免重复"附件限定根目录"两行）
-			// 情况 B 未启用 / 情况 C：显示 lsDirRow，按钮位置替换为提示文字
-			if (DOM.lsDirRow) DOM.lsDirRow.style.display = (isCaseB && _bAttachEnabled) ? 'none' : '';
-			// lsDirRowLabel：B 未启用时显示"本地保存/添加附件"，其他情况保持默认
-			if (DOM.lsDirRowLabel && isCaseB && !_bAttachEnabled) {
-				DOM.lsDirRowLabel.textContent = '本地保存/添加附件';
-			}
-			// B 未启用：提示"当前系统/浏览器支持残缺"，叠加透明双开关覆盖层
-			// C：提示"当前系统/浏览器不支持"
-			const tipText = isCaseB ? '当前系统/浏览器支持残缺' : '当前系统/浏览器不支持';
-			const needResidualToggles = isCaseB && !_bAttachEnabled;
-			// 若当前 DOM 不符合目标形态，重建
-			const isCurrentSpan = DOM.lsDirBtn.tagName === 'SPAN';
-			const currentText = isCurrentSpan ? DOM.lsDirBtn.textContent : '';
-			const hasToggles = isCurrentSpan && DOM.lsDirBtn.querySelector('.ls-residual-toggle');
-			const needRebuild = !isCurrentSpan || currentText !== tipText || (needResidualToggles !== hasToggles);
-			if (needRebuild) {
+			if (DOM.lsDirRowLabel) DOM.lsDirRowLabel.textContent = '本地同步及附件目录';
+			const tipText = '当前系统/浏览器不支持';
+			if (DOM.lsDirBtn.tagName !== 'SPAN' || DOM.lsDirBtn.textContent !== tipText || DOM.lsDirBtn.querySelector('.ls-residual-toggle')) {
 				const span = document.createElement('span');
-				span.style.cssText = 'position:relative;color:var(--text-tertiary);font-size:var(--small-size)';
-				if (needResidualToggles) {
-					// B 关闭态：透明双开关覆盖层
-					span.classList.add('ls-residual-tip');
-					const textEl = document.createElement('span');
-					textEl.className = 'ls-residual-text';
-					textEl.textContent = tipText;
-					textEl.style.cssText = 'pointer-events:none;user-select:none';
-					span.appendChild(textEl);
-					// 左半透明 checkbox
-					const left = document.createElement('input');
-					left.type = 'checkbox';
-					left.className = 'ls-residual-toggle ls-residual-left';
-					left.setAttribute('aria-label', '残缺功能左开关');
-					left.style.cssText = 'opacity:0;position:absolute;left:0;top:0;width:50%;height:100%;margin:0;cursor:pointer';
-					// 右半透明 checkbox
-					const right = document.createElement('input');
-					right.type = 'checkbox';
-					right.className = 'ls-residual-toggle ls-residual-right';
-					right.setAttribute('aria-label', '残缺功能右开关');
-					right.style.cssText = 'opacity:0;position:absolute;right:0;top:0;width:50%;height:100%;margin:0;cursor:pointer';
-					// 双开关都切换为 checked 时触发 B 附件开关开启
-					const onChange = () => {
-						if (left.checked && right.checked) {
-							_bAttachEnabled = true;
-							_showToast('已启用残缺的附件功能。');
-							_updateLsUI();
-							_updateAttachCaseUI();
-							_refreshAttachButtonVisibility();
-						}
-					};
-					left.addEventListener('change', onChange);
-					right.addEventListener('change', onChange);
-					span.appendChild(left);
-					span.appendChild(right);
-				} else {
-					// C 态：纯提示文字
-					span.textContent = tipText;
-				}
+				span.style.cssText = 'color:var(--text-tertiary);font-size:var(--small-size)';
+				span.textContent = tipText;
 				DOM.lsDirBtn.replaceWith(span);
 				DOM.lsDirBtn = span;
 			}
 			DOM.lsSplitWrap.style.display = 'none';
 			return;
 		}
-		// 支持时：若按钮曾被替换为文本，恢复为按钮
+		// B 未启用：隐藏入口（双开关 + "支持残缺"）
+		if (realCase === 'B' && !_bAttachEnabled) {
+			DOM.lsDirName.style.display = 'none';
+			if (DOM.lsDirRowLabel) DOM.lsDirRowLabel.textContent = '本地保存/添加附件';
+			const tipText = '当前系统/浏览器支持残缺';
+			const isCurrentSpan = DOM.lsDirBtn.tagName === 'SPAN';
+			const currentText = isCurrentSpan ? DOM.lsDirBtn.textContent : '';
+			const hasToggles = isCurrentSpan && DOM.lsDirBtn.querySelector('.ls-residual-toggle');
+			if (!isCurrentSpan || currentText !== tipText || !hasToggles) {
+				const span = document.createElement('span');
+				span.classList.add('ls-residual-tip');
+				span.style.cssText = 'position:relative;color:var(--text-tertiary);font-size:var(--small-size)';
+				const textEl = document.createElement('span');
+				textEl.className = 'ls-residual-text';
+				textEl.textContent = tipText;
+				textEl.style.cssText = 'pointer-events:none;user-select:none';
+				span.appendChild(textEl);
+				// 左半透明 checkbox
+				const left = document.createElement('input');
+				left.type = 'checkbox';
+				left.className = 'ls-residual-toggle ls-residual-left';
+				left.setAttribute('aria-label', '残缺功能左开关');
+				left.style.cssText = 'opacity:0;position:absolute;left:0;top:0;width:50%;height:100%;margin:0;cursor:pointer';
+				// 右半透明 checkbox
+				const right = document.createElement('input');
+				right.type = 'checkbox';
+				right.className = 'ls-residual-toggle ls-residual-right';
+				right.setAttribute('aria-label', '残缺功能右开关');
+				right.style.cssText = 'opacity:0;position:absolute;right:0;top:0;width:50%;height:100%;margin:0;cursor:pointer';
+				// 双开关都切换为 checked 时触发 B 附件开关开启
+				const onChange = () => {
+					if (left.checked && right.checked) {
+						_bAttachEnabled = true;
+						_showToast('已启用残缺的附件功能。');
+						_updateLsUI();
+						_updateAttachCaseUI();
+						_refreshAttachButtonVisibility();
+					}
+				};
+				left.addEventListener('change', onChange);
+				right.addEventListener('change', onChange);
+				span.appendChild(left);
+				span.appendChild(right);
+				DOM.lsDirBtn.replaceWith(span);
+				DOM.lsDirBtn = span;
+			}
+			DOM.lsSplitWrap.style.display = 'none';
+			return;
+		}
+		// A 或 B 已启用：正常显示
+		// 若按钮曾被替换为文本，恢复为按钮
 		if (DOM.lsDirBtn.tagName === 'SPAN') {
 			const btn = document.createElement('button');
 			btn.type = 'button';
@@ -6698,6 +6414,7 @@ async function _updateLsUI() {
 			DOM.lsDirBtn.replaceWith(btn);
 			DOM.lsDirBtn = btn;
 		}
+		if (DOM.lsDirRowLabel) DOM.lsDirRowLabel.textContent = '本地同步及附件目录';
 		// 文件夹按钮
 		const dirHandle = await biji.getDirHandle();
 		const hasDir = !!dirHandle;
@@ -6714,8 +6431,8 @@ async function _updateLsUI() {
 			DOM.lsDirBtn.textContent = '指定文件夹';
 		}
 		DOM.lsDirBtn.dataset.state = hasDir ? (dirOk ? 'unlink' : 'reauth') : 'specify';
-		// 分割节点：指定文件夹后即显示（配置项，不依赖授权状态）
-		if (hasDir) {
+		// 分割节点：仅 A 显示（B 安卓不支持分割，按 jin 单段写入）
+		if (hasDir && realCase === 'A') {
 			DOM.lsSplitWrap.style.display = '';
 			_buildLsSplitList();
 		} else {
@@ -6731,9 +6448,9 @@ async function _updateLsUI() {
 async function _onLsDirBtnClick() {
 	const st = DOM.lsDirBtn.dataset.state;
 	if (st === 'specify') {
-		// 权限 A 状态下，安卓环境提示：指定后每次运行、首次读写仍将询问授权
-		if (_currentAttachCase() === 'A' && /android/i.test(navigator.userAgent)) {
-			if (!confirm('因 Android 系统安全策略，在运行中触发本地读写时，浏览器会反复弹窗确认授权——仍想要继续吗？另，本弹窗停留过久可能导致手势过期，则需重新点击「指定文件夹」。')) return;
+		// 权限 B（安卓）：指定后每次运行、首次读写仍将询问授权
+		if (_currentAttachCase() === 'B') {
+			if (!confirm('因 Android 系统安全策略，在运行中触发本地读写时，浏览器会反复弹窗确认授权——仍要继续吗？🤔 另，本弹窗停留过久可能导致手势过期，则需重新点击「指定文件夹」。')) return;
 		}
 		await _lsSpecifyDir();
 	}
@@ -6743,50 +6460,28 @@ async function _onLsDirBtnClick() {
 
 // ========== 附件功能：权限三分法（文档二章）==========
 // 返回 'A' | 'B' | 'C'
-// A：支持长持句柄（showDirectoryPicker + showOpenFilePicker）
-// B：不支持长持句柄但支持 webkitRelativePath
-// C：不支持获取路径
-
-// webkitdirectory 可靠性判定（白名单策略）
-// 桌面端 Chromium 系 webkitdirectory 稳定可信；移动端仅原生 Chrome/Edge 可信，
-// 国产系统浏览器虽基于 Chromium 且 'webkitdirectory' in input 为 true，但实际
-// 呼出普通文件选择器、无法选择目录，故降级为 C
-function _isReliableWebkitDirectory() {
-	if (typeof document === 'undefined') return false;
-	const input = document.createElement('input');
-	if (!('webkitdirectory' in input)) return false;
-	const ua = navigator.userAgent || '';
-	// 桌面端：可信
-	if (!/Android|iPhone|iPad|iPod/i.test(ua)) return true;
-	// 移动端国产壳标识（基于 Chromium 但 webkitdirectory 不可靠）
-	if (/MIUIBrowser|HuaweiBrowser|HeyTapBrowser|VivoBrowser|OppoBrowser|BBrowser|QQBrowser|UCBrowser|Quark|baiduboxapp|SamsungBrowser|Maxthon|SogouMobile/i.test(ua)) return false;
-	// 仅原生 Chrome / Edge 可信
-	return /Chrome\//.test(ua) || /Edg\//.test(ua);
-}
+// A：桌面端 Chromium（showDirectoryPicker + showOpenFilePicker，完整体验）
+// B：移动端 Chromium（安卓，有 picker + _hasFileSystemAccess 确认非 stub；残缺，隐藏入口）
+// C：不支持（Firefox/Safari/国产壳/移动端 stub）
 async function _getAttachCase() {
-	if (_hasFileSystemAccess && window.showDirectoryPicker && window.showOpenFilePicker) {
-		const dirHandle = await biji.getDirHandle();
-		if (dirHandle) return 'A';
-		// 有能力但未指定根目录：仍可添加附件（A 模式 startIn），但 _bijiAddAttach 内部防护
-		return 'A';
-	}
-	// 检测 webkitRelativePath 支持（白名单：排除国产壳误报）
-	if (_isReliableWebkitDirectory()) return 'B';
-	return 'C';
+	if (!(window.showDirectoryPicker && window.showOpenFilePicker)) return 'C';
+	const ua = navigator.userAgent || '';
+	const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+	if (!isMobile) return 'A';  // 桌面端 Chromium：完整
+	// 移动端：需 _hasFileSystemAccess 确认非 stub（beforeinstallprompt/standalone）
+	return _hasFileSystemAccess ? 'B' : 'C';
 }
 
 // 缓存当前附件权限情况，避免频繁异步判定
 let _attachCase = null;
 // 情况 A：记忆上次添加附件访问的子目录 handle（在根目录内时记忆，否则清空）
 let _lastAttachStartInHandle = null;
-// 情况 B：子目录文件指纹缓存（运行时内存，每次运行重建）
+// 情况 B：目录文件指纹缓存（运行时内存，每次运行重建）
 // 结构：Map<fingerprint, relativePath>，fingerprint = name|size|lastModified
 let _bijiSubDirFingerprints = null;
-// 情况 B：askAccess 开启时的根目录「相对路径→File」映射表（运行时内存）
-let _bijiRootFileMap = null;
 // 情况 B 附件功能运行时启用开关（不持久化，每次运行默认关闭）
 // false：B 权限对外表现为 C（不显示附件相关 UI、不可添加附件）
-// true：B 权限恢复原设计形态（附件限定根目录 + 功能按钮）
+// true：B 权限恢复形态（dirHandle + 附件功能）
 let _bAttachEnabled = false;
 async function _refreshAttachCase() {
 	_attachCase = await _getAttachCase();
@@ -6813,21 +6508,16 @@ async function _updateAttachCaseUI() {
 	if (c === 'C') {
 		// 维护栏在情况 C 保留（4.3），仅清理引用行隐藏
 		if (DOM.attachAskAccessRow) DOM.attachAskAccessRow.style.display = 'none';
-		if (DOM.attachRootPathRow) DOM.attachRootPathRow.style.display = 'none';
 		// B 附件开关隐藏（C 态不显示）
 		if (DOM.bAttachToggleWrap) DOM.bAttachToggleWrap.style.display = 'none';
 		// 情况 C 隐藏「导出所含缩略图」勾选项（无附件可导出）
 		if (DOM.bijiExportThumbsRow) DOM.bijiExportThumbsRow.style.display = 'none';
 		if (DOM.boExportThumbsRow) DOM.boExportThumbsRow.style.display = 'none';
 	} else {
-		// attachRootPathRow 仅情况 B 显示（4.2）
-		if (DOM.attachRootPathRow) DOM.attachRootPathRow.style.display = (c === 'B') ? '' : 'none';
-		// attachAskAccessRow：A/B 均显示（B 显示"每次询问"+"访问时显示路径"，A 仅显示"浏览时显示路径"）
+		// attachAskAccessRow：A/B 均显示（本地同步保存 + 浏览显示路径；B 额外显示关闭开关）
 		if (DOM.attachAskAccessRow) DOM.attachAskAccessRow.style.display = '';
-		// "每次运行授权访问"仅情况 B 显示
-		if (DOM.attachAskAccessLabel) DOM.attachAskAccessLabel.style.display = (c === 'B') ? '' : 'none';
-		// "显示路径"文案：B 为"访问时显示路径"，A 为"浏览时显示路径"
-		if (DOM.attachShowPathText) DOM.attachShowPathText.textContent = (c === 'B') ? '访问时显示路径' : '浏览时显示路径';
+		// "显示路径"文案：A/B 统一为"浏览显示路径"
+		if (DOM.attachShowPathText) DOM.attachShowPathText.textContent = '浏览显示路径';
 		// B 附件开关：仅情况 B 显示（行末居右）
 		if (DOM.bAttachToggleWrap) DOM.bAttachToggleWrap.style.display = (c === 'B') ? '' : 'none';
 		if (DOM.bAttachToggle) {
@@ -6838,43 +6528,26 @@ async function _updateAttachCaseUI() {
 		if (DOM.bijiExportThumbsRow) DOM.bijiExportThumbsRow.style.display = '';
 		if (DOM.boExportThumbsRow) DOM.boExportThumbsRow.style.display = '';
 	}
-	// 同步附件设置项 UI 状态（4.1 / 4.2）
+	// 同步附件设置项 UI 状态
 	_syncAttachSettingsUI();
 	// 维护栏在 A/B/C 均显示（4.3）
 	if (DOM.thumbMaintainWrap) DOM.thumbMaintainWrap.style.display = '';
-	// 清理引用按钮行：仅情况 A 可用（7.6 权限适配）
-	if (DOM.cleanMissingRefsRow) DOM.cleanMissingRefsRow.style.display = (c === 'A') ? '' : 'none';
+	// 清理引用按钮行：A/B 可用（7.6 权限适配，均通过 dirHandle 正向解析）
+	if (DOM.cleanMissingRefsRow) DOM.cleanMissingRefsRow.style.display = (c === 'A' || c === 'B') ? '' : 'none';
 	// 维护模式选项按权限适配（4.3 第 4 行）
 	_syncManualModeUI();
 	_syncAutoModeUI();
-	// 「笔记与本地文件夹」栏：文件夹行前方文字（2.3）
-	// h3 栏标题保持「笔记与本地文件夹」不变，仅修改 lsDirRow 内的 span 文案
-	const lsDirRowLabel = DOM.lsDirRowLabel;
-	if (lsDirRowLabel) {
-		if (c === 'A') lsDirRowLabel.textContent = '本地同步及附件目录';
-		else if (c === 'B') lsDirRowLabel.textContent = '附件限定根目录';
-		else lsDirRowLabel.textContent = '本地同步及附件目录';
-	}
 }
 
-// 同步附件设置项 UI 状态（4.1 / 4.2）
+// 同步附件设置项 UI 状态
 function _syncAttachSettingsUI() {
-	// 附件限定根目录：显示目录名 + 按钮文案（情况 B）
-	const rootPath = getAttachRootPath() || '';
-	if (DOM.attachRootPathName) {
-		DOM.attachRootPathName.textContent = rootPath || '未指定';
-		DOM.attachRootPathName.style.display = '';
+	// 笔记本地同步开关（A/B）
+	if (DOM.attachBijiLocalSync) {
+		DOM.attachBijiLocalSync.checked = !!getAttachBijiLocalSync();
 	}
-	if (DOM.attachRootPathBtn) {
-		DOM.attachRootPathBtn.textContent = rootPath ? '解除指定' : '指定文件夹';
-	}
-	// 授权刷新按钮：仅已指定根目录时显示（用于刷新文件夹树记录）
-	if (DOM.attachRootRefreshBtn) {
-		DOM.attachRootRefreshBtn.style.display = rootPath ? '' : 'none';
-	}
-	// 每次运行授权访问开关（情况 B）
-	if (DOM.attachAskAccess) {
-		DOM.attachAskAccess.checked = !!getAttachAskAccess();
+	// 缩略图本地同步开关（A/B）
+	if (DOM.attachThumbLocalSync) {
+		DOM.attachThumbLocalSync.checked = !!getAttachThumbLocalSync();
 	}
 	// 显示路径开关（A/B）
 	if (DOM.attachShowPath) {
@@ -6887,15 +6560,10 @@ function _refreshAttachButtonVisibility() {
 	const c = _currentAttachCase();
 	if (!DOM.bijiAddAttachBtn) return;
 	if (c === 'C') { DOM.bijiAddAttachBtn.style.display = 'none'; return; }
-	// 情况 A：dirHandle 不存在则隐藏（5.3）
-	// 情况 B：attachRootPath 为空则隐藏
-	if (c === 'A') {
-		biji.getDirHandle().then(h => {
-			DOM.bijiAddAttachBtn.style.display = h ? '' : 'none';
-		});
-	} else if (c === 'B') {
-		DOM.bijiAddAttachBtn.style.display = getAttachRootPath() ? '' : 'none';
-	}
+	// 情况 A/B：dirHandle 不存在则隐藏（5.3）
+	biji.getDirHandle().then(h => {
+		DOM.bijiAddAttachBtn.style.display = h ? '' : 'none';
+	});
 }
 
 // ========== 文件解析（情况 A 通过 dirHandle 逐级解析 path+name，7.2）==========
@@ -7480,8 +7148,8 @@ async function _supplementMissingThumbKeys(fileResolver, enabledTypes, disabledR
 								hashSuffix: 0
 							};
 							await fujian.putThumbnail(thumbKey, value);
-							// 情况 A：同步缩略图到本地镜像（3.3）
-							if (dirHandle) {
+							// 同步缩略图到本地镜像（A/B + 开关开启，3.3）
+							if (dirHandle && getAttachThumbLocalSync()) {
 								try { await fujian._syncThumbToLocal(thumbKey, thumbResult.blob, dirHandle); }
 								catch(e) { /* 本地镜像失败不影响补全结果 */ }
 							}
@@ -7896,10 +7564,8 @@ function _syncManualModeUI() {
 	// 清空现有选项
 	DOM.thumbManualMode.innerHTML = '';
 	const opts = [];
-	if (c === 'A') {
+	if (c === 'A' || c === 'B') {
 		opts.push(['increment', '增减'], ['rebuild', '重建'], ['cleanup', '仅清理']);
-	} else if (c === 'B') {
-		opts.push(['increment', '增减'], ['cleanup', '仅清理']);
 	} else {
 		opts.push(['cleanup', '仅清理']);
 	}
@@ -8408,8 +8074,8 @@ function _initInstallPrompt() {
 			_hasFileSystemAccess = true;
 			_updateLsUI();
 			_updateBijiHint();
-			// _hasFileSystemAccess 变更后附件权限情况可能从 B 升级为 A，需刷新缓存
-			// 否则 _attachCase 停留在旧值 'B'，启动期点击缩略图会被误判为 C 而无法唤起浏览
+			// _hasFileSystemAccess 变更后移动端可能从 C（stub）升级为 B，需刷新缓存
+			// 否则 _attachCase 停留在旧值 'C'，启动期点击缩略图无法唤起浏览
 			_updateAttachCaseUI();
 		}
 	});

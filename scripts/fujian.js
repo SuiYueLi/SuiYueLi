@@ -31,7 +31,7 @@ const HASH_SUFFIX_MAX = 1000;          // 哈希冲突循环上限
 // 文本附件预览上限（9.1）
 export const TEXT_PREVIEW_MAX = 16 * 1024;
 
-// 缩略图本地镜像后缀（3.3）
+// 缩略图本地同步后缀（3.3）
 const THUMB_LOCAL_SUFFIX = '_s.webp';
 const THUMB_LOCAL_DIR = '.thumbnails';
 

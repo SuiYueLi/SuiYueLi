@@ -32,9 +32,8 @@ const DEFAULT_SETTINGS = {
 	lastAutoUpdateFailTime: 0,
 	customFonts: {},
 	// 附件功能相关
-	attachRootPath: '',                // 情况 B：附件限定根目录字符串
-	attachRootTree: null,              // 情况 B：附件根目录文件夹树（纯目录结构，嵌套 {name, dirs:[]}]
-	attachAskAccess: false,            // 情况 B：每次运行授权访问（默认不勾）
+	attachBijiLocalSync: true,         // 笔记本地同步（A/B 权限，默认开启）
+	attachThumbLocalSync: true,        // 缩略图本地同步（A/B 权限，默认开启）
 	attachShowPath: false,             // 附件浏览界面显示相对路径（默认不勾）
 	thumbManualMode: 'increment',     // 手动维护模式：rebuild | increment | cleanup（默认增减）
 	thumbAutoMode: 'increment',       // 自动维护模式：rebuild | increment | cleanup（默认增减；B/C 权限下强制 cleanup）
@@ -62,6 +61,11 @@ function _loadSettings() {
 		const saved = localStorage.getItem(STORAGE_KEY);
 		if (saved) {
 			settings = {...DEFAULT_SETTINGS, ...JSON.parse(saved)};
+			// 清理已废弃的附件权限旧字段（重构后不再使用）
+			delete settings.attachRootPath;
+			delete settings.attachRootTree;
+			delete settings.attachAskAccess;
+			delete settings.attachLocalSync;
 			if (settings.customVLI && !settings.customVLIs?.length) {
 				settings.customVLIs = [{id: 'cv1', Cha: settings.customVLI.Cha, Ming: settings.customVLI.Ming}];
 				settings.activeVLI = 'cv1';
@@ -670,22 +674,15 @@ function _normalizeEnabledTypes(arr) {
 	return out;
 }
 
-export function getAttachRootPath() { return settings.attachRootPath || ''; }
-export function setAttachRootPath(v) {
-	settings.attachRootPath = typeof v === 'string' ? v : '';
+export function getAttachBijiLocalSync() { return settings.attachBijiLocalSync !== false; }
+export function setAttachBijiLocalSync(v) {
+	settings.attachBijiLocalSync = !!v;
 	_saveSettings();
 }
 
-export function getAttachRootTree() { return settings.attachRootTree || null; }
-export function setAttachRootTree(v) {
-	// 树结构为对象 {name, dirs:[]}，非数组；接受对象或 null
-	settings.attachRootTree = (v && typeof v === 'object' && !Array.isArray(v)) ? v : null;
-	_saveSettings();
-}
-
-export function getAttachAskAccess() { return !!settings.attachAskAccess; }
-export function setAttachAskAccess(v) {
-	settings.attachAskAccess = !!v;
+export function getAttachThumbLocalSync() { return settings.attachThumbLocalSync !== false; }
+export function setAttachThumbLocalSync(v) {
+	settings.attachThumbLocalSync = !!v;
 	_saveSettings();
 }
 
