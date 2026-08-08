@@ -1227,7 +1227,7 @@ function bindEvents() {
 	// 情况 B 不支持 showDirectoryPicker，但 webkitRelativePath 普遍支持
 	// 注：浏览器会显示「上传该目录中的文件」提示，先弹应用预提示解释
 	// 指定后遍历目录结构建立文件夹树（纯目录）持久化保存
-	const _attachBrowserUploadTip = '　　接下来对文件夹的选择将唤起「上传」选择器，浏览器会询问是否“<b>上传文件夹中的所有文件到网站</b>”——这是浏览器调用 <a href="https://developer.mozilla.org/zh-CN/docs/Web/API/File/webkitRelativePath" target="_blank" rel="noopener noreferrer"><small>webkitRelativePath</small></a> 的固定安全提示，<b>本应用不上传任何数据</b>。若有疑虑，可选择断网操作或取消。';
+	const _attachBrowserUploadTip = '　　接下来对文件夹的选择将唤起「上传」文件选择器，浏览器会询问是否“<b>上传文件夹中的所有文件到网站</b>”——这是浏览器调用 <a href="https://developer.mozilla.org/zh-CN/docs/Web/API/File/webkitRelativePath" target="_blank" rel="noopener noreferrer"><small>webkitRelativePath</small></a> 的固有安全提示，<b>本应用不上传任何数据</b>。若有疑虑，可选择断网操作或取消。';
 
 	// 从 webkitdirectory 返回的 FileList 建立纯目录树
 	// relPaths: webkitRelativePath 数组（如 ['root/sub/a.jpg', 'root/sub2/b.jpg']）
@@ -1323,7 +1323,7 @@ function bindEvents() {
 		const checked = DOM.attachAskAccess.checked;
 		if (checked) {
 			// 勾选时给出详细提示
-			const tipBody = '　　勾选后，每次运行应用首次浏览附件时，需授权访问附件根目录（浏览器会唤起「上传」选择器，与指定根目录时相同）。授权后的运行期间可直接浏览笔记内引用的根目录内附件。重启应用后需重新授权。';
+			const tipBody = '　　勾选后，每次运行应用首次浏览附件时，需授权访问附件根目录（浏览器会唤起「上传」文件选择器，与指定根目录时相同）。授权后的运行期间可直接浏览笔记内引用的根目录内附件。重启应用后需重新授权。';
 			const ok = await _showAppConfirm('关于「每次运行授权访问」', tipBody);
 			if (!ok) { DOM.attachAskAccess.checked = false; return; }
 		}
@@ -2888,7 +2888,7 @@ async function _confirmBoExport() {
 				await _saveFile(packResult.blob, zipFilename, 'application/zip');
 			}
 		} catch(e) {
-			if (e.name !== 'AbortError') _showToast('缩略图包导出失败：' + e.message);
+			if (e.name !== 'AbortError') _showToast('😿缩略图包导出失败：' + e.message);
 			return;
 		}
 	}
@@ -2902,7 +2902,7 @@ async function _confirmBoExport() {
 	try {
 		await _saveFile(content, noteFilename, mime);
 	} catch(e) {
-		if (e.name !== 'AbortError') _showToast('导出失败：' + e.message);
+		if (e.name !== 'AbortError') _showToast('😿导出失败：' + e.message);
 		return;
 	}
 
@@ -3182,7 +3182,7 @@ async function _onBgImageSelect() {
 			input.click();
 		}
 	} catch(e) {
-		if (e.name !== 'AbortError') _showToast('选择图片失败。');
+		if (e.name !== 'AbortError') _showToast('😿选择图片失败。');
 	}
 }
 
@@ -3533,12 +3533,12 @@ async function _importJieSu() {
 					setJieSu(result);
 					_rebuildAfterDataChange();
 					_showToast(mode === 'replace' ? '节庆民俗列表已替换。' : '节庆民俗列表已合并。', 3000);
-				} catch(e) { _showToast('导入失败：' + e.message); }
+				} catch(e) { _showToast('😿导入失败：' + e.message); }
 			};
 			input.click();
 		}
 	} catch(e) {
-		if (e.name !== 'AbortError') _showToast('导入失败：' + e.message);
+		if (e.name !== 'AbortError') _showToast('😿导入失败：' + e.message);
 	}
 }
 
@@ -3701,7 +3701,7 @@ async function _exportJieSu() {
 		}
 		_showToast('节庆民俗列表已导出。', 3000);
 	} catch(e) {
-		if (e.name !== 'AbortError') _showToast('导出失败：' + e.message);
+		if (e.name !== 'AbortError') _showToast('😿导出失败：' + e.message);
 	}
 }
 
@@ -3736,12 +3736,12 @@ async function _importFuRi() {
 					setFuRi(result);
 					_rebuildAfterDataChange();
 					_showToast(mode === 'replace' ? '每年重复日列表已替换。' : '每年重复日列表已合并。', 3000);
-				} catch(e) { _showToast('导入失败：' + e.message); }
+				} catch(e) { _showToast('😿导入失败：' + e.message); }
 			};
 			input.click();
 		}
 	} catch(e) {
-		if (e.name !== 'AbortError') _showToast('导入失败：' + e.message);
+		if (e.name !== 'AbortError') _showToast('😿导入失败：' + e.message);
 	}
 }
 
@@ -3772,7 +3772,7 @@ async function _exportFuRi() {
 		}
 		_showToast('每年重复日列表已导出。', 3000);
 	} catch(e) {
-		if (e.name !== 'AbortError') _showToast('导出失败：' + e.message);
+		if (e.name !== 'AbortError') _showToast('😿导出失败：' + e.message);
 	}
 }
 
@@ -4727,7 +4727,7 @@ async function _authorizeAttachRootForAddOnAndroid(dirHandle) {
 	const firstRel = files[0].webkitRelativePath || '';
 	const rootSeg = firstRel.split(/[\\/]/)[0] || '';
 	if (rootName && rootSeg !== rootName) {
-		_showToast('⊘所选目录与本地目录「' + rootName + '」不一致！');
+		_showToast('⊘所选目录与已指定本地目录「' + rootName + '」不一致！');
 		return -1;
 	}
 	// 建立指纹库：fingerprint → 相对根目录路径（剥离首段根目录名）
@@ -4801,17 +4801,17 @@ async function _bijiAddAttach() {
 				// 安卓 A：dirHandle.resolve(fh) 有缺陷（子目录被判为根目录外），
 				// 改用 webkitdirectory 授权根目录 + 指纹比对记录 path
 				if (!_bijiSubDirFingerprints) {
-					const ok = await _showAppConfirm('授权目录访问',
-						'请指定本地目录「' + (dirHandle.name || '') + '」自身以建立文件指纹，此过程仍将唤起「上传」选择器。');
+					const ok = await _showAppConfirm('授权根目录访问',
+						'请选择此前指定的本地目录「' + (dirHandle.name || '') + '」以建立文件指纹，此过程仍将唤起「上传」文件选择器。');
 					if (!ok) return;
 					const n = await _authorizeAttachRootForAddOnAndroid(dirHandle);
 					if (n < 0) return;
-					_showToast('已授权目录，记录 ' + n + ' 个文件指纹。', 6000);
+					_showToast('已授权根目录，记录 ' + n + ' 个文件指纹。', 6000);
 				}
 				let picked = await _pickFilesViaSystemPicker();
 				if (!picked) {
 					const retry = await _showAppConfirm('重新授权',
-						'是否重新选择目录以建立文件指纹？');
+						'是否重新选择根目录并建立文件指纹？');
 					if (!retry) return;
 					const n = await _authorizeAttachRootForAddOnAndroid(dirHandle);
 					if (n < 0) return;
@@ -4839,7 +4839,7 @@ async function _bijiAddAttach() {
 				}
 				if (!handles || !handles.length) return; // 用户取消
 				for (const fh of handles) {
-					if (!(await _isWithinRoot(fh))) { _showToast('⊘仅可添加本地指定根目录内的文件！'); return; }
+					if (!(await _isWithinRoot(fh))) { _showToast('⊘仅可添加指定本地目录内的文件！'); return; }
 					const file = await fh.getFile();
 					const rel = await dirHandle.resolve(fh);
 					if (!rel || !rel.length) continue;
@@ -4868,7 +4868,7 @@ async function _bijiAddAttach() {
 			// 首次添加附件（运行时）：触发子目录授权建立指纹库
 			if (!_bijiSubDirFingerprints) {
 				const ok = await _showAppConfirm('授权子目录访问',
-					'请指定附件所在【子目录】，即附件保存的具体文件夹；此过程与指定根目录相同，仍将唤起「上传」选择器。');
+					'请指定附件所在【子目录】，即附件保存的具体文件夹；此过程与指定根目录相同，仍将唤起「上传」文件选择器。');
 				if (!ok) return;
 				const n = await _authorizeAttachSubDir();
 				if (n < 0) return;  // 用户取消
@@ -4879,7 +4879,7 @@ async function _bijiAddAttach() {
 			if (!picked) {
 				// 用户取消系统选择器：询问是否指定其他子目录
 				const retry = await _showAppConfirm('指定其他子目录',
-					'是否重新选择附件所在的子目录？选择后将重新授权并再次唤起「上传」选择器。');
+					'是否重新选择附件所在的子目录？选择后将重新授权并再次唤起「上传」文件选择器。');
 				if (!retry) return;
 				const n = await _authorizeAttachSubDir();
 				if (n < 0) return;
@@ -4891,7 +4891,7 @@ async function _bijiAddAttach() {
 		}
 	} catch(e) {
 		if (e && (e.name === 'AbortError' || e.name === 'CancelError')) return; // 用户取消，静默
-		_showToast('添加附件失败：' + (e.message || e));
+		_showToast('😿添加附件失败：' + (e.message || e));
 		return;
 	}
 
@@ -4915,13 +4915,13 @@ async function _bijiAddAttach() {
 				const thumbVal = await fujian.getThumbnail(asset.thumbKey);
 				if (thumbVal && thumbVal.blob) {
 					try { await fujian._syncThumbToLocal(asset.thumbKey, thumbVal.blob, dirHandle); }
-					catch(e) { /* 本地镜像失败不影响添加，仅 toast */ _showToast('缩略图本地镜像失败：' + (e.message || e)); }
+					catch(e) { /* 本地镜像失败不影响添加，仅 toast */ _showToast('😿缩略图本地镜像失败：' + (e.message || e)); }
 				}
 			}
 			_bijiEditState.assets.push(asset);
 			added++;
 		} catch(e) {
-			_showToast('附件「' + item.name + '」添加失败：' + (e.message || e));
+			_showToast('😿附件「' + item.name + '」添加失败：' + (e.message || e));
 		}
 	}
 
@@ -6443,7 +6443,7 @@ async function _lsSpecifyDir() {
 		_updateLsUI();
 		_updateBijiHint();
 	} catch(e) {
-		if (e.name !== 'AbortError') _showToast('指定文件夹失败：' + e.message);
+		if (e.name !== 'AbortError') _showToast('😿指定文件夹失败：' + e.message);
 	}
 }
 
@@ -6733,7 +6733,7 @@ async function _onLsDirBtnClick() {
 	if (st === 'specify') {
 		// 权限 A 状态下，安卓环境提示：指定后每次运行、首次读写仍将询问授权
 		if (_currentAttachCase() === 'A' && /android/i.test(navigator.userAgent)) {
-			if (!confirm('因系统安全策略，指定后每次运行期间首次触发本地读写时仍会弹窗询问，确定要继续吗？')) return;
+			if (!confirm('因 Android 系统安全策略，在运行中触发本地读写时，浏览器会反复弹窗确认授权——仍想要继续吗？另，本弹窗停留过久可能导致手势过期，则需重新点击「指定文件夹」。')) return;
 		}
 		await _lsSpecifyDir();
 	}
