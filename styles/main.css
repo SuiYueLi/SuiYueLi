@@ -573,7 +573,7 @@ body {
   gap: var(--gap-md);
 }
 .bar-details .detail-spacer { visibility: hidden; }
-.bar-details .detail-ad { font-style: italic; }
+.bar-details .detail-wc { font-style: italic; }
 
 /* ========== Bar 7: 笔记栏 ========== */
 .bar-events {

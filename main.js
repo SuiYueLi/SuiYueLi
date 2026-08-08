@@ -996,7 +996,7 @@ function renderDetails() {
 			const adStr = y > 0
 				? 'AD' + y + '-' + String(cell.WC[1]).padStart(2, '0') + '-' + String(cell.WC[2]).padStart(2, '0')
 				: (1 - y) + 'BC-' + String(cell.WC[1]).padStart(2, '0') + '-' + String(cell.WC[2]).padStart(2, '0');
-			rightStr = '<span class="detail-ad">' + adStr + '</span>' + ' ' + weekdayStr;
+			rightStr = '<span class="detail-wc">' + adStr + '</span>' + ' ' + weekdayStr;
 		}
 
 		if (leftStr || rightStr) {
@@ -4701,6 +4701,48 @@ async function _authorizeAttachSubDir() {
 	return map.size;
 }
 
+// 情况 A（安卓）：用 webkitdirectory 授权 dirHandle 对应的根目录，建立指纹缓存
+// 安卓 A 权限下 dirHandle.resolve(fh) 有缺陷（子目录被判为根目录外），
+// 改用 webkitdirectory 建立整目录指纹库，再由系统选择器选文件、指纹比对记录 path
+// 复用 _bijiSubDirFingerprints（安卓 A 下其语义为"根目录指纹"，非子目录）
+// 返回授权的文件数；返回 -1 表示用户取消
+async function _authorizeAttachRootForAddOnAndroid(dirHandle) {
+	const rootName = dirHandle ? dirHandle.name : '';
+	const files = await new Promise(resolve => {
+		const inp = document.createElement('input');
+		inp.type = 'file';
+		inp.webkitdirectory = true;
+		inp.style.display = 'none';
+		inp.addEventListener('change', () => {
+			const f = inp.files;
+			inp.remove();
+			resolve(f && f.length ? f : null);
+		});
+		inp.addEventListener('cancel', () => { inp.remove(); resolve(null); });
+		document.body.appendChild(inp);
+		inp.click();
+	});
+	if (!files) return -1;  // 用户取消
+	// 校验所选目录与 dirHandle 一致（webkitRelativePath 第一段应等于 dirHandle.name）
+	const firstRel = files[0].webkitRelativePath || '';
+	const rootSeg = firstRel.split(/[\\/]/)[0] || '';
+	if (rootName && rootSeg !== rootName) {
+		_showToast('⊘所选目录与本地目录「' + rootName + '」不一致！');
+		return -1;
+	}
+	// 建立指纹库：fingerprint → 相对根目录路径（剥离首段根目录名）
+	const map = new Map();
+	for (const f of files) {
+		const rel = f.webkitRelativePath || f.name;
+		const parts = rel.split(/[\\/]/).filter(Boolean);
+		// 剥离首段（根目录名），得到相对 dirHandle 的路径
+		const relPath = parts.length > 1 ? parts.slice(1).join('/') : parts[0];
+		map.set(_attachFingerprint(f), relPath);
+	}
+	_bijiSubDirFingerprints = map;
+	return map.size;
+}
+
 // 情况 B：用系统选择器选文件（多选），通过指纹比对记录 path
 // 返回 [{ file, path, name }]；返回 null 表示用户取消
 async function _pickFilesViaSystemPicker() {
@@ -4755,46 +4797,71 @@ async function _bijiAddAttach() {
 	let filesToAdd = [];  // [{ file, fileHandle, path, name }]
 	try {
 		if (c === 'A') {
-			// 健壮性：优先用记忆的上次访问子目录，其次用根目录，失败时回退到不带 startIn
-			const startIn = _lastAttachStartInHandle || dirHandle;
-			let handles;
-			try {
-				handles = await window.showOpenFilePicker({ multiple: true, startIn });
-			} catch(e1) {
-				if (e1 && (e1.name === 'AbortError' || e1.name === 'CancelError')) return; // 用户取消
-				// startIn 可能失效（如记忆的子目录已删除），清空记忆并回退到根目录
-				_lastAttachStartInHandle = null;
-				try {
-					handles = await window.showOpenFilePicker({ multiple: true, startIn: dirHandle });
-				} catch(e2) {
-					if (e2 && (e2.name === 'AbortError' || e2.name === 'CancelError')) return;
-					handles = await window.showOpenFilePicker({ multiple: true });
+			if (/android/i.test(navigator.userAgent)) {
+				// 安卓 A：dirHandle.resolve(fh) 有缺陷（子目录被判为根目录外），
+				// 改用 webkitdirectory 授权根目录 + 指纹比对记录 path
+				if (!_bijiSubDirFingerprints) {
+					const ok = await _showAppConfirm('授权目录访问',
+						'请指定本地目录「' + (dirHandle.name || '') + '」自身以建立文件指纹，此过程仍将唤起「上传」选择器。');
+					if (!ok) return;
+					const n = await _authorizeAttachRootForAddOnAndroid(dirHandle);
+					if (n < 0) return;
+					_showToast('已授权目录，记录 ' + n + ' 个文件指纹。', 6000);
 				}
-			}
-			if (!handles || !handles.length) return; // 用户取消
-			for (const fh of handles) {
-				if (!(await _isWithinRoot(fh))) { _showToast('⊘仅可添加本地指定根目录内的文件！'); return; }
-				const file = await fh.getFile();
-				const rel = await dirHandle.resolve(fh);
-				if (!rel || !rel.length) continue;
-				const name = rel[rel.length - 1];
-				const path = rel.length > 1 ? rel.slice(0, -1).join('/') + '/' : '';
-				filesToAdd.push({ file, fileHandle: fh, path, name });
-			}
-			// 记忆本次访问的子目录：取第一个文件父目录 handle，验证在根目录内
-			try {
-				const rel0 = await dirHandle.resolve(handles[0]);
-				if (rel0 && rel0.length > 0 && !rel0[0].startsWith('..')) {
-					let parentHandle = dirHandle;
-					for (let i = 0; i < rel0.length - 1; i++) {
-						parentHandle = await parentHandle.getDirectoryHandle(rel0[i]);
+				let picked = await _pickFilesViaSystemPicker();
+				if (!picked) {
+					const retry = await _showAppConfirm('重新授权',
+						'是否重新选择目录以建立文件指纹？');
+					if (!retry) return;
+					const n = await _authorizeAttachRootForAddOnAndroid(dirHandle);
+					if (n < 0) return;
+					_showToast('已重新授权，记录 ' + n + ' 个文件指纹。');
+					picked = await _pickFilesViaSystemPicker();
+					if (!picked) return;
+				}
+				filesToAdd = picked;
+			} else {
+				// 健壮性：优先用记忆的上次访问子目录，其次用根目录，失败时回退到不带 startIn
+				const startIn = _lastAttachStartInHandle || dirHandle;
+				let handles;
+				try {
+					handles = await window.showOpenFilePicker({ multiple: true, startIn });
+				} catch(e1) {
+					if (e1 && (e1.name === 'AbortError' || e1.name === 'CancelError')) return; // 用户取消
+					// startIn 可能失效（如记忆的子目录已删除），清空记忆并回退到根目录
+					_lastAttachStartInHandle = null;
+					try {
+						handles = await window.showOpenFilePicker({ multiple: true, startIn: dirHandle });
+					} catch(e2) {
+						if (e2 && (e2.name === 'AbortError' || e2.name === 'CancelError')) return;
+						handles = await window.showOpenFilePicker({ multiple: true });
 					}
-					_lastAttachStartInHandle = parentHandle;
-				} else {
+				}
+				if (!handles || !handles.length) return; // 用户取消
+				for (const fh of handles) {
+					if (!(await _isWithinRoot(fh))) { _showToast('⊘仅可添加本地指定根目录内的文件！'); return; }
+					const file = await fh.getFile();
+					const rel = await dirHandle.resolve(fh);
+					if (!rel || !rel.length) continue;
+					const name = rel[rel.length - 1];
+					const path = rel.length > 1 ? rel.slice(0, -1).join('/') + '/' : '';
+					filesToAdd.push({ file, fileHandle: fh, path, name });
+				}
+				// 记忆本次访问的子目录：取第一个文件父目录 handle，验证在根目录内
+				try {
+					const rel0 = await dirHandle.resolve(handles[0]);
+					if (rel0 && rel0.length > 0 && !rel0[0].startsWith('..')) {
+						let parentHandle = dirHandle;
+						for (let i = 0; i < rel0.length - 1; i++) {
+							parentHandle = await parentHandle.getDirectoryHandle(rel0[i]);
+						}
+						_lastAttachStartInHandle = parentHandle;
+					} else {
+						_lastAttachStartInHandle = null;
+					}
+				} catch(e) {
 					_lastAttachStartInHandle = null;
 				}
-			} catch(e) {
-				_lastAttachStartInHandle = null;
 			}
 		} else if (c === 'B') {
 			// 情况 B：子目录授权（首次）+ 系统选择器选文件 + 指纹比对记录 path
@@ -6558,10 +6625,7 @@ async function _updateLsUI() {
 		if (!(_hasFileSystemAccess && window.showDirectoryPicker)) {
 			DOM.lsDirName.style.display = 'none';
 			// 区分情况 B（支持 webkitRelativePath）与情况 C（完全不支持）
-			const isCaseB = (() => {
-				const input = document.createElement('input');
-				return 'webkitdirectory' in input;
-			})();
+			const isCaseB = _isReliableWebkitDirectory();
 			// 情况 B 已启用：隐藏 lsDirRow（attachRootPathRow 会显示，避免重复"附件限定根目录"两行）
 			// 情况 B 未启用 / 情况 C：显示 lsDirRow，按钮位置替换为提示文字
 			if (DOM.lsDirRow) DOM.lsDirRow.style.display = (isCaseB && _bAttachEnabled) ? 'none' : '';
@@ -6682,6 +6746,23 @@ async function _onLsDirBtnClick() {
 // A：支持长持句柄（showDirectoryPicker + showOpenFilePicker）
 // B：不支持长持句柄但支持 webkitRelativePath
 // C：不支持获取路径
+
+// webkitdirectory 可靠性判定（白名单策略）
+// 桌面端 Chromium 系 webkitdirectory 稳定可信；移动端仅原生 Chrome/Edge 可信，
+// 国产系统浏览器虽基于 Chromium 且 'webkitdirectory' in input 为 true，但实际
+// 呼出普通文件选择器、无法选择目录，故降级为 C
+function _isReliableWebkitDirectory() {
+	if (typeof document === 'undefined') return false;
+	const input = document.createElement('input');
+	if (!('webkitdirectory' in input)) return false;
+	const ua = navigator.userAgent || '';
+	// 桌面端：可信
+	if (!/Android|iPhone|iPad|iPod/i.test(ua)) return true;
+	// 移动端国产壳标识（基于 Chromium 但 webkitdirectory 不可靠）
+	if (/MIUIBrowser|HuaweiBrowser|HeyTapBrowser|VivoBrowser|OppoBrowser|BBrowser|QQBrowser|UCBrowser|Quark|baiduboxapp|SamsungBrowser|Maxthon|SogouMobile/i.test(ua)) return false;
+	// 仅原生 Chrome / Edge 可信
+	return /Chrome\//.test(ua) || /Edg\//.test(ua);
+}
 async function _getAttachCase() {
 	if (_hasFileSystemAccess && window.showDirectoryPicker && window.showOpenFilePicker) {
 		const dirHandle = await biji.getDirHandle();
@@ -6689,13 +6770,8 @@ async function _getAttachCase() {
 		// 有能力但未指定根目录：仍可添加附件（A 模式 startIn），但 _bijiAddAttach 内部防护
 		return 'A';
 	}
-	// 检测 webkitRelativePath 支持（通过 input webkitdirectory）
-	if (typeof document !== 'undefined') {
-		const input = document.createElement('input');
-		if ('webkitdirectory' in input) {
-			return 'B';
-		}
-	}
+	// 检测 webkitRelativePath 支持（白名单：排除国产壳误报）
+	if (_isReliableWebkitDirectory()) return 'B';
 	return 'C';
 }
 
