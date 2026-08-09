@@ -2806,6 +2806,7 @@ async function _confirmBoExport() {
 	let msg = '已导出 ' + count + ' 条笔记';
 	if (zipFilename) msg += '（含缩略图包）';
 	if (clearAfter) msg += '，选中笔记已删除';
+	msg += '。';
 	_showToast(msg, 5000);
 	DOM.boExportRow.classList.remove('open');
 }
@@ -3289,36 +3290,84 @@ function _itemName(item, type) {
 	return Array.isArray(item[3]) ? item[3][0] : item[3];
 }
 
+function _isEmptyVal(v) { return v === '' || v === null || v === undefined; }
+
+// 去除尾部空值（''/null/undefined），用于比较时容忍 length 差异（如 CSV 导入 endYear='' 与 JSON 省略 endYear）
+function _trimTrailingEmpty(arr) {
+	let end = arr.length;
+	while (end > 0 && _isEmptyVal(arr[end - 1])) end--;
+	return arr.slice(0, end);
+}
+
 function _itemsEqual(a, b) {
-	if (a.length !== b.length) return false;
-	for (let i = 0; i < a.length; i++) {
-		if (Array.isArray(a[i]) && Array.isArray(b[i])) {
-			if (!_itemsEqual(a[i], b[i])) return false;
-		} else if (a[i] !== b[i]) {
+	const ta = _trimTrailingEmpty(a);
+	const tb = _trimTrailingEmpty(b);
+	if (ta.length !== tb.length) return false;
+	for (let i = 0; i < ta.length; i++) {
+		if (Array.isArray(ta[i]) && Array.isArray(tb[i])) {
+			if (!_itemsEqual(ta[i], tb[i])) return false;
+		} else if (_isEmptyVal(ta[i]) && _isEmptyVal(tb[i])) {
+			continue; // 空值归一化：''/null/undefined 视为相等
+		} else if (ta[i] !== tb[i]) {
 			return false;
 		}
 	}
 	return true;
 }
 
-function _showMergeConflict(name) {
+// 格式化差异字段：返回 "旧值 : 新值" 列表（逗号分隔）
+function _formatItemDiff(a, b) {
+	const diffs = [];
+	const len = Math.max(a.length, b.length);
+	const f = v => (v === undefined || v === null ? '空' : String(v));
+	for (let i = 0; i < len; i++) {
+		const av = a[i], bv = b[i];
+		if (Array.isArray(av) && Array.isArray(bv)) {
+			if (!_itemsEqual(av, bv)) diffs.push(JSON.stringify(av) + ' : ' + JSON.stringify(bv));
+		} else if (_isEmptyVal(av) && _isEmptyVal(bv)) {
+			continue;
+		} else if (av !== bv) {
+			diffs.push(f(av) + ' : ' + f(bv));
+		}
+	}
+	return diffs.join('，');
+}
+
+// 统一列表展示冲突项（参考笔记导入，不逐项弹窗）
+function _showMergeConflictList(conflicts) {
 	return new Promise(resolve => {
-		DOM.mergeDialogBody.textContent = '「' + name + '」的设定有变化';
+		DOM.mergeDialogTitle.textContent = '导入冲突（共 ' + conflicts.length + ' 项）';
+		let html = '<div style="margin-bottom:8px">以下项目的设定有变化：</div>';
+		html += '<div style="max-height:50vh;overflow-y:auto;font-size:13px">';
+		for (const c of conflicts) {
+			const diff = _formatItemDiff(c.oldItem, c.item);
+			html += '<div style="padding:3px 0;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span>「' + c.name + '」</span><span style="color:var(--text-secondary);text-align:right">' + diff + '</span></div>';
+		}
+		html += '</div>';
+		DOM.mergeDialogBody.innerHTML = html;
+		DOM.mergeIgnoreBtn.style.display = '';
+		DOM.mergeNewBtn.style.display = 'none'; // 节俗/重复日不支持新建副本
+		DOM.mergeReplaceBtn.textContent = '全部替换';
+		DOM.mergeCancelBtn.textContent = '取消导入';
 		DOM.mergeDialog.classList.add('open');
 		_navOnOpen();
 		const cleanup = (val) => {
 			DOM.mergeDialog.classList.remove('open');
+			DOM.mergeIgnoreBtn.style.display = '';
+			DOM.mergeNewBtn.style.display = '';
+			DOM.mergeReplaceBtn.textContent = '替换';
+			DOM.mergeCancelBtn.textContent = '取消导入';
+			DOM.mergeDialogTitle.textContent = '导入冲突';
+			DOM.mergeDialogBody.textContent = '';
+			DOM.mergeIgnoreBtn.onclick = null;
+			DOM.mergeReplaceBtn.onclick = null;
+			DOM.mergeCancelBtn.onclick = null;
 			_navOnClose();
 			resolve(val);
 		};
-		const h1 = () => { cleanup('ignore'); };
-		const h2 = () => { cleanup('replace'); };
-		const h3 = () => { cleanup('new'); };
-		const h4 = () => { cleanup('cancel'); };
-		DOM.mergeIgnoreBtn.onclick = h1;
-		DOM.mergeReplaceBtn.onclick = h2;
-		DOM.mergeNewBtn.onclick = h3;
-		DOM.mergeCancelBtn.onclick = h4;
+		DOM.mergeIgnoreBtn.onclick = () => cleanup('ignore');
+		DOM.mergeReplaceBtn.onclick = () => cleanup('replace');
+		DOM.mergeCancelBtn.onclick = () => cleanup('cancel');
 	});
 }
 
@@ -3356,6 +3405,7 @@ function _showAppConfirm(title, htmlBody, confirmText) {
 async function _mergeWithData(base, incoming, dataType) {
 	const result = {};
 	const keys = new Set([...Object.keys(base), ...Object.keys(incoming)]);
+	const conflicts = [];
 	for (const key of keys) {
 		const bArr = base[key] || [];
 		const iArr = incoming[key] || [];
@@ -3368,18 +3418,16 @@ async function _mergeWithData(base, incoming, dataType) {
 			} else if (_itemsEqual(merged[idx], item)) {
 				continue;
 			} else {
-				const name = _itemName(item, key);
-				const choice = await _showMergeConflict(name);
-				if (choice === 'replace') {
-					merged[idx] = item;
-				} else if (choice === 'new') {
-					merged.push(item);
-				} else if (choice === 'cancel') {
-					return null;
-				}
+				conflicts.push({ idx, item, merged, name: _itemName(item, key), oldItem: merged[idx] });
 			}
 		}
 		result[key] = merged;
+	}
+	if (conflicts.length === 0) return result;
+	const choice = await _showMergeConflictList(conflicts);
+	if (choice === 'cancel') return null;
+	if (choice === 'replace') {
+		for (const c of conflicts) c.merged[c.idx] = c.item;
 	}
 	return result;
 }
@@ -3402,6 +3450,7 @@ async function _importJieSu() {
 			if (!file) return;
 			try {
 				const text = await readFileAsText(file);
+				if (!text) { _showToast('😿文件读取为空。如果该文件由应用自身导出而来，由于安卓分区存储机制的边缘性缺陷，请用文件管理器改名、复制或移动到其他目录后重试。', 6000); return; }
 				const data = _parseJieSuText(text, file.name);
 				const result = mode === 'replace' ? data : await _mergeWithData(getJieSu(), data, 'jieSu');
 				if (!result) { _showToast('导入已取消。'); return; }
@@ -3573,7 +3622,8 @@ async function _exportJieSu() {
 			const content = JSON.stringify(data, null, '\t') + '\n';
 			await _saveFile(content, '岁月历_节庆民俗列表.json', 'application/json');
 		}
-		_showToast('节庆民俗列表已导出。', 3000);
+		if (/android/i.test(navigator.userAgent)) _showToast('节庆民俗列表已导出。由于安卓分区存储机制的边缘性缺陷，如需导入请用文件管理器改名、复制或移动到其他目录。', 6000);
+		else _showToast('节庆民俗列表已导出。', 3000);
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('😿导出失败：' + e.message);
 	}
@@ -3590,6 +3640,7 @@ async function _importFuRi() {
 			if (!file) return;
 			try {
 				const text = await readFileAsText(file);
+				if (!text) { _showToast('😿文件读取为空。如果该文件由应用自身导出而来，由于安卓分区存储机制的边缘性缺陷，请用文件管理器改名、复制或移动到其他目录后重试。', 6000); return; }
 				const data = _parseFuRiText(text, file.name);
 				const result = mode === 'replace' ? data : await _mergeWithData(getFuRi(), data, 'fuRi');
 				if (!result) { _showToast('导入已取消。'); return; }
@@ -3629,7 +3680,8 @@ async function _exportFuRi() {
 			const content = JSON.stringify(data, null, '\t') + '\n';
 			await _saveFile(content, '岁月历_每年重复日列表.json', 'application/json');
 		}
-		_showToast('每年重复日列表已导出。', 3000);
+		if (/android/i.test(navigator.userAgent)) _showToast('每年重复日列表已导出。由于安卓分区存储机制的边缘性缺陷，如需导入请用文件管理器改名、复制或移动到其他目录。', 6000);
+		else _showToast('每年重复日列表已导出。', 3000);
 	} catch(e) {
 		if (e.name !== 'AbortError') _showToast('😿导出失败：' + e.message);
 	}
