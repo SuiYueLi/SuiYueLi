@@ -7,6 +7,56 @@ import {readFileAsArrayBuffer} from "./scripts/tools.js";
 
 const STORAGE_KEY = 'jieLi_settings';
 
+// 背景图独立 IDB（规避 localStorage 5MB 配额；与笔记 IDB 解耦）
+const BG_DB_NAME = 'jieLi_bg';
+const BG_DB_VERSION = 1;
+const BG_STORE = 'image';
+const BG_KEY = 'data';
+
+function _openBgDB() {
+	return new Promise((resolve, reject) => {
+		const req = indexedDB.open(BG_DB_NAME, BG_DB_VERSION);
+		req.onupgradeneeded = () => {
+			const db = req.result;
+			if (!db.objectStoreNames.contains(BG_STORE)) {
+				db.createObjectStore(BG_STORE);
+			}
+		};
+		req.onsuccess = () => resolve(req.result);
+		req.onerror = () => reject(req.error);
+	});
+}
+
+async function _saveBgToIDB(data) {
+	const db = await _openBgDB();
+	return new Promise((resolve, reject) => {
+		const tx = db.transaction(BG_STORE, 'readwrite');
+		tx.objectStore(BG_STORE).put(data, BG_KEY);
+		tx.oncomplete = () => resolve();
+		tx.onerror = () => reject(tx.error);
+	});
+}
+
+async function _loadBgFromIDB() {
+	const db = await _openBgDB();
+	return new Promise((resolve, reject) => {
+		const tx = db.transaction(BG_STORE, 'readonly');
+		const req = tx.objectStore(BG_STORE).get(BG_KEY);
+		req.onsuccess = () => resolve(req.result || null);
+		req.onerror = () => reject(req.error);
+	});
+}
+
+async function _clearBgFromIDB() {
+	const db = await _openBgDB();
+	return new Promise((resolve, reject) => {
+		const tx = db.transaction(BG_STORE, 'readwrite');
+		tx.objectStore(BG_STORE).delete(BG_KEY);
+		tx.oncomplete = () => resolve();
+		tx.onerror = () => reject(tx.error);
+	});
+}
+
 // 默认设置
 const DEFAULT_SETTINGS = {
 	weekdayType: 'shu',
@@ -17,7 +67,6 @@ const DEFAULT_SETTINGS = {
 	vliBZh: 'UTC8',
 	customVLIs: [],
 	activeVLI: 'UTC8',
-	bgImageData: null,
 	bgBlur: 1,
 	cellShadow: true,
 	zuoRotateHanzi: false,
@@ -45,12 +94,17 @@ const DEFAULT_SETTINGS = {
 
 let settings = {...DEFAULT_SETTINGS};
 
+// 背景图 base64 数据存于 IDB（规避 localStorage 5MB 配额），此为内存缓存
+let _bgImageData = null;
+
 // ========== 初始化 ==========
 export function initConfig() {
 	_loadSettings();
 	_applyTheme();
 	_applyBackground();
 	_applyCellShadow();
+	// 异步加载背景图（含旧 localStorage 数据迁移到 IDB），不阻塞初始化
+	_initBgImage();
 	window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
 		if (settings.themeMode === 'auto') _applyTheme();
 	});
@@ -303,7 +357,7 @@ export function getVLIPresets() {
 }
 
 // ========== 背景图片 ==========
-function getBgImageData() { return settings.bgImageData; }
+function getBgImageData() { return _bgImageData; }
 function getBgBlur() { return settings.bgBlur; }
 
 export function setBgBlur(val) {
@@ -343,24 +397,55 @@ export function setBijiAttachIcon(val) {
 	_saveSettings();
 }
 
-export function setBgImageData(base64Data) {
-	settings.bgImageData = base64Data;
-	_saveSettings();
+export async function setBgImageData(base64Data) {
+	const prev = _bgImageData;
+	_bgImageData = base64Data;
 	_applyBackground();
+	try {
+		await _saveBgToIDB(base64Data);
+	} catch(e) {
+		// IDB 写入失败（如配额不足），回滚内存状态
+		_bgImageData = prev;
+		_applyBackground();
+		throw e;
+	}
 }
 
-export function removeBgImage() {
-	settings.bgImageData = null;
-	_saveSettings();
+export async function removeBgImage() {
+	_bgImageData = null;
 	_applyBackground();
+	try {
+		await _clearBgFromIDB();
+	} catch(e) { /* 静默：内存已清除，IDB 残留下次覆盖即可 */ }
+}
+
+// 启动时从 IDB 加载背景图；若旧 localStorage 中仍存有 bgImageData 则迁移到 IDB 并清除
+async function _initBgImage() {
+	try {
+		const data = await _loadBgFromIDB();
+		if (data) {
+			_bgImageData = data;
+			_applyBackground();
+		} else if (settings.bgImageData) {
+			// 旧版本数据迁移：localStorage → IDB
+			try {
+				await _saveBgToIDB(settings.bgImageData);
+				_bgImageData = settings.bgImageData;
+				_applyBackground();
+				// 迁移成功后才清除 localStorage 中的旧字段，释放配额
+				delete settings.bgImageData;
+				_saveSettings();
+			} catch(e) { /* 迁移失败保留 localStorage 数据，下次再试 */ }
+		}
+	} catch(e) { /* IDB 不可用时静默，背景图功能降级为不可用 */ }
 }
 
 function _applyBackground() {
 	const layer = document.getElementById('bgImageLayer');
 	const img = document.getElementById('bgImage');
 	if (!layer || !img) return;
-	if (settings.bgImageData) {
-		img.src = settings.bgImageData;
+	if (_bgImageData) {
+		img.src = _bgImageData;
 		img.style.filter = settings.bgBlur ? ('blur(' + settings.bgBlur + 'px)') : '';
 		layer.style.display = '';
 	} else {
@@ -371,7 +456,7 @@ function _applyBackground() {
 
 // ========== 获取所有设置 ==========
 export function getAllSettings() {
-	return {...settings};
+	return {...settings, bgImageData: _bgImageData};
 }
 
 // ========== 节庆民俗/每年重复日 列表管理 ==========

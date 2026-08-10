@@ -3050,9 +3050,13 @@ async function _onBgImageSelect() {
 			});
 			const file = await handle.getFile();
 			const reader = new FileReader();
-			reader.onload = () => {
-				setBgImageData(reader.result);
-				DOM.bgImageRemoveWrap.style.display = 'flex';
+			reader.onload = async () => {
+				try {
+					await setBgImageData(reader.result);
+					DOM.bgImageRemoveWrap.style.display = 'flex';
+				} catch(e) {
+					_showToast('😿背景图保存失败，可能图片过大。');
+				}
 			};
 			reader.readAsDataURL(file);
 		} else {
@@ -3063,9 +3067,13 @@ async function _onBgImageSelect() {
 				const file = input.files[0];
 				if (!file) return;
 				const reader = new FileReader();
-				reader.onload = () => {
-					setBgImageData(reader.result);
-					DOM.bgImageRemoveWrap.style.display = 'flex';
+				reader.onload = async () => {
+					try {
+						await setBgImageData(reader.result);
+						DOM.bgImageRemoveWrap.style.display = 'flex';
+					} catch(e) {
+						_showToast('😿背景图保存失败，可能图片过大。');
+					}
 				};
 				reader.readAsDataURL(file);
 			};
