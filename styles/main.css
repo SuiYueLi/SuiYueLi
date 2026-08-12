@@ -785,7 +785,7 @@ body {
 .hamburger-menu .menu-panel li:hover {
   background: var(--cell-hover);
 }
-.hamburger-menu .menu-panel #menuInstallGuide {
+.hamburger-menu .menu-panel #menuBijiOverview {
   margin-right: auto;
 }
 
@@ -2214,6 +2214,12 @@ body {
   font-weight: 600;
   margin: 1em 0 0.375em;
 }
+.info-page .ip-body h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-style: italic;
+  margin: 1em 0 0.375em;
+}
 .info-page .ip-body p {
   font-size: 0.875rem;
   color: var(--text-secondary);
@@ -2250,9 +2256,11 @@ body {
 }
 .info-page .ip-body .page-note {
   font-size: 0.8125em;
+  font-style: italic;
   color: var(--text-accent);
   margin: 0.25em 0;
   text-indent: 0;
+  opacity: 0.8;
 }
 .info-page .ip-body .tag-opt {
   font-size: 0.75em;

@@ -1241,7 +1241,7 @@ function bindEvents() {
 		_updateLsUI();
 		_updateAttachCaseUI();
 		_refreshAttachButtonVisibility();
-		_showToast('已关闭残缺附件功能并清除相关配置。');
+		_showToast('已关闭残缺的附件功能并清除相关配置。');
 	});
 
 	// 死引用清理（7.6）

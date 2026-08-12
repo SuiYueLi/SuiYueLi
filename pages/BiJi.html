@@ -41,15 +41,18 @@
 <table>
   <tr><th></th><th>桌面 Chromium<br/>(Chrome / Edge 等)</th><th>移动端 Chromium<br/>(Android)</th><th>非 Chromium 浏览器<br/>(Firefox / Safari 等)</th></tr>
   <tr><td>笔记编辑</td><td>完整</td><td>完整</td><td>完整</td></tr>
-  <tr><td>附件本地根目录</td><td>支持，长持句柄</td><td>支持，每次运行确认授权</td><td>不可用</td></tr>
-  <tr><td>添加附件</td><td>直接添加</td><td>指纹比对添加，每次运行确认授权</td><td>不可用</td></tr>
-  <tr><td>附件浏览</td><td>直接浏览</td><td>可浏览，每次运行确认授权</td><td>不可用</td></tr>
-  <tr><td>笔记本地同步</td><td>可选开关</td><td>可选开关</td><td>不可用</td></tr>
+  <tr><td>附件本地根目录</td><td>支持，长持句柄</td><td>支持受限 <small>（注1）</small></td><td>不可用</td></tr>
+  <tr><td>添加附件</td><td>直接添加</td><td>指纹比对添加</td><td>不可用</td></tr>
+  <tr><td>附件浏览</td><td>直接浏览</td><td>可浏览 <small>（注1）</small></td><td>不可用</td></tr>
+  <tr><td>笔记本地同步</td><td>可选开关</td><td>可选开关 <small>（注1）</small></td><td>不可用</td></tr>
   <tr><td>本地笔记分割</td><td>可用</td><td>不可用</td><td>不可用</td></tr>
-  <tr><td>缩略图本地同步</td><td>可选开关</td><td>可选开关</td><td>不可用</td></tr>
+  <tr><td>缩略图本地同步</td><td>可选开关</td><td>可选开关 <small>（注1）</small></td><td>不可用</td></tr>
   <tr><td>缩略图维护</td><td>全部模式</td><td>手动全部 / 自动仅清理</td><td>仅清理</td></tr>
+  <tr><td>功能入口</td><td>开放</td><td>隐藏 <small>（注2）</small></td><td>不可用</td></tr>
 </table>
-<p class="page-note">在不支持完整文件系统访问的环境中，笔记本身的创建、编辑、导入导出功能不受影响。</p>
+<p class="page-note"><b>注1</b>：每次运行过程中，首次触发单项本地读写功能时，系统将弹窗确认授权。</p>
+<p class="page-note"><b>注2</b>：在“当前系统/浏览器支持残缺”字样两端各点击一次开启。</p>
+<p>在不支持完整文件系统访问的环境中，笔记本身的创建、编辑、导入导出功能不受影响。</p>
 
 <h2>笔记导出格式</h2>
 <h3>JSON 格式</h3>
@@ -79,7 +82,6 @@
 <table>
   <tr><th>字段</th><th>类型</th><th>说明</th></tr>
   <tr><td>thumbnailsZip</td><td><code>string</code></td><td>顶层字段，缩略图包文件名<br/><sub>（导出时可选）</sub></td></tr>
-  <tr><td colspan="3"><b>笔记对象字段（每条笔记）：</b></td></tr>
   <tr><td>icon</td><td><code>string</code></td><td>字符图标，缺省 ✑</td></tr>
   <tr><td>biji</td><td><code>string</code></td><td>笔记内容，单条上限 8000 字</td></tr>
   <tr><td>assets</td><td><code>array</code></td><td>附件引用列表，缺省为空数组。详见下表</td></tr>
