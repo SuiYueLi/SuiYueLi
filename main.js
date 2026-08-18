@@ -2821,9 +2821,10 @@ function _bindBijiOverviewEvents() {
 }
 
 function _bijiTimestamp() {
-	const sui = String(state.currentSui);
-	const jie = String(state.currentJie).padStart(2, '0');
-	const hao = String(state.currentHao).padStart(2, '0');
+	const today = JL_Jin();
+	const sui = String(today.S);
+	const jie = String(today.J).padStart(2, '0');
+	const hao = String(today.R).padStart(2, '0');
 	const now = new Date();
 	const hh = String(now.getHours()).padStart(2, '0');
 	const mm = String(now.getMinutes()).padStart(2, '0');
