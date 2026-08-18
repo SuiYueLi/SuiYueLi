@@ -305,7 +305,7 @@ function cacheDOM() {
 	DOM.menuShuJu = $('menuShuJu');
 	DOM.menuAbout = $('menuAbout');
 	DOM.menuInstallApp = $('menuInstallApp');
-	DOM.menuInstallGuide = $('menuInstallGuide');
+	DOM.spInstallGuideBtn = $('spInstallGuideBtn');
 	DOM.menuImportExport = $('menuImportExport');
 	DOM.iePage = $('iePage');
 	DOM.ieBack = $('ieBack');
@@ -1075,8 +1075,7 @@ function bindEvents() {
 			});
 		}
 	});
-	DOM.menuInstallGuide.addEventListener('click', () => {
-		_closeHamburger();
+	DOM.spInstallGuideBtn.addEventListener('click', () => {
 		_openInfoPage('AnZhuang', '安装说明');
 	});
 
@@ -2116,6 +2115,9 @@ let _boState = {
 	searchQuery: '',
 };
 
+// 跳转主界面日期后保存的笔记总览页状态，再次进入时恢复（仅运行期间）
+let _boStateSaved = null;
+
 function _hasAnyBiji() {
 	for (let i = 0; i < localStorage.length; i++) {
 		const key = localStorage.key(i);
@@ -2133,34 +2135,62 @@ function _hasAnyBiji() {
 
 function _updateBijiOverviewVisibility() {
 	DOM.menuBijiOverview.style.display = _hasAnyBiji() ? '' : 'none';
+	_refreshHamburgerSeparator();
+}
+
+// 左侧组（笔记总览/安装到本地）可能整体或部分隐藏，
+// 将分隔 margin 动态分配给第一个可见项，确保左侧组始终贴左、右侧组始终贴右
+function _refreshHamburgerSeparator() {
+	const items = [DOM.menuBijiOverview, DOM.menuInstallApp];
+	let separated = false;
+	for (const li of items) {
+		if (!separated && li.style.display !== 'none') {
+			li.style.marginRight = 'auto';
+			separated = true;
+		} else {
+			li.style.marginRight = '';
+		}
+	}
 }
 
 function _openBijiOverview() {
-	_boState = {
-		startSui: state.currentSui,
-		endSui: state.currentSui,
-		asc: localStorage.getItem('jieLi_bo_sort_asc') !== '0',
-		expandedSui: new Set([state.currentSui]),
-		suiSelectModes: new Set(),
-		globalSelectMode: false,
-		selectedKeys: new Set(),
-		expandedKeys: new Set(),
-		iconFilter: new Set(),
-		searchQuery: '',
-	};
+	if (_boStateSaved) {
+		// 跳转主界面日期后保存的状态：恢复并同步 UI（仅此次运行期间有效）
+		_boState = _boStateSaved;
+		_boStateSaved = null;
+	} else {
+		_boState = {
+			startSui: state.currentSui,
+			endSui: state.currentSui,
+			asc: localStorage.getItem('jieLi_bo_sort_asc') !== '0',
+			expandedSui: new Set([state.currentSui]),
+			suiSelectModes: new Set(),
+			globalSelectMode: false,
+			selectedKeys: new Set(),
+			expandedKeys: new Set(),
+			iconFilter: new Set(),
+			searchQuery: '',
+		};
+	}
 	DOM.boSortOrder.textContent = _boState.asc ? 'ᐱ' : 'ᐯ';
 	DOM.boSortOrder.dataset.asc = _boState.asc ? '1' : '0';
-	DOM.boStartSui.value = state.currentSui;
-	DOM.boEndSui.value = state.currentSui;
+	DOM.boStartSui.value = _boState.startSui != null ? _boState.startSui : '';
+	DOM.boEndSui.value = _boState.endSui != null ? _boState.endSui : '';
 	DOM.boExpandAllSui.classList.remove('active');
-	DOM.boSearchRow.style.display = 'none';
-	DOM.boIconFilterRow.style.display = 'none';
-	DOM.boDeleteSelected.style.display = 'none';
-	DOM.boExportSelected.style.display = 'none';
+	// 同步搜索栏 UI
+	const hasSearch = !!_boState.searchQuery;
+	DOM.boSearchRow.style.display = hasSearch ? 'flex' : 'none';
+	DOM.boSearch.classList.toggle('active', hasSearch);
+	DOM.boSearchInput.value = hasSearch ? _boState.searchQuery : '';
+	// 同步图标筛选栏 UI
+	const hasIconFilter = _boState.iconFilter.size > 0;
+	DOM.boIconFilterRow.style.display = hasIconFilter ? 'flex' : 'none';
+	DOM.boIconFilter.classList.toggle('active', hasIconFilter);
+	if (hasIconFilter) _renderIconFilter();
+	// 同步选择模式按钮
+	_updateBODeleteBtn();
 	DOM.boExportRow.classList.remove('open');
 	DOM.boExportFormat.setAttribute('data-value', '1');
-	DOM.boIconFilter.classList.remove('active');
-	DOM.boSearch.classList.remove('active');
 	_renderBijiOverview();
 	DOM.boPage.classList.add('open');
 	_navOnOpen();
@@ -2170,6 +2200,37 @@ function _closeBijiOverview() {
 	DOM.boExportRow.classList.remove('open');
 	DOM.boPage.classList.remove('open');
 	_navOnClose();
+}
+
+// 从笔记总览页跳转到主界面对应日期（岁、节、号）
+// 保存当前 _boState，使此次运行期间再次进入时呈现跳转前的页面状态
+async function _jumpToDateFromBO(sui, jie, hao) {
+	_boStateSaved = {
+		startSui: _boState.startSui,
+		endSui: _boState.endSui,
+		asc: _boState.asc,
+		expandedSui: new Set(_boState.expandedSui),
+		suiSelectModes: new Set(_boState.suiSelectModes),
+		globalSelectMode: _boState.globalSelectMode,
+		selectedKeys: new Set(_boState.selectedKeys),
+		expandedKeys: new Set(_boState.expandedKeys),
+		iconFilter: new Set(_boState.iconFilter),
+		searchQuery: _boState.searchQuery,
+	};
+	_closeBijiOverview();
+	const suiChanged = sui !== state.currentSui;
+	const jieChanged = jie !== state.currentJie;
+	if (suiChanged) {
+		state.currentSui = sui;
+		await _ensureSuiPu(sui);
+		state.eraIndex = 0;
+	}
+	if (jieChanged) {
+		state.currentJie = jie;
+	}
+	state.currentHao = hao;
+	if (suiChanged) _preloadAdjacentSui();
+	renderAll();
 }
 
 function _collectBijiInRange() {
@@ -2421,7 +2482,36 @@ function _renderBijiOverview() {
 					const r = jl.HJvSJRSh(hj, 0).SJR;
 					if (r) sjr = r;
 				} catch(e) {}
-				dayLabel.textContent = Jie_Ming[sjr.J] + ' ' + sjr.R + ' 日';
+				const labelText = document.createElement('span');
+				labelText.className = 'bo-date-label-text';
+				labelText.textContent = Jie_Ming[sjr.J] + ' ' + sjr.R + ' 日';
+				dayLabel.appendChild(labelText);
+				// 转到月历表按钮：点击日期文字后浮现，无动作稍停后隐藏
+				const jumpBtn = document.createElement('button');
+				jumpBtn.type = 'button';
+				jumpBtn.className = 'bo-date-jump-btn';
+				jumpBtn.title = '转到月历表';
+				jumpBtn.textContent = '➲';
+				jumpBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					_jumpToDateFromBO(sjr.S, sjr.J, sjr.R);
+				});
+				dayLabel.appendChild(jumpBtn);
+				let jumpHideTimer = null;
+				labelText.addEventListener('click', (e) => {
+					e.stopPropagation();
+					DOM.boBody.querySelectorAll('.bo-date-jump-btn.visible').forEach(b => {
+						if (b !== jumpBtn) {
+							b.classList.remove('visible');
+							clearTimeout(b._jumpHideTimer);
+						}
+					});
+					jumpBtn.classList.add('visible');
+					clearTimeout(jumpHideTimer);
+					jumpBtn._jumpHideTimer = jumpHideTimer = setTimeout(() => {
+						jumpBtn.classList.remove('visible');
+					}, 3000);
+				});
 				suiBody.appendChild(dayLabel);
 				const list = document.createElement('div');
 				list.className = 'biji-list bo-group-list';
@@ -7773,7 +7863,7 @@ function _bijiImport() {
 		if (parseErrors.length > 0) {
 			const errLines = parseErrors.slice(0, 10).map(e => e.line ? '第' + e.line + '行：' + e.reason : e.reason).join('\n');
 			const more = parseErrors.length > 10 ? '\n...共' + parseErrors.length + '处错误' : '';
-			_showToast('😿导入有错误：' + errLines + more, 5000);
+			_showToast('😿导入有错误：' + errLines + more, 9000);
 		}
 		// 2. 笔记导入（merge 模式接入冲突对话框，与单文件流程一致）
 		if (Object.keys(mergedData).length > 0) {
@@ -8099,6 +8189,7 @@ function _initInstallPrompt() {
 		e.preventDefault();
 		_deferredInstallPrompt = e;
 		DOM.menuInstallApp.style.display = '';
+		_refreshHamburgerSeparator();
 		// 触发 beforeinstallprompt 说明是完整 Chromium，支持 File System Access API
 		if (window.showSaveFilePicker && !_hasFileSystemAccess) {
 			_hasFileSystemAccess = true;
@@ -8113,14 +8204,17 @@ function _initInstallPrompt() {
 	window.addEventListener('appinstalled', () => {
 		_deferredInstallPrompt = null;
 		DOM.menuInstallApp.style.display = 'none';
-		DOM.menuInstallGuide.style.display = 'none';
+		DOM.spInstallGuideBtn.style.display = 'none';
+		_refreshHamburgerSeparator();
 	});
 
 	if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
 		DOM.menuInstallApp.style.display = 'none';
-		DOM.menuInstallGuide.style.display = 'none';
+		DOM.spInstallGuideBtn.style.display = 'none';
+		_refreshHamburgerSeparator();
 		return;
 	}
+	_refreshHamburgerSeparator();
 }
 
 // ========== 启动 ==========

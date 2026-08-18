@@ -219,6 +219,11 @@ export function exportSelected(selectedKeys, format, options) {
 	return _exportSelectedJson(selectedKeys, thumbnailsZip);
 }
 
+// TXT 正文防护符：导出时包裹笔记正文，导入时据此区分正文内的 # 标题与结构标题
+// 旧数据无此符号组对，导入时按旧格式解析
+const BODY_OPEN_GUARD = '__❝__';
+const BODY_CLOSE_GUARD = '__❞__';
+
 // 附件类型图标（按首次出现顺序去重，不带数量；用于 TXT 导出标题行）
 const _ATTACH_TYPE_ICONS = { image: '🖼️', video: '🎬', audio: '🔉', text: '📝', other: '📊' };
 const _ICON_TO_ATTACH_TYPE = { '🖼️': 'image', '🎬': 'video', '🔉': 'audio', '📝': 'text', '📊': 'other' };
@@ -313,9 +318,11 @@ function _exportSelectedText(selectedKeys, thumbnailsZip) {
 			const icons = _attachTypeIcons(n.assets);
 			lines.push('### `' + (n.icon || _userDefaultIcon()) + '` ' + ex + (icons ? ' ' + icons : ''));
 			lines.push('`[' + ts + ' | ' + us + ']`');
+			lines.push(BODY_OPEN_GUARD);
 			lines.push('');
 			lines.push(n.biji || '');
 			lines.push('');
+			lines.push(BODY_CLOSE_GUARD);
 			lines.push(..._attachSectionLines(n.assets));
 		}
 	}
@@ -376,9 +383,11 @@ function _exportText(startSui, endSui, thumbnailsZip) {
 				const icons = _attachTypeIcons(n.assets);
 				lines.push('### `' + (n.icon || _userDefaultIcon()) + '` ' + ex + (icons ? ' ' + icons : ''));
 				lines.push('`[' + ts + ' | ' + us + ']`');
+				lines.push(BODY_OPEN_GUARD);
 				lines.push('');
 				lines.push(n.biji || '');
 				lines.push('');
+				lines.push(BODY_CLOSE_GUARD);
 				lines.push(..._attachSectionLines(n.assets));
 			}
 		}
@@ -566,6 +575,9 @@ export function parseTextImport(text) {
 	let currentDayKey = null;
 	let currentNote = null;
 	let inAttachSection = false;
+	// 是否处于正文防护符 __❝__ / __❞__ 对内（新格式数据）
+	// 旧数据无此符号组对，inBodyGuard 全程为 false，按旧格式解析
+	let inBodyGuard = false;
 
 	function _flushNote() {
 		if (!currentNote || currentSui === null || currentDayKey === null) return;
@@ -578,6 +590,7 @@ export function parseTextImport(text) {
 		result.data[sk][currentDayKey].push(currentNote);
 		currentNote = null;
 		inAttachSection = false;
+		inBodyGuard = false;
 	}
 
 	for (let i = 0; i < lines.length; i++) {
@@ -589,6 +602,21 @@ export function parseTextImport(text) {
 			const m = line.match(/`([^`]+\.zip)`/);
 			if (m) result.thumbnailsZip = m[1];
 			continue;
+		}
+		// 正文防护符：进入/退出正文区域（导出时包裹笔记正文）
+		if (line === BODY_OPEN_GUARD) { inBodyGuard = true; continue; }
+		if (line === BODY_CLOSE_GUARD) { inBodyGuard = false; continue; }
+		// 防护符内的 # 号标题当作正文行处理（不触发结构标题解析）
+		// 上下文识别：若行符合岁/日/笔记结构标题格式，则认为防护符 __❞__ 缺失，提前结束防护区
+		if (inBodyGuard && /^#{1,6} /.test(line)) {
+			if (/^# \d/.test(line) || /^## \d+-\d+-\d/.test(line) || /^### `[^`]*`/.test(line)) {
+				result.errors.push({ line: ln, reason: '正文防护符 __❞__ 缺失，已提前结束防护区' });
+				inBodyGuard = false;
+				// 不 continue，让下面的结构标题处理逻辑接管
+			} else {
+				if (currentNote) currentNote.biji += (currentNote.biji ? '\n' : '') + line;
+				continue;
+			}
 		}
 		if (line.startsWith('# ') && !line.startsWith('## ') && !line.startsWith('### ')) {
 			_flushNote();

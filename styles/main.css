@@ -785,9 +785,6 @@ body {
 .hamburger-menu .menu-panel li:hover {
   background: var(--cell-hover);
 }
-.hamburger-menu .menu-panel #menuBijiOverview {
-  margin-right: auto;
-}
 
 /* ========== Jie Dropdown ========== */
 .jie-dropdown {
@@ -899,6 +896,13 @@ body {
   font-size: var(--subheading-size);
   text-decoration: none;
   white-space: nowrap;
+}
+.settings-page .sp-header #spInstallGuideBtn::after {
+  content: "|";
+  font-size: 0.8em;
+  padding: 0 0.25em 0 0.5em;
+  color: rgba(127,127,127,0.7);
+  text-decoration: none;
 }
 .settings-page .sp-header .sp-link:hover {
   text-decoration: underline;
@@ -1429,14 +1433,16 @@ body {
   pointer-events: auto;
   visibility: visible;
 }
-.ie-page .ie-header {
+.ie-page .ie-header,
+.info-page .ip-header {
   display: flex;
   align-items: center;
   padding: var(--gap-md);
   border-bottom: 1px solid var(--divider-color);
   gap: var(--gap-sm);
 }
-.ie-page .ie-header .back-btn {
+.ie-page .ie-header .back-btn,
+.info-page .ip-header .back-btn {
   background: none;
   border: none;
   font-size: var(--heading-size);
@@ -1445,18 +1451,21 @@ body {
   color: var(--text-accent);
   cursor: pointer;
 }
-.ie-page .ie-header .ie-title {
+.ie-page .ie-header .ie-title,
+.info-page .ip-header .ip-title {
   font-size: var(--heading-size);
   font-weight: var(--heading-weight);
   flex: 1;
 }
-.ie-page .ie-header .sp-link {
+.ie-page .ie-header .sp-link,
+.info-page .ip-header .sp-link {
   color: var(--text-accent);
   font-size: var(--subheading-size);
   text-decoration: none;
   white-space: nowrap;
 }
-.ie-page .ie-header .sp-link:hover {
+.ie-page .ie-header .sp-link:hover,
+.info-page .ip-header .sp-link:hover {
   text-decoration: underline;
 }
 .ie-page .ie-body {
@@ -1794,10 +1803,41 @@ body {
   margin-bottom: var(--gap-md);
 }
 .bo-date-label {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-md);
   font-size: var(--small-size);
   font-weight: var(--subheading-weight);
   color: var(--text-accent);
   padding: var(--gap-xs) 0 var(--gap-xs) var(--gap-sm);
+}
+.bo-date-label-text {
+  cursor: pointer;
+}
+.bo-date-jump-btn {
+  border: none;
+  background: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.03);
+  color: var(--text-secondary);
+  font-size: 1.2em;
+  width: 1.8em;
+  padding: 0;
+  margin: -0.1em 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s, opacity 0.5s;
+  opacity: 0;
+  pointer-events: none;
+}
+.bo-date-jump-btn.visible {
+  opacity: 0.8;
+  pointer-events: auto;
+}
+.bo-date-jump-btn:hover {
+  background: var(--cell-hover);
+  color: var(--text-primary);
 }
 .bo-body .biji-item {
   position: relative;
@@ -2152,27 +2192,6 @@ body {
   transform: translateX(calc(-50% - 1px)) translateX(0);
   pointer-events: auto;
   visibility: visible;
-}
-.info-page .ip-header {
-  display: flex;
-  align-items: center;
-  padding: var(--gap-md);
-  border-bottom: 1px solid var(--divider-color);
-  gap: var(--gap-sm);
-  margin: 0 calc(-1 * var(--safe-margin));
-}
-.info-page .ip-header .back-btn {
-  background: none;
-  border: none;
-  font-size: var(--heading-size);
-  padding: 0 0.725em 0.1em 0.4em;
-  transform: rotate(180deg);
-  color: var(--text-accent);
-  cursor: pointer;
-}
-.info-page .ip-header .ip-title {
-  font-size: var(--heading-size);
-  font-weight: var(--heading-weight);
 }
 .info-page .ip-body {
   flex: 1;
