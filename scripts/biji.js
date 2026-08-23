@@ -1,4 +1,5 @@
 import * as jl from "./JieLi.js";
+import {qu_SuiPu} from "./SuiPu.js";
 import {readFileAsText, HJ_Jin} from "./tools.js";
 
 const STORAGE_PREFIX = '';
@@ -303,13 +304,16 @@ function _exportSelectedText(selectedKeys, thumbnailsZip) {
 		lines.push('');
 	}
 	let lastSui = null;
+	let sp = null;
 	for (const gk of sortedKeys) {
 		const { sui, hj, notes } = grouped.get(gk);
 		if (sui !== lastSui) {
 			lines.push('# ' + sui);
 			lastSui = sui;
+			// 取岁谱：每岁一次，供日期标题附加夏历
+			try { sp = qu_SuiPu(sui); } catch(e) { sp = null; }
 		}
-		const dateStr = _hjToDateStr(hj, sui);
+		const dateStr = _hjToDateStr(hj, sui, sp);
 		lines.push('## ' + dateStr);
 		for (const n of notes) {
 			const ts = n.created ?? '';
@@ -370,10 +374,13 @@ function _exportText(startSui, endSui, thumbnailsZip) {
 		try { data = JSON.parse(localStorage.getItem(k)); } catch(e) { continue; }
 		if (!data) continue;
 		lines.push('# ' + sui);
+		// 取岁谱：每岁一次，供日期标题附加夏历
+		let sp = null;
+		try { sp = qu_SuiPu(sui); } catch(e) { sp = null; }
 		const dayKeys = Object.keys(data).sort((a, b) => Number(a) - Number(b));
 		for (const dk of dayKeys) {
 			if (!Array.isArray(data[dk])) continue;
-			const dateStr = _hjToDateStr(Number(dk), sui);
+			const dateStr = _hjToDateStr(Number(dk), sui, sp);
 			lines.push('## ' + dateStr);
 			const arr = data[dk];
 			for (const n of arr) {
@@ -396,13 +403,24 @@ function _exportText(startSui, endSui, thumbnailsZip) {
 	return lines.join('\n');
 }
 
-function _hjToDateStr(hj, sui) {
+function _hjToDateStr(hj, sui, sp) {
 	let sjr = { S: sui, J: 1, R: 1 };
 	try {
 		const r = jl.HJvSJRSh(hj, 0).SJR;
 		if (r) sjr = r;
 	} catch(e) {}
-	return sjr.S + '-' + String(sjr.J).padStart(2, '0') + '-' + String(sjr.R).padStart(2, '0');
+	let str = sjr.S + '-' + String(sjr.J).padStart(2, '0') + '-' + String(sjr.R).padStart(2, '0');
+	// 附加夏历月日（如 "4723-05-03, 四月廿二"）；sp 无效或格子无 AL 时仅显示节历日期
+	if (sp) {
+		try {
+			const cell = sp.SBiao[hj - sp.Biao0_HJ];
+			if (cell && cell.AL) {
+				const shwy = sp.ShWY[cell.AL[0]];
+				if (shwy) str += ', ' + shwy.Y_Zi + '月' + cell.AL[1];
+			}
+		} catch(e) {}
+	}
+	return str;
 }
 
 // 笔记字段规范化：确保 icon/biji/created/updated/assets 齐全
@@ -629,7 +647,8 @@ export function parseTextImport(text) {
 		if (line.startsWith('## ')) {
 			_flushNote();
 			if (!currentSui) { result.errors.push({ line: ln, reason: '缺少岁标题行' }); continue; }
-			const datePart = line.slice(3).split('(')[0].trim();
+			// 显式剥离附加的夏历后缀（", 四月廿二"）与括号注释，只解析节历日期数字
+			const datePart = line.slice(3).split(',')[0].split('(')[0].trim();
 			const parts = datePart.split('-').map(p => parseInt(p.trim()));
 			if (parts.length !== 3 || parts.some(isNaN)) { result.errors.push({ line: ln, reason: '无效日期格式' }); continue; }
 			const hj = _datePartsToHJ(parts[0], parts[1], parts[2], currentSui);

@@ -2425,6 +2425,9 @@ function _renderBijiOverview() {
 			dayGroups.get(gk).push(n);
 		}
 		const dayKeys = [...dayGroups.keys()].sort((a, b) => _boState.asc ? a - b : b - a);
+		// 取岁谱：每岁一次，供日期标签显示节历、夏历
+		let sp = null;
+		try { sp = qu_SuiPu(sui); } catch(e) { sp = null; }
 		function _updateSuiExpanded() {
 			const expanded = _boState.expandedSui.has(sui);
 			suiHeader.classList.toggle('expanded', expanded);
@@ -2477,14 +2480,36 @@ function _renderBijiOverview() {
 				const dayNotes = dayGroups.get(hj);
 				const dayLabel = document.createElement('div');
 				dayLabel.className = 'bo-date-label';
-				let sjr = { S: sui, J: 1, R: 1 };
-				try {
-					const r = jl.HJvSJRSh(hj, 0).SJR;
-					if (r) sjr = r;
-				} catch(e) {}
+				let sjr = null;
+				let alText = '';
+				if (sp) {
+					// 从岁谱表取节历月日与夏历月日；索引越界或格子无数据时不显示夏历，仅显示节历
+					const idx = hj - sp.Biao0_HJ;
+					const cell = sp.SBiao[idx];
+					if (cell && cell.JL && cell.JL[1] > 0) {
+						sjr = {
+							S: idx < sp.Jie_sy[1] ? sui - 1 : idx >= sp.Jie_sy[13] ? sui + 1 : sui,
+							J: cell.JL[0],
+							R: cell.JL[1]
+						};
+						if (cell.AL) {
+							const shwy = sp.ShWY[cell.AL[0]];
+							if (shwy) alText = '，' + shwy.Y_Zi + '月' + cell.AL[1];
+						}
+					}
+				}
+				if (!sjr) {
+					try {
+						const r = jl.HJvSJRSh(hj, 0).SJR;
+						if (r) sjr = r;
+					} catch(e) {}
+				}
 				const labelText = document.createElement('span');
 				labelText.className = 'bo-date-label-text';
-				labelText.textContent = Jie_Ming[sjr.J] + ' ' + sjr.R + ' 日';
+				// 降级链：sp 格子无效 → HJvSJRSh → 均失败时显示 hj 积日本身
+				labelText.textContent = sjr
+					? Jie_Ming[sjr.J] + ' ' + sjr.R + ' 日' + alText
+					: 'HJ' + hj;
 				dayLabel.appendChild(labelText);
 				// 转到月历表按钮：点击日期文字后浮现，无动作稍停后隐藏
 				const jumpBtn = document.createElement('button');
@@ -2494,6 +2519,7 @@ function _renderBijiOverview() {
 				jumpBtn.textContent = '➲';
 				jumpBtn.addEventListener('click', (e) => {
 					e.stopPropagation();
+					if (!sjr) return;
 					_jumpToDateFromBO(sjr.S, sjr.J, sjr.R);
 				});
 				dayLabel.appendChild(jumpBtn);
