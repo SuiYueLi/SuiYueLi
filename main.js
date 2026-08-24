@@ -4548,6 +4548,7 @@ function _bijiOpenEditForSui(sui, hj, idx) {
 	DOM.bijiEditor.classList.add('open');
 	DOM.bijiEditorOverlay.classList.add('active');
 	_navOnOpen();
+	_updateBijiHint();
 	_bijiClearThumbBar();
 	_bijiRenderThumbBar();
 	_refreshAttachButtonVisibility();
@@ -6189,10 +6190,14 @@ async function _updateBijiHint() {
 		DOM.bijiEditorHint.style.display = 'none';
 		return;
 	}
-	const dirHandle = await biji.getDirHandle();
-	if (dirHandle && (await biji.verifyDirHandle())) {
-		DOM.bijiEditorHint.style.display = 'none';
-		return;
+	// 本地同步已配置时隐藏（与 _bijiWriteToFile 保存门控一致：A/B 权限 + 已指定目录 + 已启用笔记本地同步）
+	// 不在此处做权限验证：非手势上下文 requestPermission 会失败导致误显，且权限失效已由保存时 toast 提示
+	if (getAttachBijiLocalSync() && _currentAttachCase() !== 'C') {
+		const dirHandle = await biji.getDirHandle();
+		if (dirHandle) {
+			DOM.bijiEditorHint.style.display = 'none';
+			return;
+		}
 	}
 	DOM.bijiEditorHint.style.display = '';
 	// 不支持本地文件夹时只显示"导出"，支持时显示"导出或启用本地同步保存"
