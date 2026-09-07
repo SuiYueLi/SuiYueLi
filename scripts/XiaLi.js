@@ -22,7 +22,7 @@ export {aQI_ShiKe, aQIvLiPu, aShiLiPu, aRi_ShuvZi, aSanFu, qu_NianHao};
 //: 【对气朔数据作时刻偏移】
 function aQI_ShiKe(QI, cha) {
 	let qishuo = JSON.parse(JSON.stringify(QI));
-	if(cha < 0.000000001) return qishuo;
+	if(Math.abs(cha) < 0.000000001) return qishuo;
 	return qishuo.map(x => Math.round(x * 10**9 + cha * 10**9) / 10**9);
 }
 
