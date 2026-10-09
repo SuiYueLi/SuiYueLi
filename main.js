@@ -2567,6 +2567,13 @@ function _renderBijiOverview() {
 				// 文字为空时用不间断空格撑住行高（避免空 summary 行高塌陷）
 				const _summaryText = _bijiSummaryText(n.biji);
 				summary.appendChild(document.createTextNode(_summaryText === '' ? '\u00A0' : _summaryText));
+				// 收起态截断标记（摘要短于原文时居右显示 ≚）
+				if (_bijiSummaryTruncated(n.biji)) {
+					const truncMark = document.createElement('span');
+					truncMark.className = 'biji-item-trunc-mark';
+					truncMark.textContent = '≚';
+					summary.appendChild(truncMark);
+				}
 					// 收起态附件角标（8.1）
 					if (nAssets.length > 0) {
 						const badge = _buildAttachBadge(nAssets);
@@ -4309,6 +4316,13 @@ function renderBar7() {
 	// 文字为空时用不间断空格撑住行高（避免空 summary 行高塌陷）
 	const _summaryText = _bijiSummaryText(n.biji);
 	summary.appendChild(document.createTextNode(_summaryText === '' ? '\u00A0' : _summaryText));
+	// 收起态截断标记（摘要短于原文时居右显示 ≚）
+	if (_bijiSummaryTruncated(n.biji)) {
+		const truncMark = document.createElement('span');
+		truncMark.className = 'biji-item-trunc-mark';
+		truncMark.textContent = '≚';
+		summary.appendChild(truncMark);
+	}
 		// 收起态附件角标（8.1）
 		if (nAssets.length > 0) {
 			const badge = _buildAttachBadge(nAssets);
@@ -4383,6 +4397,11 @@ function renderBar7() {
 
 function _bijiSummaryText(text) {
 	return biji.excerpt(text, 15);
+}
+
+// 摘要是否短于原文（尾部无效字符不计）：收起态居右显示 ≚ 的依据
+function _bijiSummaryTruncated(text) {
+	return biji.excerptInfo(text, 15).truncated;
 }
 
 function _bijiExpandText(text) {

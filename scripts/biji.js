@@ -76,11 +76,19 @@ function _nowTs() {
 export function nowTs() { return _nowTs(); }
 
 export function excerpt(text, maxLen) {
-	if (!text) return '';
+	return excerptInfo(text, maxLen).text;
+}
+
+// 摘要 + 截断标记：truncated 表示原文存在摘要未包含的有效内容
+// （达到 maxLen 或遇双换行提前结束，且剩余部分含非空白字符；尾部换行/空格/控制字符等无效字符不计）
+export function excerptInfo(text, maxLen) {
+	if (!text) return { text: '', truncated: false };
+	const max = maxLen || 15;
 	let nlCount = 0;
 	let result = '';
 	let lastWasSpace = false;
-	for (let i = 0; i < text.length && result.length < (maxLen || 15); i++) {
+	let i = 0;
+	for (; i < text.length && result.length < max; i++) {
 		const ch = text.charCodeAt(i);
 		if (ch === 0x0A || ch === 0x0D) {
 			nlCount++;
@@ -101,7 +109,8 @@ export function excerpt(text, maxLen) {
 		result += text[i];
 		lastWasSpace = false;
 	}
-	return result;
+	const truncated = /[^\x00-\x20\x7F]/.test(text.slice(i));
+	return { text: result, truncated };
 }
 
 export function getDayNotes(sui, hj) {

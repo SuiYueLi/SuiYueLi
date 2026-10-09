@@ -550,6 +550,23 @@
 	pointer-events: none;
 	opacity: 0.85;
 }
+/* 收起态截断标记（摘要短于原文时居右显示 ≚；展开态随 summary 隐藏） */
+.biji-item-trunc-mark {
+	position: absolute;
+	right: var(--gap-md, 8px);
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 0.8em;
+	color: var(--text-tertiary);
+	line-height: 1.4;
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0.85;
+}
+/* 与截断标记共存时，附件角标左移让出最右位置 */
+.biji-item-summary:has(.biji-item-trunc-mark) .biji-item-attach-badge {
+	right: calc(var(--gap-md, 8px) + 1.25em);
+}
 /* 展开态时角标隐藏（避免与缩略图栏重复） */
 .biji-item.expanded .biji-item-attach-badge {
 	display: none;
