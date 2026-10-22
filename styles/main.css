@@ -53,7 +53,8 @@
   --small-size: 0.85rem;
   --xs-size: 0.8rem;
   --xxs-size: 0.75rem;
-  --app-width: 540px;
+  /* 界面宽度：--rr-UI 为系统缩放补偿系数（1/sqrt(--multi-UI/100)，由 JS 设定） */
+  --app-width: calc(540px * var(--rr-UI, 1));
   
   /* 样式字体 */
   --font-kaiTi: "KaiTi", "楷体", "STKaiti", "华文楷体", "Noto Serif SC", "思源宋体", serif;
@@ -512,6 +513,11 @@ body {
 .bar-era .era-arrow:active { transform: scale(0.9); }
 .bar-era .era-text {
   text-align: center;
+  cursor: pointer;
+  flex: 1;
+}
+.bar-era .era-text:hover {
+  color: var(--text-accent);
 }
 
 /* ========== Bar 4: Weekday Names ========== */
@@ -846,6 +852,76 @@ body {
   font-size: var(--small-size);
   cursor: pointer;
   font-family: var(--font-family);
+}
+
+/* ========== Era Search ========== */
+.bar-era .era-text.hidden,
+.bar-era .era-arrow.hidden { display: none; }
+.era-search-wrap {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-xs);
+  flex: 1;
+}
+.era-search-wrap.open { display: flex; }
+.era-search-wrap input {
+  width: 11em;
+  max-width: 60%;
+  padding: 2px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: var(--small-size);
+  font-family: var(--font-XiangQing);
+  text-align: center;
+}
+.era-search-wrap button {
+  padding: 2px 8px;
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  background: var(--accent-primary);
+  color: #fff;
+  font-size: var(--small-size);
+  cursor: pointer;
+  font-family: var(--font-family);
+}
+.era-search-dropdown {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: var(--z-dropdown);
+  padding: var(--gap-xs) 0;
+  max-height: 240px;
+  max-width: calc(100% - 2rem);
+  overflow-y: auto;
+  display: none;
+}
+.era-search-dropdown.open { display: block; }
+.era-search-option {
+  padding: var(--gap-sm) var(--gap-lg);
+  cursor: pointer;
+  font-family: var(--font-XiangQing);
+  font-size: var(--size-XiangQing);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.era-search-option:hover {
+  background: var(--cell-hover);
+}
+.era-search-empty {
+  padding: var(--gap-sm) var(--gap-lg);
+  font-family: var(--font-XiangQing);
+  font-size: var(--size-XiangQing);
+  color: var(--text-tertiary);
+  white-space: nowrap;
 }
 
 /* ========== Settings Page ========== */

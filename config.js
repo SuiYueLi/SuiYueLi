@@ -72,6 +72,8 @@ const DEFAULT_SETTINGS = {
 	zuoRotateHanzi: false,
 	bijiDefaultIcon: '✑',
 	bijiAttachIcon: '📎',
+	uiScale: 100,                       // 界面缩放补偿：前缩放系数（百分比，如桌面系统缩放 125 填 125）
+	uiScaleRR: 1,                       // --rr-UI 缓存 = 1/sqrt(uiScale/100)，随 uiScale 一并保存以减少计算
 	customJieSu: null,
 	customFuRi: null,
 	updateCheckInterval: 7,
@@ -103,6 +105,7 @@ export function initConfig() {
 	_applyTheme();
 	_applyBackground();
 	_applyCellShadow();
+	_applyUIScale();
 	// 异步加载背景图（含旧 localStorage 数据迁移到 IDB），不阻塞初始化
 	_initBgImage();
 	window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -395,6 +398,27 @@ export function getBijiAttachIcon() { return settings.bijiAttachIcon || '📎'; 
 export function setBijiAttachIcon(val) {
 	settings.bijiAttachIcon = val || '📎';
 	_saveSettings();
+}
+
+// ========== 界面缩放补偿 ==========
+// --multi-UI = 前缩放系数（百分比数值）；--rr-UI = 1/sqrt(--multi-UI/100)，用作 --app-width 的补偿系数
+// 如系统缩放 125%：--rr-UI ≈ 0.894，--app-width ≈ 540 × 0.894 ≈ 483
+export function getUIScale() { return settings.uiScale || 100; }
+
+export function setUIScale(val) {
+	const v = Math.round(parseFloat(val));
+	if (isNaN(v) || v < 50 || v > 300) return;
+	settings.uiScale = v;
+	settings.uiScaleRR = 1 / Math.sqrt(v / 100);  // 缓存 rr，读取时免算
+	_saveSettings();
+	_applyUIScale();
+}
+
+// 将 --multi-UI / --rr-UI 设到 :root（须在 _updateAppScale 计算 --multi-WX 之前执行，
+// 使 #app 先收窄，--multi-WX 基于补偿后的宽度计算）
+function _applyUIScale() {
+	document.documentElement.style.setProperty('--multi-UI', settings.uiScale || 100);
+	document.documentElement.style.setProperty('--rr-UI', settings.uiScaleRR ?? 1);
 }
 
 export async function setBgImageData(base64Data) {

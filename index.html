@@ -74,6 +74,10 @@
     <button type="button" class="era-arrow" id="eraPrev" aria-label="上一个年号">◀</button>
     <span class="era-text" id="eraText">--</span>
     <button type="button" class="era-arrow" id="eraNext" aria-label="下一个年号">▶</button>
+    <form class="era-search-wrap" id="eraSearchWrap">
+      <input type="text" id="eraSearchInput" placeholder="朝代、君王或年号" enterkeyhint="search" />
+      <button type="submit" id="eraSearchBtn">检索</button>
+    </form>
   </section>
 
   <!-- Bar 4: Weekday Names -->
@@ -200,6 +204,9 @@
 <!-- Jie Dropdown -->
 <div class="jie-dropdown" id="jieDropdown"></div>
 
+<!-- Era Search Dropdown -->
+<div class="era-search-dropdown" id="eraSearchDropdown"></div>
+
 <!-- Hamburger Menu -->
 <div class="hamburger-menu" id="hamburgerMenu">
   <div class="menu-overlay" id="menuOverlay"></div>
@@ -310,6 +317,14 @@
     </div>
     <div class="sp-section">
       <h3>细节</h3>
+      <div class="sp-option">
+        <span>界面缩放补偿</span>
+        <div class="sp-blur-input-wrap">
+          <span class="sp-blur-unit">前缩放系数</span>
+          <input type="number" id="uiScaleInput" value="100" min="50" max="250" step="5" title="桌面系统显示缩放百分比，应用据此反向补偿界面宽度"/>
+          <span class="sp-blur-unit">%</span>
+        </div>
+      </div>
       <div class="sp-option">
         <span>日历格文字阴影<small>（改善可见性）</small></span>
         <div class="week-start-toggle" id="cellShadowToggle" data-value="0">

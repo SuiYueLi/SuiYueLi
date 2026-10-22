@@ -4,7 +4,7 @@ import {JL_Jin, HJ_Jin, lng2cha, D2HMS, readFileAsText} from "./scripts/tools.js
 import * as biji from "./scripts/biji.js";
 import * as jl from "./scripts/JieLi.js";
 import * as wc from "./scripts/westCal.js";
-import {WuZhong} from "./assets/LiShi.js";
+import {WuZhong, NianHao} from "./assets/LiShi.js";
 
 import {
 	initConfig, setThemeMode, setPalette,
@@ -17,6 +17,7 @@ import {
 	getCellShadow, setCellShadow,
 	getZuoRotateHanzi, setZuoRotateHanzi,
 	getBijiDefaultIcon, setBijiDefaultIcon, getBijiAttachIcon, setBijiAttachIcon,
+	getUIScale, setUIScale,
 	getJieSu, setJieSu, getFuRi, setFuRi,
 	getUpdateCheckInterval, setUpdateCheckInterval, getLastUpdateCheck, setLastUpdateCheck,
 	getAutoUpdateFailCount, setAutoUpdateFailCount, getAutoUpdateIgnoredVersion, setAutoUpdateIgnoredVersion,
@@ -134,7 +135,8 @@ function _anyPageOpen() {
 		DOM.fontSubmenu?.classList.contains('open') ||
 		DOM.mergeDialog?.classList.contains('open') ||
 		DOM.jieDropdown?.classList.contains('open') ||
-		DOM.nianInputWrap?.classList.contains('open')
+		DOM.nianInputWrap?.classList.contains('open') ||
+		DOM.eraSearchWrap?.classList.contains('open')
 	);
 }
 
@@ -161,6 +163,7 @@ function _closeTopmost() {
 	if (DOM.vliPanel?.classList.contains('open')) { _closeVLIPanel(); return; }
 	if (DOM.jieDropdown?.classList.contains('open')) { DOM.jieDropdown.classList.remove('open'); _navOnClose(); return; }
 	if (DOM.nianInputWrap?.classList.contains('open')) { _cancelNian(); return; }
+	if (DOM.eraSearchWrap?.classList.contains('open')) { _closeEraSearch(); return; }
 }
 
 let _fontSubmenuKey = null;
@@ -190,6 +193,10 @@ function cacheDOM() {
 	DOM.eraPrev = $('eraPrev');
 	DOM.eraNext = $('eraNext');
 	DOM.eraText = $('eraText');
+	DOM.barEra = $('barEra');
+	DOM.eraSearchWrap = $('eraSearchWrap');
+	DOM.eraSearchInput = $('eraSearchInput');
+	DOM.eraSearchDropdown = $('eraSearchDropdown');
 	DOM.barWeekday = $('barWeekday');
 	DOM.barCalendar = $('barCalendar');
 	DOM.calendarGrid = $('calendarGrid');
@@ -370,6 +377,7 @@ function cacheDOM() {
 	DOM.zuoRotateToggle = $('zuoRotateToggle');
 	DOM.bijiDefaultIconInput = $('bijiDefaultIconInput');
 	DOM.bijiAttachIconInput = $('bijiAttachIconInput');
+	DOM.uiScaleInput = $('uiScaleInput');
 	DOM.jieSuImportBtn = $('jieSuImportBtn');
 	DOM.jieSuExportBtn = $('jieSuExportBtn');
 	DOM.jieSuResetBtn = $('jieSuResetBtn');
@@ -1329,6 +1337,10 @@ function bindEvents() {
 	DOM.eraPrev.addEventListener('click', () => { state.eraIndex--; renderBar3(); });
 	DOM.eraNext.addEventListener('click', () => { state.eraIndex++; renderBar3(); });
 
+	// 年号搜索
+	DOM.eraText.addEventListener('click', _openEraSearch);
+	DOM.eraSearchWrap.addEventListener('submit', e => { e.preventDefault(); _runEraSearch(); });
+
 	// 笔记功能：fabAdd 新建按钮
 
 	// 设置页
@@ -1364,6 +1376,13 @@ function bindEvents() {
 		const v = DOM.bijiAttachIconInput.value.trim() || '📎';
 		setBijiAttachIcon(v);
 		DOM.bijiAttachIconInput.value = getBijiAttachIcon();
+	});
+
+	// 界面缩放补偿：--app-width 先随 --rr-UI 收窄，再基于补偿后宽度重算 --multi-WX
+	DOM.uiScaleInput.addEventListener('change', () => {
+		setUIScale(DOM.uiScaleInput.value);
+		DOM.uiScaleInput.value = getUIScale();
+		_updateAppScale();
 	});
 
 	const _fontPreviewTexts = {
@@ -1650,6 +1669,12 @@ function bindEvents() {
 				_navOnClose();
 			}
 		}
+		// 点击外部关闭年号搜索（eraText 在列：其 click 触发打开后冒泡至此，不可立即关闭）
+		if (DOM.eraSearchWrap?.classList.contains('open') &&
+			!DOM.eraSearchWrap.contains(e.target) && !DOM.eraSearchDropdown.contains(e.target) &&
+			!DOM.eraText.contains(e.target)) {
+			_closeEraSearch();
+		}
 	});
 
 	// 返回键导航
@@ -1935,6 +1960,89 @@ function _toggleJieDropdown(e) {
 	} else {
 		_navOnClose();
 	}
+}
+
+// ========== 年号搜索 ==========
+const _ERA_HAN_RE = /^[\u3400-\u9FFF\uF900-\uFAFF]+$/;
+
+function _openEraSearch() {
+	DOM.eraText.classList.add('hidden');
+	DOM.eraPrev.classList.add('hidden');
+	DOM.eraNext.classList.add('hidden');
+	DOM.eraSearchWrap.classList.add('open');
+	DOM.eraSearchDropdown.classList.remove('open');
+	DOM.eraSearchInput.value = '';
+	_navOnOpen();
+	DOM.eraSearchInput.focus();
+}
+
+function _closeEraSearch() {
+	DOM.eraText.classList.remove('hidden');
+	DOM.eraPrev.classList.remove('hidden');
+	DOM.eraNext.classList.remove('hidden');
+	DOM.eraSearchWrap.classList.remove('open');
+	DOM.eraSearchDropdown.classList.remove('open');
+	_navOnClose();
+}
+
+// 在 NianHao 表中检索关键词（匹配朝代/君王/年号），相邻岁的同一条纪年聚合为一项
+// 跳转节 = 覆盖月份起始月索引（0 起）+ 1；无覆盖月份则岁首 1 节（如 [8] → 9 节）
+function _searchNianHao(kw) {
+	const results = [];
+	for (const k of Object.keys(NianHao).map(Number).sort((a, b) => a - b)) {
+		if (k < -1300) continue;  // 超出岁取值范围（HX.-1300～HX6600），不可跳转
+		for (const seg of NianHao[String(k)]) {
+			if (!seg[0].includes(kw) && !seg[1].includes(kw) && !seg[2].includes(kw)) continue;
+			const prev = results[results.length - 1];
+			if (prev && prev.endKey + 1 === k && prev.chao === seg[0] && prev.jun === seg[1] && prev.hao === seg[2]) {
+				prev.endKey = k;  // 相邻岁延续同一条纪年（如 4646/4647 的"中华人民共和国·西元"）
+				continue;
+			}
+			results.push({
+				chao: seg[0], jun: seg[1], hao: seg[2],
+				startKey: k, endKey: k,
+				startJie: (seg[4] && seg[4][0] ? seg[4][0] : 0) + 1,
+			});
+		}
+	}
+	return results;
+}
+
+function _runEraSearch() {
+	const kw = DOM.eraSearchInput.value.trim();
+	if (!_ERA_HAN_RE.test(kw)) {
+		_showToast('请输入汉字检索。');
+		return;
+	}
+	const results = _searchNianHao(kw);
+	const dd = DOM.eraSearchDropdown;
+	dd.innerHTML = '';
+	if (results.length === 0) {
+		const empty = document.createElement('div');
+		empty.className = 'era-search-empty';
+		empty.textContent = '无此朝代、君王或年号';
+		dd.appendChild(empty);
+	} else {
+		for (const r of results) {
+			const opt = document.createElement('div');
+			opt.className = 'era-search-option';
+			opt.textContent = r.chao + ((r.jun || r.hao) ? '・' : '') + r.jun + r.hao;
+			opt.addEventListener('click', () => _jumpToEraResult(r));
+			dd.appendChild(opt);
+		}
+	}
+	// 定位在年号栏下方（相对 #app 内容坐标，自动兼容滚动）
+	const rect = DOM.barEra.getBoundingClientRect();
+	const appRect = DOM.app.getBoundingClientRect();
+	dd.style.top = (rect.bottom - appRect.top + 2) + 'px';
+	dd.classList.add('open');
+}
+
+async function _jumpToEraResult(r) {
+	_closeEraSearch();
+	// 先设节再切岁：_switchSui 内部 renderAll 用新节，单次渲染
+	state.currentJie = Math.max(1, Math.min(r.startJie, 12));
+	await _switchSui(r.startKey);
 }
 
 // ========== 今按钮 ==========
@@ -3137,6 +3245,7 @@ function _syncSettingsUI() {
 	DOM.zuoRotateToggle.setAttribute('data-value', s.zuoRotateHanzi ? '1' : '0');
 	DOM.bijiDefaultIconInput.value = getBijiDefaultIcon();
 	DOM.bijiAttachIconInput.value = getBijiAttachIcon();
+	DOM.uiScaleInput.value = getUIScale();
 
 	// 更新检查
 	DOM.updateCheckInterval.value = String(s.updateCheckInterval);
