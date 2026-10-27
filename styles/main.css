@@ -2349,6 +2349,17 @@ body {
   padding: 0;
   border-radius: 0;
 }
+.info-page .ip-body blockquote {
+  font-family: var(--font-songTi);
+  font-size: 0.875rem;
+  font-style: italic;
+  line-height: 1.2;
+  color: var(--text-tertiary);
+  border-left: 2px solid var(--divider-color);
+  padding-left: 0.75em;
+  margin: 0.5em 0 0.75em;
+  text-indent: 0;
+}
 .info-page .ip-body .page-note {
   font-size: 0.8125em;
   font-style: italic;
